@@ -1,6 +1,6 @@
-# JAY_CLAUDE_HUB
+# THE BRAIN
 
-My personal links hub — a single static page served via GitHub Pages.
+My personal links hub (`JAY_CLAUDE_HUB`) — a single static page served via GitHub Pages.
 
 **Live site:** https://meshman14-ux.github.io/JAY_CLAUDE_HUB/
 
