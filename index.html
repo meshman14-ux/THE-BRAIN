@@ -4,42 +4,47 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>THE BRAIN</title>
-  <meta name="description" content="THE BRAIN — a personal links hub." />
+  <meta name="description" content="THE BRAIN — a personal hub for links, projects, and a little bit of everything." />
+  <meta name="author" content="meshman14-ux" />
+  <meta name="theme-color" content="#0f1115" />
 
-  <!-- Browser-tab icon: 🧠 as an inline SVG (no extra file needed) -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>" />
-
-  <!-- Match mobile browser chrome to the page -->
-  <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" />
-  <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)" />
-
-  <!-- Social share preview (Open Graph + Twitter) -->
+  <!-- Open Graph / social share cards -->
   <meta property="og:type" content="website" />
   <meta property="og:title" content="THE BRAIN" />
-  <meta property="og:description" content="A personal hub — a few places to find me and my work." />
+  <meta property="og:description" content="A personal hub — links, projects, and a little bit of everything." />
   <meta property="og:url" content="https://meshman14-ux.github.io/THE-BRAIN/" />
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="THE BRAIN" />
-  <meta name="twitter:description" content="A personal hub — a few places to find me and my work." />
+  <meta name="twitter:description" content="A personal hub — links, projects, and a little bit of everything." />
+
+  <!-- Emoji favicon (inline, no external request) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>" />
+
   <style>
     :root {
       --bg: #0f1115;
+      --bg-2: #12151c;
       --card: #171a21;
+      --card-hover: #1c202a;
       --text: #e8eaed;
       --muted: #9aa0ac;
       --accent: #6ea8fe;
+      --accent-2: #a06eff;
       --border: #262b36;
       --radius: 14px;
+      --shadow: 0 8px 30px rgba(0,0,0,.35);
     }
-    @media (prefers-color-scheme: light) {
-      :root {
-        --bg: #f5f6f8;
-        --card: #ffffff;
-        --text: #1a1c20;
-        --muted: #5c6270;
-        --accent: #2f6fed;
-        --border: #e3e6eb;
-      }
+    :root[data-theme="light"] {
+      --bg: #f5f6f8;
+      --bg-2: #eef0f4;
+      --card: #ffffff;
+      --card-hover: #f9fafb;
+      --text: #1a1c20;
+      --muted: #5c6270;
+      --accent: #2f6fed;
+      --accent-2: #7b3ff2;
+      --border: #e3e6eb;
+      --shadow: 0 8px 30px rgba(20,30,60,.10);
     }
     * { box-sizing: border-box; }
     html, body { margin: 0; padding: 0; }
@@ -50,88 +55,489 @@
       -webkit-font-smoothing: antialiased;
       display: flex;
       justify-content: center;
-      padding: 48px 20px 64px;
+      padding: 44px 20px 72px;
       min-height: 100vh;
+      transition: background .3s ease, color .3s ease;
     }
-    .wrap { width: 100%; max-width: 560px; }
-    header { text-align: center; margin-bottom: 32px; }
-    .avatar {
-      width: 84px; height: 84px; border-radius: 50%;
-      margin: 0 auto 16px;
-      background: linear-gradient(135deg, var(--accent), #a06eff);
+
+    /* Animated neural-network canvas sits behind everything */
+    #neural {
+      position: fixed; inset: 0;
+      width: 100%; height: 100%;
+      z-index: -1;
+      opacity: .55;
+    }
+
+    .wrap { width: 100%; max-width: 620px; position: relative; }
+
+    /* ---------- Top bar (theme toggle) ---------- */
+    .topbar {
+      display: flex; justify-content: flex-end;
+      margin-bottom: 8px;
+    }
+    .icon-btn {
+      background: var(--card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 10px;
+      width: 40px; height: 40px;
+      font-size: 18px; cursor: pointer;
       display: flex; align-items: center; justify-content: center;
-      font-size: 34px; font-weight: 700; color: #fff;
-      letter-spacing: -1px;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
     }
-    h1 { font-size: 1.6rem; margin: 0 0 6px; letter-spacing: -0.02em; }
+    .icon-btn:hover { transform: translateY(-2px); border-color: var(--accent); background: var(--card-hover); }
+
+    /* ---------- Header ---------- */
+    header { text-align: center; margin-bottom: 20px; }
+    .avatar {
+      width: 88px; height: 88px; border-radius: 50%;
+      margin: 0 auto 16px;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 36px; font-weight: 700; color: #fff;
+      letter-spacing: -1px; cursor: pointer; user-select: none;
+      box-shadow: var(--shadow);
+      transition: transform .2s cubic-bezier(.34,1.56,.64,1);
+    }
+    .avatar:hover { transform: scale(1.06) rotate(-4deg); }
+    .avatar.spin { animation: spin .8s cubic-bezier(.34,1.56,.64,1); }
+    @keyframes spin { to { transform: rotate(360deg) scale(1.1); } }
+    h1 { font-size: 1.7rem; margin: 0 0 4px; letter-spacing: -0.02em; }
     .tagline { color: var(--muted); margin: 0; font-size: 1rem; }
+    .greeting { color: var(--accent); font-weight: 600; }
+    .clock {
+      color: var(--muted); font-size: .85rem; margin-top: 8px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ---------- Tabs ---------- */
+    .tabs {
+      display: flex; gap: 6px; justify-content: center;
+      margin: 22px 0 18px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 5px;
+    }
+    .tab {
+      flex: 1; text-align: center;
+      background: transparent; border: none; color: var(--muted);
+      font: inherit; font-weight: 600; font-size: .92rem;
+      padding: 9px 12px; border-radius: 8px; cursor: pointer;
+      transition: background .15s ease, color .15s ease;
+    }
+    .tab:hover { color: var(--text); }
+    .tab.active { background: var(--bg-2); color: var(--text); }
+
+    /* ---------- Search ---------- */
+    .search {
+      position: relative; margin-bottom: 16px;
+    }
+    .search input {
+      width: 100%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px 14px 12px 42px;
+      color: var(--text); font: inherit; font-size: .95rem;
+      transition: border-color .15s ease;
+    }
+    .search input:focus { outline: none; border-color: var(--accent); }
+    .search .search-ico {
+      position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+      color: var(--muted); font-size: 16px; pointer-events: none;
+    }
+
+    /* ---------- Panels ---------- */
+    .panel { display: none; animation: fadeIn .35s ease; }
+    .panel.active { display: block; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+    /* ---------- Links ---------- */
     .links { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
-    .links a {
+    .links li { animation: rise .4s ease backwards; }
+    @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+    .link-row {
       display: flex; align-items: center; gap: 12px;
       background: var(--card);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 16px 18px;
+      padding: 15px 16px;
       color: var(--text);
       text-decoration: none;
       font-weight: 600;
       transition: transform .12s ease, border-color .12s ease, background .12s ease;
     }
-    .links a:hover { transform: translateY(-2px); border-color: var(--accent); }
-    .links .ico {
-      width: 24px; text-align: center; font-size: 20px; flex: 0 0 24px;
+    .link-row:hover { transform: translateY(-2px); border-color: var(--accent); background: var(--card-hover); }
+    .link-row .ico { width: 26px; text-align: center; font-size: 20px; flex: 0 0 26px; }
+    .link-row .txt { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+    .link-row .sub { font-weight: 400; font-size: .82rem; color: var(--muted); }
+    .link-row .copy {
+      background: transparent; border: 1px solid var(--border);
+      color: var(--muted); border-radius: 8px; padding: 5px 9px;
+      font-size: .72rem; font-weight: 600; cursor: pointer;
+      transition: border-color .12s ease, color .12s ease;
     }
-    .links .sub { display: block; font-weight: 400; font-size: .82rem; color: var(--muted); }
-    .links .txt { display: flex; flex-direction: column; }
-    footer { text-align: center; color: var(--muted); font-size: .82rem; margin-top: 40px; }
+    .link-row .copy:hover { border-color: var(--accent); color: var(--accent); }
+    .empty { text-align: center; color: var(--muted); padding: 30px 0; font-size: .92rem; }
+
+    /* ---------- Projects ---------- */
+    .projects { display: grid; gap: 12px; }
+    .project {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 18px;
+      text-decoration: none; color: var(--text); display: block;
+      transition: transform .12s ease, border-color .12s ease, background .12s ease;
+    }
+    .project:hover { transform: translateY(-2px); border-color: var(--accent); background: var(--card-hover); }
+    .project h3 { margin: 0 0 4px; font-size: 1.05rem; display: flex; align-items: center; gap: 8px; }
+    .project p { margin: 0 0 10px; color: var(--muted); font-size: .9rem; }
+    .tags { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag {
+      font-size: .72rem; color: var(--accent);
+      background: color-mix(in srgb, var(--accent) 14%, transparent);
+      border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+      padding: 3px 8px; border-radius: 20px; font-weight: 600;
+    }
+
+    /* ---------- About ---------- */
+    .about {
+      background: var(--card); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 22px 22px;
+    }
+    .about p { margin: 0 0 14px; }
+    .about p:last-child { margin-bottom: 0; }
+    .stat-row { display: flex; gap: 10px; margin-top: 4px; }
+    .stat {
+      flex: 1; text-align: center; background: var(--bg-2);
+      border: 1px solid var(--border); border-radius: 12px; padding: 12px 8px;
+    }
+    .stat b { display: block; font-size: 1.3rem; color: var(--accent); }
+    .stat span { font-size: .74rem; color: var(--muted); }
+
+    /* ---------- Footer ---------- */
+    footer { text-align: center; color: var(--muted); font-size: .82rem; margin-top: 34px; }
     footer a { color: var(--muted); }
+    footer a:hover { color: var(--accent); }
+
+    /* ---------- Toast ---------- */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px);
+      background: var(--text); color: var(--bg);
+      padding: 10px 18px; border-radius: 10px; font-size: .88rem; font-weight: 600;
+      opacity: 0; pointer-events: none; transition: opacity .25s ease, transform .25s ease;
+      box-shadow: var(--shadow); z-index: 10;
+    }
+    .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; transition: none !important; }
+    }
   </style>
 </head>
 <body>
+  <canvas id="neural" aria-hidden="true"></canvas>
+
   <main class="wrap">
+    <div class="topbar">
+      <button class="icon-btn" id="themeToggle" title="Toggle theme" aria-label="Toggle theme">🌙</button>
+    </div>
+
     <header>
-      <div class="avatar">🧠</div>
+      <div class="avatar" id="avatar" title="Poke me">🧠</div>
       <h1>THE BRAIN</h1>
-      <p class="tagline">A personal hub — a few places to find me and my work.</p>
+      <p class="tagline"><span class="greeting" id="greeting">Hello</span> — welcome to my corner of the web.</p>
+      <p class="clock" id="clock">—</p>
     </header>
 
-    <!-- Edit the href and label of each link. Add or remove <li> blocks freely. -->
-    <ul class="links">
-      <li>
-        <a href="ledger.html">
-          <span class="ico">🎭</span>
-          <span class="txt">Ledger<span class="sub">Talk to the AI character</span></span>
-        </a>
-      </li>
-      <li>
-        <a href="https://github.com/meshman14-ux" target="_blank" rel="noopener">
-          <span class="ico">🐙</span>
-          <span class="txt">GitHub<span class="sub">github.com/meshman14-ux</span></span>
-        </a>
-      </li>
-      <li>
-        <a href="#" >
-          <span class="ico">✉️</span>
-          <span class="txt">Email<span class="sub">Add your email link (mailto:you@example.com)</span></span>
-        </a>
-      </li>
-      <li>
-        <a href="#">
-          <span class="ico">💼</span>
-          <span class="txt">LinkedIn<span class="sub">Add your profile URL</span></span>
-        </a>
-      </li>
-      <li>
-        <a href="#">
-          <span class="ico">🔗</span>
-          <span class="txt">Another link<span class="sub">Swap this for anything you like</span></span>
-        </a>
-      </li>
-    </ul>
+    <nav class="tabs" role="tablist">
+      <button class="tab active" data-tab="links" role="tab">🔗 Links</button>
+      <button class="tab" data-tab="projects" role="tab">🚀 Projects</button>
+      <button class="tab" data-tab="about" role="tab">👋 About</button>
+    </nav>
+
+    <!-- LINKS -->
+    <section class="panel active" id="panel-links">
+      <div class="search">
+        <span class="search-ico">🔍</span>
+        <input type="text" id="linkSearch" placeholder="Filter links…" aria-label="Filter links" />
+      </div>
+      <ul class="links" id="linksList"></ul>
+    </section>
+
+    <!-- PROJECTS -->
+    <section class="panel" id="panel-projects">
+      <div class="projects" id="projectsList"></div>
+    </section>
+
+    <!-- ABOUT -->
+    <section class="panel" id="panel-about">
+      <div class="about" id="aboutBox"></div>
+    </section>
 
     <footer>
       Built with GitHub Pages · <a href="https://github.com/meshman14-ux/THE-BRAIN">source</a>
     </footer>
   </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+  /* ============================================================
+     THE BRAIN — edit everything below. No build step required.
+     ============================================================ */
+
+  // --- Your links. Add / remove / reorder freely. -------------
+  //   copy:true  → shows a "copy" button instead of opening a tab
+  const LINKS = [
+    { icon: "🎭", label: "Ledger",   sub: "Talk to the AI character", href: "ledger.html" },
+    { icon: "🐙", label: "GitHub",   sub: "github.com/meshman14-ux", href: "https://github.com/meshman14-ux" },
+    { icon: "✉️", label: "Email",    sub: "meshman14@gmail.com",      href: "mailto:meshman14@gmail.com", copy: "meshman14@gmail.com" },
+    { icon: "💼", label: "LinkedIn", sub: "Add your profile URL",     href: "#" },
+    { icon: "🐦", label: "X / Twitter", sub: "Add your handle",       href: "#" },
+    { icon: "🌐", label: "Website",  sub: "Swap for anything you like", href: "#" },
+  ];
+
+  // --- Your projects. ---------------------------------------
+  const PROJECTS = [
+    {
+      title: "THE BRAIN",
+      emoji: "🧠",
+      desc: "This very page — a personal hub built as a single static file, served on GitHub Pages.",
+      href: "https://github.com/meshman14-ux/THE-BRAIN",
+      tags: ["HTML", "CSS", "JS", "GitHub Pages"],
+    },
+    {
+      title: "Ledger",
+      emoji: "🎭",
+      desc: "An interactive AI character you can chat with — a single-file web app living right here in the repo.",
+      href: "ledger.html",
+      tags: ["HTML", "JS", "AI chat"],
+    },
+    {
+      title: "Your next project",
+      emoji: "✨",
+      desc: "Describe something you've built. Add a link, a short blurb, and a few tags.",
+      href: "#",
+      tags: ["Add", "your", "tags"],
+    },
+  ];
+
+  // --- About section. ---------------------------------------
+  const ABOUT = {
+    intro: "Hey — I'm meshman14. THE BRAIN is where I collect the links and projects worth keeping in one place.",
+    body: "It started as a simple links page and is slowly growing into a proper personal hub. Everything here is a single hand-written HTML file, so it stays fast and easy to tweak.",
+    stats: [
+      { value: "∞", label: "Ideas" },
+      { value: "1", label: "Static file" },
+      { value: "0", label: "Build steps" },
+    ],
+  };
+
+  /* ============================================================
+     Rendering + behaviour — you usually won't need to touch this.
+     ============================================================ */
+
+  const $ = (s, r = document) => r.querySelector(s);
+  const toast = (msg) => {
+    const t = $("#toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(t._t); t._t = setTimeout(() => t.classList.remove("show"), 1600);
+  };
+
+  // ----- Render links -----
+  function renderLinks(filter = "") {
+    const list = $("#linksList");
+    const q = filter.trim().toLowerCase();
+    const items = LINKS.filter(l =>
+      !q || l.label.toLowerCase().includes(q) || (l.sub || "").toLowerCase().includes(q)
+    );
+    list.innerHTML = "";
+    if (!items.length) {
+      list.innerHTML = '<li class="empty">No links match that.</li>';
+      return;
+    }
+    items.forEach((l, i) => {
+      const li = document.createElement("li");
+      li.style.animationDelay = (i * 45) + "ms";
+      const external = l.href.startsWith("http");
+      const a = document.createElement("a");
+      a.className = "link-row";
+      a.href = l.href;
+      if (external) { a.target = "_blank"; a.rel = "noopener"; }
+      a.innerHTML =
+        '<span class="ico">' + l.icon + '</span>' +
+        '<span class="txt">' + escapeHtml(l.label) +
+        '<span class="sub">' + escapeHtml(l.sub || "") + '</span></span>';
+      if (l.copy) {
+        const btn = document.createElement("button");
+        btn.className = "copy"; btn.type = "button"; btn.textContent = "Copy";
+        btn.addEventListener("click", (e) => {
+          e.preventDefault(); e.stopPropagation();
+          navigator.clipboard?.writeText(l.copy).then(
+            () => toast("Copied " + l.copy),
+            () => toast("Couldn't copy")
+          );
+        });
+        a.appendChild(btn);
+      }
+      li.appendChild(a);
+      list.appendChild(li);
+    });
+  }
+
+  // ----- Render projects -----
+  function renderProjects() {
+    const box = $("#projectsList");
+    box.innerHTML = "";
+    PROJECTS.forEach((p) => {
+      const external = p.href && p.href.startsWith("http");
+      const a = document.createElement("a");
+      a.className = "project";
+      a.href = p.href || "#";
+      if (external) { a.target = "_blank"; a.rel = "noopener"; }
+      a.innerHTML =
+        '<h3>' + (p.emoji ? p.emoji + " " : "") + escapeHtml(p.title) + '</h3>' +
+        '<p>' + escapeHtml(p.desc) + '</p>' +
+        '<div class="tags">' + (p.tags || []).map(t => '<span class="tag">' + escapeHtml(t) + '</span>').join("") + '</div>';
+      box.appendChild(a);
+    });
+  }
+
+  // ----- Render about -----
+  function renderAbout() {
+    const box = $("#aboutBox");
+    box.innerHTML =
+      '<p>' + escapeHtml(ABOUT.intro) + '</p>' +
+      '<p>' + escapeHtml(ABOUT.body) + '</p>' +
+      '<div class="stat-row">' +
+      ABOUT.stats.map(s => '<div class="stat"><b>' + escapeHtml(s.value) + '</b><span>' + escapeHtml(s.label) + '</span></div>').join("") +
+      '</div>';
+  }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => (
+      { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+    ));
+  }
+
+  // ----- Tabs -----
+  document.querySelectorAll(".tab").forEach(tab => {
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+      document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+      tab.classList.add("active");
+      $("#panel-" + tab.dataset.tab).classList.add("active");
+    });
+  });
+
+  // ----- Search -----
+  $("#linkSearch").addEventListener("input", (e) => renderLinks(e.target.value));
+
+  // ----- Theme (persisted, defaults to system preference) -----
+  const themeBtn = $("#themeToggle");
+  function applyTheme(theme) {
+    document.documentElement.setAttribute("data-theme", theme);
+    themeBtn.textContent = theme === "light" ? "🌞" : "🌙";
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute("content", theme === "light" ? "#f5f6f8" : "#0f1115");
+  }
+  const savedTheme = localStorage.getItem("brain-theme")
+    || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  applyTheme(savedTheme);
+  themeBtn.addEventListener("click", () => {
+    const next = document.documentElement.getAttribute("data-theme") === "light" ? "dark" : "light";
+    applyTheme(next);
+    localStorage.setItem("brain-theme", next);
+  });
+
+  // ----- Greeting + live clock -----
+  function tick() {
+    const now = new Date();
+    const h = now.getHours();
+    const greet = h < 5 ? "Burning the midnight oil" : h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
+    $("#greeting").textContent = greet;
+    $("#clock").textContent = now.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })
+      + " · " + now.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+  }
+  tick(); setInterval(tick, 1000);
+
+  // ----- Easter egg: poke the brain -----
+  let pokes = 0;
+  const avatar = $("#avatar");
+  const brainFacts = [
+    "The human brain has ~86 billion neurons.",
+    "It runs on about 20 watts — less than a lightbulb.",
+    "Neurons can fire up to 200 times per second.",
+    "Your brain is ~60% fat. Stay smart, eat well.",
+    "There are more synapses in your brain than stars in the Milky Way.",
+    "The brain never really 'turns off' — even in deep sleep it's busy.",
+  ];
+  avatar.addEventListener("click", () => {
+    avatar.classList.remove("spin"); void avatar.offsetWidth; avatar.classList.add("spin");
+    toast("🧠 " + brainFacts[pokes % brainFacts.length]);
+    pokes++;
+    if (pokes === 5) toast("🎉 You really like poking brains, huh?");
+  });
+
+  // ----- Neural network background (interactive) -----
+  (function neural() {
+    const canvas = $("#neural");
+    const ctx = canvas.getContext("2d");
+    let w, h, nodes = [], mouse = { x: -999, y: -999 };
+    const COUNT = () => Math.min(70, Math.floor((w * h) / 16000));
+
+    function resize() {
+      w = canvas.width = innerWidth; h = canvas.height = innerHeight;
+      nodes = Array.from({ length: COUNT() }, () => ({
+        x: Math.random() * w, y: Math.random() * h,
+        vx: (Math.random() - .5) * .4, vy: (Math.random() - .5) * .4,
+      }));
+    }
+    function color() {
+      return getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#6ea8fe";
+    }
+    function draw() {
+      ctx.clearRect(0, 0, w, h);
+      const c = color();
+      for (const n of nodes) {
+        n.x += n.vx; n.y += n.vy;
+        if (n.x < 0 || n.x > w) n.vx *= -1;
+        if (n.y < 0 || n.y > h) n.vy *= -1;
+        // gentle pull toward the cursor
+        const dx = mouse.x - n.x, dy = mouse.y - n.y, d = Math.hypot(dx, dy);
+        if (d < 140) { n.x += dx / d * .5; n.y += dy / d * .5; }
+      }
+      for (let i = 0; i < nodes.length; i++) {
+        for (let j = i + 1; j < nodes.length; j++) {
+          const a = nodes[i], b = nodes[j];
+          const dist = Math.hypot(a.x - b.x, a.y - b.y);
+          if (dist < 120) {
+            ctx.globalAlpha = (1 - dist / 120) * .5;
+            ctx.strokeStyle = c; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+          }
+        }
+      }
+      ctx.globalAlpha = .8; ctx.fillStyle = c;
+      for (const n of nodes) { ctx.beginPath(); ctx.arc(n.x, n.y, 1.8, 0, Math.PI * 2); ctx.fill(); }
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(draw);
+    }
+    if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      addEventListener("resize", resize);
+      addEventListener("mousemove", (e) => { mouse.x = e.clientX; mouse.y = e.clientY; });
+      addEventListener("mouseleave", () => { mouse.x = mouse.y = -999; });
+      resize(); draw();
+    } else {
+      canvas.style.display = "none";
+    }
+  })();
+
+  // ----- Initial render -----
+  renderLinks();
+  renderProjects();
+  renderAbout();
+  </script>
 </body>
 </html>
