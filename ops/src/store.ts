@@ -35,6 +35,8 @@ interface DB extends Record<keyof Collections, { id: string }[]> {
   pools: Record<string, string[]>;
   /** `${eventId}:${unitId}` -> shortlisted staffIds. */
   shortlists: Record<string, string[]>;
+  /** unitId -> { itemName: qty } applied when default stock is generated. */
+  stockOverrides: Record<string, Record<string, number>>;
 }
 
 const STORAGE_KEY = 'opsdeck.db.v1';
@@ -63,6 +65,7 @@ function buildFresh(): DB {
     availability: s.availability,
     pools: s.pools,
     shortlists: s.shortlists,
+    stockOverrides: s.stockOverrides,
   };
 }
 
@@ -150,6 +153,12 @@ class OpsStore {
     if (!rows) {
       const unit = this.db.units.find((u) => u.id === unitId);
       rows = defaultStockFor(unit?.type);
+      const overrides = this.db.stockOverrides?.[unitId];
+      if (overrides) {
+        rows.forEach((r) => {
+          if (r.item in overrides) r.qty = overrides[r.item];
+        });
+      }
       this.db.stock[unitId] = rows;
       this.persist();
     }

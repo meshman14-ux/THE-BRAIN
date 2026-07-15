@@ -21,6 +21,8 @@ export interface SeedDB {
   pools: Record<string, string[]>;
   /** `${eventId}:${unitId}` -> shortlisted staffIds. */
   shortlists: Record<string, string[]>;
+  /** unitId -> { itemName: qty } applied over the default stock catalogue. */
+  stockOverrides: Record<string, Record<string, number>>;
 }
 
 export function seed(): SeedDB {
@@ -108,5 +110,16 @@ export function seed(): SeedDB {
     'e1:u3': ['s5'],
   };
 
-  return { clients, staff, events, units, assignments, certs, availability, pools, shortlists };
+  // A couple of lines below par so the "below par" readiness path and the
+  // low-stock row highlight are visible on first load (Bar par: kegs 3, ice 10;
+  // Food par: buns 10). Everything else falls back to the default catalogue.
+  const stockOverrides: Record<string, Record<string, number>> = {
+    u1: { 'Lager keg (50L)': 1, Ice: 4 },
+    u3: { 'Burger buns': 3 },
+  };
+
+  return {
+    clients, staff, events, units, assignments, certs,
+    availability, pools, shortlists, stockOverrides,
+  };
 }
