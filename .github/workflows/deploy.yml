@@ -1,0 +1,58 @@
+name: Deploy to GitHub Pages
+
+# Builds the OPSDECK app and publishes the whole site to GitHub Pages:
+#   /THE-BRAIN/        -> the links hub (root index.html)
+#   /THE-BRAIN/ops/    -> the built OPSDECK app
+# Runs on every push to main (which is what "Publish THE BRAIN.bat" does).
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: ops/package-lock.json
+
+      - name: Build the OPSDECK app
+        working-directory: ops
+        run: |
+          npm ci
+          npm run build
+
+      - name: Assemble the site
+        run: |
+          mkdir -p _site
+          cp index.html _site/index.html
+          cp -r ops/dist _site/ops
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
