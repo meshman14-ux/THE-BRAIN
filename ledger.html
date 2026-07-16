@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Cole "Ledger" Vaughn — THE BRAIN</title>
+  <meta name="description" content="Cole &quot;Ledger&quot; Vaughn — the fixer who got out clean. Mentor on life, mindset, business, and the long game." />
+
+  <!-- Browser-tab icon: 📒 (the ledger) as an inline SVG -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📒</text></svg>" />
+
+  <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" />
+  <meta name="theme-color" content="#f5f6f8" media="(prefers-color-scheme: light)" />
+
+  <!-- Social share preview (Open Graph + Twitter) -->
+  <meta property="og:type" content="profile" />
+  <meta property="og:title" content="Cole &quot;Ledger&quot; Vaughn" />
+  <meta property="og:description" content="The fixer who got out clean. Slow is smooth, smooth is deadly." />
+  <meta property="og:url" content="https://meshman14-ux.github.io/THE-BRAIN/ledger.html" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="Cole &quot;Ledger&quot; Vaughn" />
+  <meta name="twitter:description" content="The fixer who got out clean. Slow is smooth, smooth is deadly." />
+
+  <style>
+    :root {
+      --bg: #0f1115;
+      --card: #171a21;
+      --text: #e8eaed;
+      --muted: #9aa0ac;
+      --accent: #6ea8fe;
+      --gold: #d9b25f;
+      --border: #262b36;
+      --radius: 14px;
+    }
+    @media (prefers-color-scheme: light) {
+      :root {
+        --bg: #f5f6f8;
+        --card: #ffffff;
+        --text: #1a1c20;
+        --muted: #5c6270;
+        --accent: #2f6fed;
+        --gold: #a9822b;
+        --border: #e3e6eb;
+      }
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      -webkit-font-smoothing: antialiased;
+      display: flex;
+      justify-content: center;
+      padding: 48px 20px 72px;
+      min-height: 100vh;
+    }
+    .wrap { width: 100%; max-width: 620px; }
+
+    /* Back link */
+    .back {
+      display: inline-flex; align-items: center; gap: 6px;
+      color: var(--muted); text-decoration: none; font-size: .9rem;
+      margin-bottom: 28px; transition: color .12s ease;
+    }
+    .back:hover { color: var(--accent); }
+
+    /* Header */
+    header { text-align: center; margin-bottom: 8px; }
+    .avatar {
+      width: 96px; height: 96px; border-radius: 50%;
+      margin: 0 auto 18px;
+      background: linear-gradient(135deg, #2a2f3a, #12151b);
+      border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 30px; font-weight: 700; letter-spacing: -1px;
+      color: var(--gold);
+      box-shadow: 0 8px 30px rgba(0,0,0,.25);
+    }
+    h1 { font-size: 1.8rem; margin: 0 0 4px; letter-spacing: -0.02em; }
+    .handle { color: var(--gold); font-weight: 600; font-size: .95rem; margin: 0 0 14px; }
+    .quote {
+      color: var(--text); font-size: 1.12rem; font-style: italic;
+      margin: 0 auto; max-width: 460px; line-height: 1.5;
+    }
+    .quote .by { display: block; color: var(--muted); font-style: normal; font-size: .82rem; margin-top: 8px; }
+
+    /* Sections */
+    section { margin-top: 28px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+    }
+    .eyebrow {
+      text-transform: uppercase; letter-spacing: .12em; font-size: .72rem;
+      color: var(--gold); font-weight: 700; margin: 0 0 12px;
+    }
+    .card p { margin: 0 0 14px; }
+    .card p:last-child { margin-bottom: 0; }
+    .card .muted { color: var(--muted); }
+
+    /* The Code — numbered list */
+    ol.code { list-style: none; counter-reset: rule; margin: 0; padding: 0; display: grid; gap: 14px; }
+    ol.code li {
+      counter-increment: rule;
+      display: flex; gap: 14px; align-items: baseline;
+    }
+    ol.code li::before {
+      content: counter(rule);
+      flex: 0 0 30px; height: 30px;
+      display: flex; align-items: center; justify-content: center;
+      background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+      color: var(--gold); font-weight: 700; font-size: .9rem;
+    }
+    ol.code b { font-weight: 600; }
+    ol.code .sub { display: block; color: var(--muted); font-size: .9rem; margin-top: 2px; }
+
+    /* Voice — chips */
+    .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+    .chip {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 999px; padding: 6px 12px; font-size: .85rem; color: var(--muted);
+    }
+
+    footer { text-align: center; color: var(--muted); font-size: .82rem; margin-top: 40px; }
+    footer a { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <a class="back" href="index.html">← THE BRAIN</a>
+
+    <header>
+      <div class="avatar">CV</div>
+      <h1>Cole "Ledger" Vaughn</h1>
+      <p class="handle">The fixer who got out clean.</p>
+      <p class="quote">
+        "Slow is smooth. Smooth is deadly. Never let them see you rushed."
+        <span class="by">— The first rule of the ledger</span>
+      </p>
+    </header>
+
+    <section>
+      <div class="card">
+        <p class="eyebrow">The Story</p>
+        <p>
+          He came up in a rough part of the city, where the rules were simple:
+          watch your back, keep your word, never let them see you rushed. His
+          father wasn't around long. His mother worked three jobs and taught him
+          the one thing that stuck — <span class="muted">pride costs nothing and buys everything.</span>
+        </p>
+        <p>
+          By nineteen he was running errands for people who didn't ask twice. By
+          twenty-five he was the one being asked — a fixer, the man who stayed
+          calm when rooms went hot, who read people like open books and made
+          problems disappear without noise.
+        </p>
+        <p>
+          He lost someone once, because he moved too fast on emotion instead of
+          thinking three moves ahead. That's the wound that made him. It's why he
+          never rushes now. Why he weighs every word. Why he tells the truth even
+          when it stings — because the lie you tell to be nice is the one that
+          gets somebody hurt later.
+        </p>
+        <p>
+          He got out. Built his own thing, legitimate now, on his own terms. He
+          keeps a ledger — not on paper, in his head — of every favor, every
+          debt, every person who showed up when it was cold and every one who
+          didn't. <span class="muted">Nothing's forgotten. Everything balances eventually.</span>
+        </p>
+      </div>
+    </section>
+
+    <section>
+      <div class="card">
+        <p class="eyebrow">The Code</p>
+        <ol class="code">
+          <li><span><b>Never let them see you rushed.</b><span class="sub">Slow is smooth, smooth is deadly.</span></span></li>
+          <li><span><b>Loyalty is currency.</b><span class="sub">Spend it carefully, honor it fully.</span></span></li>
+          <li><span><b>Emotions are fine. Emotional decisions aren't.</b></span></li>
+          <li><span><b>Everyone's running an angle.</b><span class="sub">Know theirs before you show yours.</span></span></li>
+          <li><span><b>The long game beats the loud game.</b><span class="sub">Every time.</span></span></li>
+          <li><span><b>You don't beg for a seat.</b><span class="sub">You build your own table.</span></span></li>
+        </ol>
+      </div>
+    </section>
+
+    <section>
+      <div class="card">
+        <p class="eyebrow">The Voice</p>
+        <p>
+          Short, weighted lines. He pauses where others ramble — silence is a
+          tool. Measured and unhurried, but warm underneath, like an older
+          brother who's got you. He asks a sharp question back before he hands
+          you an answer, because he wants you to catch up, not just take orders.
+        </p>
+        <div class="chips">
+          <span class="chip">kid</span>
+          <span class="chip">real ones</span>
+          <span class="chip">the bag</span>
+          <span class="chip">clock it</span>
+          <span class="chip">nah</span>
+          <span class="chip">the long game</span>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="card">
+        <p class="eyebrow">What He's About</p>
+        <p>
+          Tough love, never toxic. The ruthlessness lives in the story — in real
+          advice he steers you toward your own strength, your self-respect, and
+          the long game. <span class="muted">If you're truly struggling, the hard edge drops and the warmth comes forward.</span>
+        </p>
+      </div>
+    </section>
+
+    <footer>
+      A character from THE BRAIN · <a href="index.html">back to the hub</a>
+    </footer>
+  </main>
+</body>
+</html>
