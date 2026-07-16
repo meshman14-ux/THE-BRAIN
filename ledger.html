@@ -4,10 +4,10 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Ledger · THE BRAIN</title>
-  <meta name="description" content="A personal ledger — track income and expenses with a running balance." />
+  <meta name="description" content="Ledger — an AI character you can talk to." />
 
-  <!-- Browser-tab icon: 📒 as an inline SVG (no extra file needed) -->
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📒</text></svg>" />
+  <!-- Browser-tab icon: 🎭 as an inline SVG (no extra file needed) -->
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎭</text></svg>" />
 
   <!-- Match mobile browser chrome to the page -->
   <meta name="theme-color" content="#0f1115" media="(prefers-color-scheme: dark)" />
@@ -20,9 +20,11 @@
       --text: #e8eaed;
       --muted: #9aa0ac;
       --accent: #6ea8fe;
+      --accent2: #a06eff;
       --border: #262b36;
-      --pos: #4ec98f;
-      --neg: #f0736f;
+      --bubble-me: #2f6fed;
+      --bubble-them: #1d2230;
+      --danger: #f0736f;
       --radius: 14px;
     }
     @media (prefers-color-scheme: light) {
@@ -32,13 +34,15 @@
         --text: #1a1c20;
         --muted: #5c6270;
         --accent: #2f6fed;
+        --accent2: #7b4bd6;
         --border: #e3e6eb;
-        --pos: #1f9d63;
-        --neg: #d64541;
+        --bubble-me: #2f6fed;
+        --bubble-them: #eef0f4;
+        --danger: #d64541;
       }
     }
     * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; }
+    html, body { margin: 0; padding: 0; height: 100%; }
     body {
       background: var(--bg);
       color: var(--text);
@@ -46,333 +50,489 @@
       -webkit-font-smoothing: antialiased;
       display: flex;
       justify-content: center;
-      padding: 40px 20px 64px;
-      min-height: 100vh;
     }
-    .wrap { width: 100%; max-width: 680px; }
+    .wrap {
+      width: 100%; max-width: 720px;
+      display: flex; flex-direction: column;
+      height: 100dvh;
+      padding: 0 16px;
+    }
 
-    .back { display: inline-block; color: var(--muted); text-decoration: none; font-size: .9rem; margin-bottom: 18px; }
-    .back:hover { color: var(--accent); }
-
-    header { text-align: center; margin-bottom: 26px; }
-    .avatar {
-      width: 72px; height: 72px; border-radius: 18px;
-      margin: 0 auto 14px;
-      background: linear-gradient(135deg, var(--accent), #a06eff);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 32px;
-    }
-    h1 { font-size: 1.5rem; margin: 0 0 6px; letter-spacing: -0.02em; }
-    .tagline { color: var(--muted); margin: 0; font-size: .95rem; }
-
-    /* Summary tiles */
-    .summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 24px 0; }
-    .tile {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 14px 16px; text-align: center;
-    }
-    .tile .label { color: var(--muted); font-size: .75rem; text-transform: uppercase; letter-spacing: .04em; }
-    .tile .value { font-size: 1.25rem; font-weight: 700; margin-top: 4px; letter-spacing: -0.01em; word-break: break-word; }
-    .value.pos { color: var(--pos); }
-    .value.neg { color: var(--neg); }
-
-    /* Add form */
-    form.add {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 16px; margin-bottom: 22px;
-      display: grid; gap: 10px;
-      grid-template-columns: 1fr 1fr;
-    }
-    form.add .desc { grid-column: 1 / -1; }
-    form.add .row-btns { grid-column: 1 / -1; display: flex; gap: 10px; }
-    label { display: block; font-size: .78rem; color: var(--muted); margin-bottom: 5px; }
-    input, select {
-      width: 100%; padding: 10px 12px;
-      background: var(--bg); color: var(--text);
-      border: 1px solid var(--border); border-radius: 10px;
-      font: inherit; font-size: .95rem;
-    }
-    input:focus, select:focus { outline: none; border-color: var(--accent); }
-    button {
-      font: inherit; font-weight: 600; cursor: pointer;
-      border: 1px solid var(--border); border-radius: 10px;
-      padding: 10px 16px; background: var(--accent); color: #fff; border-color: transparent;
-      transition: transform .1s ease, opacity .1s ease;
-    }
-    button:hover { transform: translateY(-1px); }
-    button.ghost { background: transparent; color: var(--muted); border-color: var(--border); }
-    button.ghost:hover { color: var(--text); border-color: var(--accent); }
-    .seg { display: flex; gap: 8px; }
-    .seg button {
-      flex: 1; background: var(--bg); color: var(--muted); border: 1px solid var(--border); font-weight: 600;
-    }
-    .seg button[aria-pressed="true"][data-type="income"] { background: var(--pos); color: #fff; border-color: transparent; }
-    .seg button[aria-pressed="true"][data-type="expense"] { background: var(--neg); color: #fff; border-color: transparent; }
-
-    /* Ledger list */
-    .list { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
-    .entry {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 12px 14px;
+    /* Top bar */
+    header {
       display: flex; align-items: center; gap: 12px;
+      padding: 14px 2px 12px;
+      border-bottom: 1px solid var(--border);
     }
-    .entry .meta { flex: 1; min-width: 0; }
-    .entry .d { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .entry .date { color: var(--muted); font-size: .78rem; }
-    .entry .amt { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-    .entry .amt.pos { color: var(--pos); }
-    .entry .amt.neg { color: var(--neg); }
-    .entry .del {
-      background: transparent; border: none; color: var(--muted); font-size: 1.1rem;
-      padding: 4px 6px; cursor: pointer; line-height: 1; border-radius: 8px;
+    .back { color: var(--muted); text-decoration: none; font-size: 1.2rem; line-height: 1; padding: 4px; }
+    .back:hover { color: var(--accent); }
+    .avatar {
+      width: 40px; height: 40px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; flex: 0 0 40px;
     }
-    .entry .del:hover { color: var(--neg); transform: none; }
-
-    .empty { text-align: center; color: var(--muted); padding: 32px 12px; font-size: .95rem; }
-
-    .toolbar { display: flex; justify-content: space-between; align-items: center; margin: 26px 0 12px; }
-    .toolbar h2 { font-size: 1rem; margin: 0; }
-
-    footer { text-align: center; color: var(--muted); font-size: .82rem; margin-top: 40px; }
-    footer a { color: var(--muted); }
-
-    @media (max-width: 480px) {
-      .summary { grid-template-columns: 1fr; }
+    .who { flex: 1; min-width: 0; }
+    .who h1 { font-size: 1.05rem; margin: 0; letter-spacing: -0.01em; }
+    .who .status { color: var(--muted); font-size: .78rem; }
+    .who .status.on { color: #4ec98f; }
+    .icon-btn {
+      background: transparent; border: 1px solid var(--border); color: var(--muted);
+      border-radius: 10px; padding: 7px 10px; cursor: pointer; font: inherit; font-size: .9rem;
     }
+    .icon-btn:hover { color: var(--text); border-color: var(--accent); }
+
+    /* Settings panel */
+    .settings {
+      border: 1px solid var(--border); background: var(--card);
+      border-radius: var(--radius); padding: 14px; margin: 12px 0 4px;
+      display: none; gap: 10px; flex-direction: column;
+    }
+    .settings.open { display: flex; }
+    .settings label { font-size: .78rem; color: var(--muted); display: block; margin-bottom: 5px; }
+    .settings input, .settings select, .settings textarea {
+      width: 100%; padding: 9px 11px; background: var(--bg); color: var(--text);
+      border: 1px solid var(--border); border-radius: 10px; font: inherit; font-size: .92rem;
+    }
+    .settings textarea { resize: vertical; min-height: 78px; line-height: 1.45; }
+    .settings input:focus, .settings select:focus, .settings textarea:focus { outline: none; border-color: var(--accent); }
+    .settings .row { display: flex; gap: 10px; flex-wrap: wrap; }
+    .settings .row > div { flex: 1; min-width: 150px; }
+    .hint { font-size: .74rem; color: var(--muted); margin-top: 2px; }
+    .hint a { color: var(--accent); }
+    .settings .actions { display: flex; gap: 10px; justify-content: space-between; flex-wrap: wrap; }
+    .btn {
+      font: inherit; font-weight: 600; cursor: pointer; border-radius: 10px; padding: 9px 15px;
+      background: var(--accent); color: #fff; border: 1px solid transparent;
+    }
+    .btn:hover { filter: brightness(1.05); }
+    .btn.ghost { background: transparent; color: var(--muted); border-color: var(--border); }
+    .btn.ghost:hover { color: var(--text); border-color: var(--accent); }
+    .btn.danger { background: transparent; color: var(--danger); border-color: var(--border); }
+    .btn.danger:hover { border-color: var(--danger); }
+
+    /* Messages */
+    .chat { flex: 1; overflow-y: auto; padding: 16px 2px; display: flex; flex-direction: column; gap: 12px; }
+    .msg { display: flex; gap: 10px; max-width: 100%; }
+    .msg .ava {
+      width: 30px; height: 30px; border-radius: 50%; flex: 0 0 30px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      display: flex; align-items: center; justify-content: center; font-size: 15px;
+    }
+    .bubble {
+      padding: 10px 14px; border-radius: 16px; max-width: 82%;
+      white-space: pre-wrap; word-wrap: break-word; overflow-wrap: anywhere;
+    }
+    .msg.them .bubble { background: var(--bubble-them); border-top-left-radius: 5px; }
+    .msg.me { justify-content: flex-end; }
+    .msg.me .bubble { background: var(--bubble-me); color: #fff; border-top-right-radius: 5px; }
+    .bubble .cursor { display: inline-block; width: 7px; height: 1.05em; background: var(--muted); vertical-align: -2px; border-radius: 1px; animation: blink 1s steps(2) infinite; }
+    @keyframes blink { 0%,50% { opacity: 1; } 50.01%,100% { opacity: 0; } }
+
+    .empty {
+      text-align: center; color: var(--muted); margin: auto; padding: 24px; max-width: 380px;
+    }
+    .empty .big { font-size: 42px; margin-bottom: 10px; }
+    .empty h2 { color: var(--text); font-size: 1.15rem; margin: 0 0 6px; }
+    .empty p { margin: 0; font-size: .92rem; }
+
+    .error {
+      background: color-mix(in srgb, var(--danger) 14%, transparent);
+      border: 1px solid var(--danger); color: var(--text);
+      border-radius: 12px; padding: 10px 12px; font-size: .86rem;
+    }
+
+    /* Composer */
+    .composer {
+      display: flex; gap: 10px; align-items: flex-end;
+      padding: 10px 0 14px; border-top: 1px solid var(--border);
+    }
+    .composer textarea {
+      flex: 1; resize: none; max-height: 160px; min-height: 46px;
+      padding: 12px 14px; background: var(--card); color: var(--text);
+      border: 1px solid var(--border); border-radius: 14px; font: inherit; font-size: .95rem; line-height: 1.4;
+    }
+    .composer textarea:focus { outline: none; border-color: var(--accent); }
+    .send {
+      width: 46px; height: 46px; flex: 0 0 46px; border-radius: 50%;
+      background: var(--accent); color: #fff; border: none; cursor: pointer;
+      font-size: 20px; display: flex; align-items: center; justify-content: center;
+    }
+    .send:disabled { opacity: .45; cursor: not-allowed; }
+    .send:not(:disabled):hover { filter: brightness(1.05); }
   </style>
 </head>
 <body>
   <main class="wrap">
-    <a class="back" href="index.html">← THE BRAIN</a>
-
     <header>
-      <div class="avatar">📒</div>
-      <h1>Ledger</h1>
-      <p class="tagline">Track income and expenses. Saved locally in your browser.</p>
+      <a class="back" href="index.html" title="THE BRAIN" aria-label="Back to THE BRAIN">←</a>
+      <div class="avatar">🎭</div>
+      <div class="who">
+        <h1>Ledger</h1>
+        <div class="status" id="status">Set your API key to begin</div>
+      </div>
+      <button class="icon-btn" id="toggle-settings" aria-label="Settings">⚙︎</button>
     </header>
 
-    <section class="summary" aria-label="Balance summary">
-      <div class="tile">
-        <div class="label">Balance</div>
-        <div class="value" id="sum-balance">$0.00</div>
+    <section class="settings" id="settings">
+      <div>
+        <label for="api-key">Anthropic API key</label>
+        <input type="password" id="api-key" placeholder="sk-ant-..." autocomplete="off" spellcheck="false" />
+        <div class="hint">Stored only in this browser (localStorage) and sent directly to api.anthropic.com. Get one at <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a>.</div>
       </div>
-      <div class="tile">
-        <div class="label">Income</div>
-        <div class="value pos" id="sum-income">$0.00</div>
+      <div class="row">
+        <div>
+          <label for="model">Model</label>
+          <select id="model">
+            <option value="claude-opus-4-8">Claude Opus 4.8 (smartest)</option>
+            <option value="claude-sonnet-5">Claude Sonnet 5 (balanced)</option>
+            <option value="claude-haiku-4-5">Claude Haiku 4.5 (fastest)</option>
+          </select>
+        </div>
       </div>
-      <div class="tile">
-        <div class="label">Expenses</div>
-        <div class="value neg" id="sum-expense">$0.00</div>
+      <div>
+        <label for="persona">Who is Ledger? (character / system prompt)</label>
+        <textarea id="persona" spellcheck="false"></textarea>
+        <div class="hint">Shape Ledger's personality, voice, and backstory. Edit freely — saved automatically.</div>
+      </div>
+      <div class="actions">
+        <button class="btn danger" id="clear-chat">Clear conversation</button>
+        <button class="btn" id="save-settings">Save</button>
       </div>
     </section>
 
-    <form class="add" id="add-form" autocomplete="off">
-      <div class="desc">
-        <label for="f-desc">Description</label>
-        <input type="text" id="f-desc" placeholder="e.g. Groceries" required maxlength="80" />
-      </div>
-      <div>
-        <label for="f-amount">Amount</label>
-        <input type="number" id="f-amount" placeholder="0.00" step="0.01" min="0" required />
-      </div>
-      <div>
-        <label for="f-date">Date</label>
-        <input type="date" id="f-date" required />
-      </div>
-      <div class="desc">
-        <label>Type</label>
-        <div class="seg" role="group" aria-label="Entry type">
-          <button type="button" data-type="income" aria-pressed="false">Income</button>
-          <button type="button" data-type="expense" aria-pressed="true">Expense</button>
-        </div>
-      </div>
-      <div class="row-btns">
-        <button type="submit">Add entry</button>
-      </div>
+    <div class="chat" id="chat"></div>
+
+    <form class="composer" id="composer">
+      <textarea id="input" placeholder="Message Ledger…" rows="1"></textarea>
+      <button type="submit" class="send" id="send" aria-label="Send" disabled>➤</button>
     </form>
-
-    <div class="toolbar">
-      <h2>Entries</h2>
-      <button type="button" class="ghost" id="clear-all">Clear all</button>
-    </div>
-
-    <ul class="list" id="list"></ul>
-    <p class="empty" id="empty" hidden>No entries yet. Add one above to get started.</p>
-
-    <footer>
-      Part of <a href="index.html">THE BRAIN</a> · data stays on this device
-    </footer>
   </main>
 
   <script>
     (function () {
       "use strict";
 
-      var STORAGE_KEY = "the-brain-ledger-v1";
-      var entries = load();
-      var pendingType = "expense";
-
-      var els = {
-        form: document.getElementById("add-form"),
-        desc: document.getElementById("f-desc"),
-        amount: document.getElementById("f-amount"),
-        date: document.getElementById("f-date"),
-        list: document.getElementById("list"),
-        empty: document.getElementById("empty"),
-        clearAll: document.getElementById("clear-all"),
-        sumBalance: document.getElementById("sum-balance"),
-        sumIncome: document.getElementById("sum-income"),
-        sumExpense: document.getElementById("sum-expense"),
-        seg: document.querySelectorAll(".seg button")
+      var KEYS = {
+        apiKey: "the-brain-ledger-apikey",
+        model: "the-brain-ledger-model",
+        persona: "the-brain-ledger-persona",
+        history: "the-brain-ledger-history-v1"
       };
 
-      // Default the date field to today.
-      els.date.value = todayISO();
+      var DEFAULT_PERSONA =
+        "You are Ledger, an AI character with a distinct personality.\n\n" +
+        "Voice: warm, quick-witted, and a little dry. You keep things concise and human — " +
+        "no corporate filler, no over-explaining. You have opinions and you share them.\n\n" +
+        "You're curious about the person you're talking to and remember what they tell you " +
+        "within the conversation. You're honest when you don't know something.\n\n" +
+        "Stay in character as Ledger throughout.";
 
-      // Type toggle.
-      els.seg.forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          pendingType = btn.getAttribute("data-type");
-          els.seg.forEach(function (b) {
-            b.setAttribute("aria-pressed", b === btn ? "true" : "false");
-          });
-        });
+      var els = {
+        chat: document.getElementById("chat"),
+        input: document.getElementById("input"),
+        send: document.getElementById("send"),
+        composer: document.getElementById("composer"),
+        settings: document.getElementById("settings"),
+        toggle: document.getElementById("toggle-settings"),
+        apiKey: document.getElementById("api-key"),
+        model: document.getElementById("model"),
+        persona: document.getElementById("persona"),
+        save: document.getElementById("save-settings"),
+        clear: document.getElementById("clear-chat"),
+        status: document.getElementById("status")
+      };
+
+      // ---- State ----
+      var messages = load(KEYS.history, []);       // [{role, content}]
+      var streaming = false;
+
+      // ---- Init from storage ----
+      els.apiKey.value = localStorage.getItem(KEYS.apiKey) || "";
+      els.model.value = localStorage.getItem(KEYS.model) || "claude-opus-4-8";
+      els.persona.value = localStorage.getItem(KEYS.persona) || DEFAULT_PERSONA;
+
+      // ---- Settings panel ----
+      els.toggle.addEventListener("click", function () {
+        els.settings.classList.toggle("open");
+      });
+      els.save.addEventListener("click", function () {
+        localStorage.setItem(KEYS.apiKey, els.apiKey.value.trim());
+        localStorage.setItem(KEYS.model, els.model.value);
+        localStorage.setItem(KEYS.persona, els.persona.value);
+        els.settings.classList.remove("open");
+        refreshStatus();
+        updateSendState();
+      });
+      // Persist persona & model live too
+      els.persona.addEventListener("input", function () {
+        localStorage.setItem(KEYS.persona, els.persona.value);
+      });
+      els.model.addEventListener("change", function () {
+        localStorage.setItem(KEYS.model, els.model.value);
+      });
+      els.apiKey.addEventListener("input", function () {
+        localStorage.setItem(KEYS.apiKey, els.apiKey.value.trim());
+        refreshStatus();
+        updateSendState();
+      });
+      els.clear.addEventListener("click", function () {
+        if (!messages.length) return;
+        if (!confirm("Clear the whole conversation with Ledger?")) return;
+        messages = [];
+        save(KEYS.history, messages);
+        render();
       });
 
-      els.form.addEventListener("submit", function (e) {
+      // ---- Composer ----
+      els.input.addEventListener("input", function () {
+        autoGrow();
+        updateSendState();
+      });
+      els.input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          els.composer.requestSubmit();
+        }
+      });
+      els.composer.addEventListener("submit", function (e) {
         e.preventDefault();
-        var amount = parseFloat(els.amount.value);
-        var desc = els.desc.value.trim();
-        if (!desc || isNaN(amount) || amount <= 0) return;
-
-        entries.push({
-          id: uid(),
-          desc: desc,
-          amount: Math.round(amount * 100) / 100,
-          type: pendingType,
-          date: els.date.value || todayISO()
-        });
-        save();
-        render();
-
-        // Reset for the next entry, keep the chosen date.
-        els.desc.value = "";
-        els.amount.value = "";
-        els.desc.focus();
+        onSend();
       });
 
-      els.list.addEventListener("click", function (e) {
-        var btn = e.target.closest(".del");
-        if (!btn) return;
-        var id = btn.getAttribute("data-id");
-        entries = entries.filter(function (x) { return x.id !== id; });
-        save();
+      function autoGrow() {
+        els.input.style.height = "auto";
+        els.input.style.height = Math.min(els.input.scrollHeight, 160) + "px";
+      }
+
+      function hasKey() { return (localStorage.getItem(KEYS.apiKey) || "").trim().length > 0; }
+
+      function updateSendState() {
+        els.send.disabled = streaming || !hasKey() || els.input.value.trim().length === 0;
+      }
+
+      function refreshStatus() {
+        if (!hasKey()) {
+          els.status.textContent = "Set your API key to begin";
+          els.status.className = "status";
+        } else {
+          els.status.textContent = "Online · " + labelFor(els.model.value);
+          els.status.className = "status on";
+        }
+      }
+      function labelFor(m) {
+        if (m === "claude-opus-4-8") return "Opus 4.8";
+        if (m === "claude-sonnet-5") return "Sonnet 5";
+        if (m === "claude-haiku-4-5") return "Haiku 4.5";
+        return m;
+      }
+
+      // ---- Send flow ----
+      function onSend() {
+        var text = els.input.value.trim();
+        if (!text || streaming || !hasKey()) return;
+
+        messages.push({ role: "user", content: text });
+        save(KEYS.history, messages);
+        els.input.value = "";
+        autoGrow();
         render();
-      });
 
-      els.clearAll.addEventListener("click", function () {
-        if (!entries.length) return;
-        if (!confirm("Delete all ledger entries? This can't be undone.")) return;
-        entries = [];
-        save();
-        render();
-      });
+        streaming = true;
+        updateSendState();
 
-      function render() {
-        // Sort newest date first; stable for equal dates.
-        var sorted = entries.slice().sort(function (a, b) {
-          return a.date < b.date ? 1 : a.date > b.date ? -1 : 0;
+        var assistant = { role: "assistant", content: "" };
+        messages.push(assistant);
+        render(true); // show typing cursor
+
+        streamReply(assistant).then(function () {
+          streaming = false;
+          if (!assistant.content) {
+            // Nothing came back — drop the empty turn so we don't persist a blank.
+            messages.pop();
+          }
+          save(KEYS.history, messages);
+          render();
+          updateSendState();
+          els.input.focus();
+        }).catch(function (err) {
+          streaming = false;
+          messages.pop(); // remove the empty assistant turn
+          save(KEYS.history, messages);
+          render();
+          showError(err && err.message ? err.message : String(err));
+          updateSendState();
         });
+      }
 
-        els.list.innerHTML = "";
-        sorted.forEach(function (x) {
-          var li = document.createElement("li");
-          li.className = "entry";
+      function streamReply(assistant) {
+        var apiKey = (localStorage.getItem(KEYS.apiKey) || "").trim();
+        var model = localStorage.getItem(KEYS.model) || "claude-opus-4-8";
+        var system = (localStorage.getItem(KEYS.persona) || DEFAULT_PERSONA).trim();
 
-          var meta = document.createElement("div");
-          meta.className = "meta";
-          var d = document.createElement("div");
-          d.className = "d";
-          d.textContent = x.desc;
-          var date = document.createElement("div");
-          date.className = "date";
-          date.textContent = formatDate(x.date);
-          meta.appendChild(d);
-          meta.appendChild(date);
+        // Send prior turns (exclude the empty assistant placeholder we just pushed).
+        var apiMessages = messages
+          .filter(function (m) { return m.content && m.content.length; })
+          .map(function (m) { return { role: m.role, content: m.content }; });
 
-          var amt = document.createElement("div");
-          amt.className = "amt " + (x.type === "income" ? "pos" : "neg");
-          amt.textContent = (x.type === "income" ? "+" : "−") + money(x.amount);
+        var body = {
+          model: model,
+          max_tokens: 4096,
+          system: system,
+          messages: apiMessages,
+          stream: true
+        };
 
-          var del = document.createElement("button");
-          del.className = "del";
-          del.setAttribute("data-id", x.id);
-          del.setAttribute("aria-label", "Delete entry");
-          del.textContent = "✕";
-
-          li.appendChild(meta);
-          li.appendChild(amt);
-          li.appendChild(del);
-          els.list.appendChild(li);
+        return fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true"
+          },
+          body: JSON.stringify(body)
+        }).then(function (res) {
+          if (!res.ok) {
+            return res.text().then(function (t) {
+              var msg = "Request failed (" + res.status + ")";
+              try { var j = JSON.parse(t); if (j.error && j.error.message) msg = j.error.message; } catch (e) {}
+              if (res.status === 401) msg = "Invalid API key. Check it in settings (⚙︎).";
+              throw new Error(msg);
+            });
+          }
+          return consumeStream(res.body, assistant);
         });
+      }
 
-        els.empty.hidden = entries.length > 0;
+      function consumeStream(stream, assistant) {
+        var reader = stream.getReader();
+        var decoder = new TextDecoder();
+        var buffer = "";
 
-        var income = 0, expense = 0;
-        entries.forEach(function (x) {
-          if (x.type === "income") income += x.amount;
-          else expense += x.amount;
+        function pump() {
+          return reader.read().then(function (result) {
+            if (result.done) return;
+            buffer += decoder.decode(result.value, { stream: true });
+
+            var lines = buffer.split("\n");
+            buffer = lines.pop(); // keep last partial line
+
+            for (var i = 0; i < lines.length; i++) {
+              var line = lines[i];
+              if (line.indexOf("data:") !== 0) continue;
+              var data = line.slice(5).trim();
+              if (!data || data === "[DONE]") continue;
+              var evt;
+              try { evt = JSON.parse(data); } catch (e) { continue; }
+
+              if (evt.type === "content_block_delta" && evt.delta && evt.delta.type === "text_delta") {
+                assistant.content += evt.delta.text;
+                renderStreaming();
+              } else if (evt.type === "message_delta" && evt.delta && evt.delta.stop_reason === "refusal") {
+                if (!assistant.content) {
+                  assistant.content = "(Ledger declined to respond to that.)";
+                  renderStreaming();
+                }
+              } else if (evt.type === "error") {
+                throw new Error(evt.error && evt.error.message ? evt.error.message : "Stream error");
+              }
+            }
+            return pump();
+          });
+        }
+        return pump();
+      }
+
+      // ---- Rendering ----
+      function render(withCursor) {
+        els.chat.innerHTML = "";
+
+        if (!messages.length) {
+          var empty = document.createElement("div");
+          empty.className = "empty";
+          empty.innerHTML =
+            '<div class="big">🎭</div>' +
+            "<h2>Say hello to Ledger</h2>" +
+            "<p>" + (hasKey()
+              ? "Ledger is an AI character. Send a message to start the conversation."
+              : "Add your Anthropic API key in settings (⚙︎) to bring Ledger to life.") +
+            "</p>";
+          els.chat.appendChild(empty);
+          return;
+        }
+
+        messages.forEach(function (m, idx) {
+          var last = idx === messages.length - 1;
+          els.chat.appendChild(bubble(m, withCursor && last && m.role === "assistant"));
         });
-        var balance = income - expense;
-
-        els.sumIncome.textContent = money(income);
-        els.sumExpense.textContent = money(expense);
-        els.sumBalance.textContent = (balance < 0 ? "−" : "") + money(Math.abs(balance));
-        els.sumBalance.className = "value " + (balance > 0 ? "pos" : balance < 0 ? "neg" : "");
+        scrollToBottom();
       }
 
-      function money(n) {
-        return "$" + n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-      }
-
-      function formatDate(iso) {
-        var parts = (iso || "").split("-");
-        if (parts.length !== 3) return iso || "";
-        var d = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
-        if (isNaN(d.getTime())) return iso;
-        return d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-      }
-
-      function todayISO() {
-        var d = new Date();
-        var m = String(d.getMonth() + 1).padStart(2, "0");
-        var day = String(d.getDate()).padStart(2, "0");
-        return d.getFullYear() + "-" + m + "-" + day;
-      }
-
-      function uid() {
-        return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-      }
-
-      function load() {
-        try {
-          var raw = localStorage.getItem(STORAGE_KEY);
-          if (!raw) return [];
-          var data = JSON.parse(raw);
-          return Array.isArray(data) ? data : [];
-        } catch (err) {
-          return [];
+      function renderStreaming() {
+        // Update only the last bubble's text for smoothness.
+        var last = els.chat.querySelector(".msg:last-child .bubble");
+        var assistant = messages[messages.length - 1];
+        if (last && assistant) {
+          last.textContent = assistant.content;
+          var cur = document.createElement("span");
+          cur.className = "cursor";
+          last.appendChild(cur);
+          scrollToBottom();
+        } else {
+          render(true);
         }
       }
 
-      function save() {
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-        } catch (err) {
-          /* storage unavailable — keep working in-memory */
+      function bubble(m, cursor) {
+        var wrap = document.createElement("div");
+        wrap.className = "msg " + (m.role === "user" ? "me" : "them");
+        if (m.role === "assistant") {
+          var ava = document.createElement("div");
+          ava.className = "ava";
+          ava.textContent = "🎭";
+          wrap.appendChild(ava);
         }
+        var b = document.createElement("div");
+        b.className = "bubble";
+        b.textContent = m.content;
+        if (cursor) {
+          var c = document.createElement("span");
+          c.className = "cursor";
+          b.appendChild(c);
+        }
+        wrap.appendChild(b);
+        return wrap;
       }
 
+      function showError(text) {
+        var e = document.createElement("div");
+        e.className = "error";
+        e.textContent = "⚠ " + text;
+        els.chat.appendChild(e);
+        scrollToBottom();
+      }
+
+      function scrollToBottom() {
+        els.chat.scrollTop = els.chat.scrollHeight;
+      }
+
+      // ---- Storage helpers ----
+      function load(key, fallback) {
+        try {
+          var raw = localStorage.getItem(key);
+          if (!raw) return fallback;
+          var v = JSON.parse(raw);
+          return v == null ? fallback : v;
+        } catch (e) { return fallback; }
+      }
+      function save(key, value) {
+        try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) {}
+      }
+
+      // ---- Boot ----
+      refreshStatus();
+      updateSendState();
       render();
     })();
   </script>
