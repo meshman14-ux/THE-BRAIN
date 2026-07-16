@@ -1,0 +1,18 @@
+{
+  "name": "ledger",
+  "version": "0.1.0",
+  "description": "Agatha \"Ledger\" Vane — an AI chatbot agent and social-media persona, powered by Claude.",
+  "type": "module",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "social": "node src/social.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "latest",
+    "express": "^4.21.2"
+  }
+}
