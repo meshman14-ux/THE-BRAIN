@@ -1,8 +1,8 @@
 package com.meshman.thebrain.core.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.Note
 import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Link
 import androidx.compose.material.icons.outlined.Psychology
 import androidx.compose.material.icons.outlined.Whatshot
@@ -30,7 +30,7 @@ object Routes {
 /** The five provinces of the bottom navigation bar. */
 enum class TopLevelDestination(val route: String, val label: String, val icon: ImageVector) {
     HOME(Routes.HOME, "Home", Icons.Outlined.Psychology),
-    NOTES(Routes.NOTES, "Notes", Icons.AutoMirrored.Outlined.Note),
+    NOTES(Routes.NOTES, "Notes", Icons.Outlined.Description),
     TASKS(Routes.TASKS, "Tasks", Icons.Outlined.CheckCircle),
     HABITS(Routes.HABITS, "Habits", Icons.Outlined.Whatshot),
     LINKS(Routes.LINKS, "Links", Icons.Outlined.Link),

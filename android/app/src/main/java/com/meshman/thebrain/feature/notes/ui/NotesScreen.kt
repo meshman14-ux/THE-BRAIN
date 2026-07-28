@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.meshman.thebrain.feature.notes.ui
 
 import androidx.compose.foundation.layout.Arrangement
@@ -9,10 +11,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Note
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
@@ -138,7 +140,7 @@ private fun NoteCard(note: Note, onClick: () -> Unit, onTogglePin: () -> Unit) {
 @Composable
 private fun EmptyNotes() {
     com.meshman.thebrain.core.ui.components.EmptyState(
-        icon = Icons.AutoMirrored.Filled.Note,
+        icon = Icons.Outlined.Description,
         title = "No notes yet",
         subtitle = "Tap + to capture your first thought.",
     )
