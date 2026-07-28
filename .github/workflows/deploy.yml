@@ -1,9 +1,11 @@
 name: Deploy to GitHub Pages
 
-# Builds the OPSDECK app and publishes the whole site to GitHub Pages:
-#   /THE-BRAIN/        -> the links hub (root index.html)
-#   /THE-BRAIN/ops/    -> the built OPSDECK app
-# Runs on every push to main (which is what "Publish THE BRAIN.bat" does).
+# Builds THE BRAIN (the second-brain PWA in app/) and publishes it as the
+# site root, with the legacy OPSDECK prototype kept reachable underneath:
+#   /THE-BRAIN/            -> THE BRAIN app
+#   /THE-BRAIN/legacy/     -> the old links hub
+#   /THE-BRAIN/legacy/ops/ -> the built OPSDECK prototype
+# Runs on every push to main.
 
 on:
   push:
@@ -27,11 +29,21 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
-          cache-dependency-path: ops/package-lock.json
+          cache-dependency-path: app/package-lock.json
 
-      - name: Build the OPSDECK app
+      - name: Test THE BRAIN
+        working-directory: app
+        run: |
+          npm ci
+          npm test
+
+      - name: Build THE BRAIN
+        working-directory: app
+        run: npm run build
+
+      - name: Build the legacy OPSDECK prototype
         working-directory: ops
         run: |
           npm ci
@@ -39,9 +51,10 @@ jobs:
 
       - name: Assemble the site
         run: |
-          mkdir -p _site
-          cp index.html _site/index.html
-          cp -r ops/dist _site/ops
+          mkdir -p _site/legacy
+          cp -r app/dist/* _site/
+          cp index.html _site/legacy/index.html
+          cp -r ops/dist _site/legacy/ops
 
       - uses: actions/upload-pages-artifact@v3
         with:
