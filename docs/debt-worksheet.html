@@ -205,6 +205,16 @@ document.querySelectorAll("tbody[data-rows]").forEach(function (tb) {
     tb.insertBefore(tr, total);
   }
 });
+
+// Arriving from debt-worksheet-print.html (#print) auto-opens the print dialog.
+if (location.hash === "#print") {
+  addEventListener("load", function () {
+    (async function () {
+      try { await document.fonts.ready; } catch (e) {}
+      setTimeout(function () { window.print(); }, 600);
+    })();
+  });
+}
 </script>
 </body>
 </html>
