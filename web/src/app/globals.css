@@ -1,18 +1,78 @@
 @import "tailwindcss";
 
-/* THE BRAIN design tokens — carried over from v1 (index.html) */
-:root {
-  --bg: #0f1115;
-  --bg-2: #12151c;
-  --card: #171a21;
-  --card-hover: #1c202a;
-  --text: #e8eaed;
-  --muted: #9aa0ac;
+/* ============================================================
+   THE BRAIN — design tokens
+   Default: "paper" — Jay's Blueprint v2 language (warm paper,
+   white cards, indigo accent, serif headlines).
+   Optional: "dark".
+   ============================================================ */
+
+:root,
+:root[data-theme="paper"] {
+  --bg: #f4f2ee;
+  --bg-2: #efece6;
+  --card: #ffffff;
+  --card-hover: #fbfaf8;
+  --text: #20242b;
+  --muted: #5c636e;
+  --faint: #949aa4;
+  --border: #e6e3dd;
+  --border-bright: #d9d5cd;
+
+  --accent: #4b57c9;
+  --accent-soft: #eceefb;
+  --on-accent: #ffffff;
+
+  --life: #4b57c9;
+  --life-dim: #c4c9f2;
+  --empire: #c07a1e;
+  --empire-dim: #e8d5b4;
+
+  --good: #2f8f4e;
+  --warn: #c07a1e;
+  --bad: #d1495b;
+
+  --todo: #8a6a4a;
+  --doing: #4b57c9;
+  --done: #2f8f4e;
+
+  --radius: 13px;
+  --shadow: 0 6px 24px rgba(32, 36, 43, 0.08);
+}
+
+:root[data-theme="dark"] {
+  --bg: #0b0d11;
+  --bg-2: #11141a;
+  --card: #151920;
+  --card-hover: #1a1f28;
+  --text: #e9ecf1;
+  --muted: #8d95a3;
+  --faint: #5b6270;
+  --border: #232936;
+  --border-bright: #2e3644;
+
   --accent: #6ea8fe;
-  --accent-2: #a06eff;
-  --border: #262b36;
-  --radius: 14px;
-  --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+  --accent-soft: #1c2740;
+  --on-accent: #0b0d11;
+
+  --life: #6ea8fe;
+  --life-dim: #2a3b57;
+  --empire: #f0b357;
+  --empire-dim: #4a3a1e;
+
+  --good: #4ec98f;
+  --warn: #f0b357;
+  --bad: #f0736f;
+
+  --todo: #c49a6c;
+  --doing: #6ea8fe;
+  --done: #4ec98f;
+
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+}
+
+* {
+  box-sizing: border-box;
 }
 
 html,
@@ -21,63 +81,145 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
+  font-family: "Public Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
-.brain-card {
+body {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Serif for headlines — the blueprint's voice. */
+h1,
+h2.serif,
+.serif {
+  font-family: "Source Serif 4", ui-serif, Georgia, serif;
+  letter-spacing: -0.02em;
+}
+
+.mono {
+  font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.card {
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
+.card-hover:hover {
+  background: var(--card-hover);
+  border-color: var(--border-bright);
+}
 
-.brain-input {
+.input {
   width: 100%;
-  background: var(--bg-2);
+  background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 11px;
   padding: 12px 14px;
   color: var(--text);
   font: inherit;
   font-size: 0.95rem;
   transition: border-color 0.15s ease;
 }
-.brain-input:focus {
+.input:focus {
   outline: none;
   border-color: var(--accent);
 }
+.input::placeholder {
+  color: var(--faint);
+}
 
-.brain-btn {
+.btn {
   font: inherit;
   font-weight: 600;
+  font-size: 0.9rem;
   cursor: pointer;
   border-radius: 10px;
-  padding: 11px 18px;
+  padding: 11px 17px;
   background: var(--accent);
-  color: #fff;
+  color: var(--on-accent);
   border: 1px solid transparent;
   transition: filter 0.12s ease;
 }
-.brain-btn:hover {
+.btn:hover:not(:disabled) {
   filter: brightness(1.08);
 }
-.brain-btn:disabled {
-  opacity: 0.5;
+.btn:disabled {
+  opacity: 0.45;
   cursor: not-allowed;
 }
-.brain-btn.ghost {
+.btn-ghost {
   background: transparent;
   color: var(--muted);
   border-color: var(--border);
 }
-.brain-btn.ghost:hover {
+.btn-ghost:hover:not(:disabled) {
   color: var(--text);
   border-color: var(--accent);
   filter: none;
 }
 
-.avatar-gradient {
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  box-shadow: var(--shadow);
+.chip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 5px 11px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+}
+.chip:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+.chip[data-active="true"] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--faint);
+}
+
+.sys-life {
+  --sys: var(--life);
+  --sys-dim: var(--life-dim);
+}
+.sys-empire {
+  --sys: var(--empire);
+  --sys-dim: var(--empire-dim);
+}
+
+@keyframes pop {
+  0% {
+    transform: scale(0.9);
+  }
+  60% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+.pop {
+  animation: pop 0.2s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
 }

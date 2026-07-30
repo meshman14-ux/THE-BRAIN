@@ -1,0 +1,30 @@
+{
+  "name": "THE BRAIN",
+  "short_name": "BRAIN",
+  "description": "Personal operating system — LIFE_OS + EMPIRE_OS",
+  "start_url": "/capture",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0b0d11",
+  "theme_color": "#0b0d11",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icons/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/icon.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    { "name": "Capture", "url": "/capture" },
+    { "name": "Dashboard", "url": "/dashboard" },
+    { "name": "Inbox", "url": "/inbox" }
+  ]
+}
