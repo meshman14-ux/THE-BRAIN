@@ -8,7 +8,16 @@
  * rather than by you, on a Thursday.
  */
 
-import type { Pillar, Priority, SystemKey, Task, TaskStatus } from "./types";
+import type {
+  Goal,
+  ItemStatus,
+  Pillar,
+  Priority,
+  Project,
+  SystemKey,
+  Task,
+  TaskStatus,
+} from "./types";
 
 /* ------------------------------------------------------------------ *
  * Kanban
@@ -166,4 +175,152 @@ export function taskTitleFromCapture(raw: string): string {
   const text = raw.trim().split("\n")[0].trim();
   // Cap is inclusive of the ellipsis — `tasks.title` is rendered in one line.
   return text.length > 300 ? text.slice(0, 299) + "…" : text;
+}
+
+/* ------------------------------------------------------------------ *
+ * The cascade — Goals → Projects → Tasks
+ *
+ * Decision 2 makes every level above a task optional. So every function
+ * here treats a missing parent as ordinary, never as an error: a project
+ * with no goal is a project, and a goal with no area still counts.
+ * ------------------------------------------------------------------ */
+
+/** Live work only. Paused, done and dropped items stay out of the way. */
+export function isLive<T extends { status: ItemStatus }>(x: T): boolean {
+  return x.status === "active";
+}
+
+/**
+ * Projects hanging off one goal. Pass `null` to get the unattached ones —
+ * that is a real, first-class view, not a leftovers bucket.
+ */
+export function projectsForGoal<T extends Pick<Project, "goal_id">>(
+  projects: T[],
+  goalId: string | null
+): T[] {
+  return projects.filter((p) => p.goal_id === goalId);
+}
+
+/** Tasks belonging to one project. */
+export function tasksForProject<T extends { project_id?: string | null }>(
+  tasks: T[],
+  projectId: string
+): T[] {
+  return tasks.filter((t) => t.project_id === projectId);
+}
+
+/**
+ * How far along a project is, by its tasks: done ÷ counted, as 0–100.
+ *
+ * Dropped tasks leave the denominator entirely — abandoning work should not
+ * drag a project's percentage down, or you get punished for cutting scope.
+ * A project with nothing counted returns null, not 0: "no tasks yet" and
+ * "none of the tasks are done" are different states and the UI says so.
+ */
+export function projectProgress<T extends Pick<Task, "status">>(
+  tasks: T[]
+): number | null {
+  const counted = tasks.filter((t) => t.status !== "dropped");
+  if (counted.length === 0) return null;
+  const done = counted.filter((t) => t.status === "done").length;
+  return Math.round((done / counted.length) * 100);
+}
+
+/**
+ * A goal's progress. A hand-set `progress` always wins — if you have said
+ * where you are, the system does not argue. Otherwise it is the mean of the
+ * goal's projects that have measurable progress. Null when nothing is known.
+ */
+export function goalProgress(
+  goal: Pick<Goal, "progress">,
+  projectPercents: (number | null)[]
+): number | null {
+  if (goal.progress != null) return clampPercent(goal.progress);
+  const known = projectPercents.filter((n): n is number => n != null);
+  if (known.length === 0) return null;
+  return Math.round(known.reduce((a, b) => a + b, 0) / known.length);
+}
+
+/** Percentages are 0–100. Out-of-range stored values are clamped, not trusted. */
+export function clampPercent(n: number): number {
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(100, Math.round(n)));
+}
+
+/**
+ * Overdue = a target date strictly before today, and still live.
+ * Finished work is never overdue, however late it was.
+ */
+export function isOverdue(
+  item: { target_date?: string | null; due_date?: string | null; status: ItemStatus },
+  todayIso: string
+): boolean {
+  if (item.status !== "active") return false;
+  const d = item.target_date ?? item.due_date ?? null;
+  return d != null && d < todayIso;
+}
+
+/** Whole days until the date. Negative when past. Null when there is no date. */
+export function daysUntil(dateIso: string | null, todayIso: string): number | null {
+  if (!dateIso) return null;
+  const ms = Date.parse(dateIso + "T00:00:00") - Date.parse(todayIso + "T00:00:00");
+  if (Number.isNaN(ms)) return null;
+  return Math.round(ms / 86_400_000);
+}
+
+/**
+ * Goals ordered the way you should read them: overdue first, then soonest
+ * target, then undated. Undated goals sink rather than sorting as year zero.
+ */
+export function sortGoals<T extends Pick<Goal, "target_date" | "status">>(
+  goals: T[],
+  todayIso: string
+): T[] {
+  return [...goals].sort((a, b) => {
+    const ao = isOverdue(a, todayIso) ? 0 : 1;
+    const bo = isOverdue(b, todayIso) ? 0 : 1;
+    if (ao !== bo) return ao - bo;
+    if (!a.target_date && !b.target_date) return 0;
+    if (!a.target_date) return 1;
+    if (!b.target_date) return -1;
+    return a.target_date.localeCompare(b.target_date);
+  });
+}
+
+/**
+ * Goals grouped under their area, plus the ones with no area under `null`.
+ * Keyed by pillar id so a caller can render in pillar order without a lookup.
+ */
+export function goalsByPillar<T extends Pick<Goal, "pillar_id">>(
+  goals: T[]
+): Map<string | null, T[]> {
+  const out = new Map<string | null, T[]>();
+  for (const g of goals) {
+    const key = g.pillar_id ?? null;
+    out.set(key, [...(out.get(key) ?? []), g]);
+  }
+  return out;
+}
+
+/**
+ * What a goal is actually made of. Returns the goal's live projects, its
+ * rolled-up progress, and whether it has run past its target date — the three
+ * things the UI needs to render one row without three more passes over the data.
+ */
+export function goalRollup<
+  G extends Pick<Goal, "progress" | "target_date" | "status">,
+  P extends Pick<Project, "goal_id" | "status"> & { id: string }
+>(
+  goal: G & { id: string },
+  projects: P[],
+  tasksByProject: (projectId: string) => Pick<Task, "status">[],
+  todayIso: string
+): { projects: P[]; percent: number | null; overdue: boolean } {
+  const mine = projectsForGoal(projects, goal.id).filter(isLive);
+  const percents = mine.map((p) => projectProgress(tasksByProject(p.id)));
+  return {
+    projects: mine,
+    percent: goalProgress(goal, percents),
+    overdue: isOverdue(goal, todayIso),
+  };
 }

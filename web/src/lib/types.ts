@@ -23,6 +23,37 @@ export type InboxItem = {
 export type Priority = "High" | "Med" | "Low";
 export type TaskStatus = "open" | "doing" | "done" | "dropped" | "waiting";
 
+/** Goals and projects share a lifecycle: live, parked, finished, abandoned. */
+export type ItemStatus = "active" | "paused" | "done" | "dropped";
+
+export type Goal = {
+  id: string;
+  title: string;
+  /** Optional per decision 2 — a goal need not hang off an area. */
+  pillar_id: string | null;
+  target_date: string | null;
+  /** 0–100, set by hand. Derived progress is computed, never stored. */
+  progress: number | null;
+  status: ItemStatus;
+};
+
+export type Project = {
+  id: string;
+  title: string;
+  pillar_id: string | null;
+  /** Optional — a project without a goal is normal, not an error. */
+  goal_id: string | null;
+  due_date: string | null;
+  status: ItemStatus;
+};
+
+export const ITEM_STATUS_LABEL: Record<ItemStatus, string> = {
+  active: "Active",
+  paused: "Paused",
+  done: "Done",
+  dropped: "Dropped",
+};
+
 export type Task = {
   id: string;
   title: string;
