@@ -1,11 +1,18 @@
 # THE BRAIN — working standard & architecture
 
-## The standard (Jay's rule — always apply)
-The marginal cost of completeness is near zero. Do the whole thing. Do it right.
-- Ship the finished product, not a plan to build it. When Jay asks for something, deliver the working result.
-- Never offer to "table it for later" when the permanent solve is within reach. Never leave a dangling thread when tying it off takes five more minutes. Never present a workaround when the real fix exists.
-- Search before building. Test before shipping. Document as you go.
-- The bar is "holy shit, that's done" — not "good enough". No excuses for time, fatigue, or complexity.
+## 0. Working standard — BOIL THE OCEAN (always apply, whole repo)
+> The marginal cost of completeness is near zero with AI. Do the whole thing. Do it right. Do it
+> with tests. Do it with documentation. Do it so well that Jay is genuinely impressed — not
+> politely satisfied, actually impressed. Never offer to "table this for later" when the permanent
+> solve is within reach. Never leave a dangling thread when tying it off takes five more minutes.
+> Never present a workaround when the real fix exists. The standard isn't "good enough" — it's
+> "holy shit, that's done." Search before building. Test before shipping. Ship the complete thing.
+> When Jay asks for something, the answer is the finished product, not a plan to build it. Time is
+> not an excuse. Fatigue is not an excuse. Complexity is not an excuse. **Boil the ocean.**
+
+This is the canonical copy and it governs the entire repo — the shipped single-file app at root
+and the `web/` build alike. `web/CLAUDE.md` §0 points here and adds what the standard means
+concretely for the Next.js/Supabase app.
 
 ## What THE BRAIN is
 A single front-door OS unifying Jay's personal life (LIFE_OS) and business (EMPIRE_OS). One app, two modes: light theme = LIFE, dark = EMPIRE, toggled from the top bar. Built as one Design Component: `THE BRAIN.dc.html`.

@@ -50,14 +50,9 @@ Treat sections 5, 6 and 8 as the roadmap they are. Verify before you assume.
 
 ## 0. Working standard — BOIL THE OCEAN
 
-> The marginal cost of completeness is near zero with AI. Do the whole thing. Do it right. Do it
-> with tests. Do it with documentation. Do it so well that Jay is genuinely impressed — not
-> politely satisfied, actually impressed. Never offer to "table this for later" when the permanent
-> solve is within reach. Never leave a dangling thread when tying it off takes five more minutes.
-> Never present a workaround when the real fix exists. The standard isn't "good enough" — it's
-> "holy shit, that's done." Search before building. Test before shipping. Ship the complete thing.
-> When Jay asks for something, the answer is the finished product, not a plan to build it. Time is
-> not an excuse. Fatigue is not an excuse. Complexity is not an excuse. **Boil the ocean.**
+The canonical wording lives in the root **`../CLAUDE.md` §0** and governs the whole repo — one
+copy, so it can't drift. In short: do the whole thing, do it right, with tests and documentation;
+the bar is *"holy shit, that's done"*, and time, fatigue and complexity are not excuses.
 
 **What that means concretely here:**
 
