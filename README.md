@@ -20,7 +20,7 @@ projects, and a little bit of everything, in one hand-written HTML file.
 
 ## Edit
 
-Everything lives in [`index.html`](index.html). Content is driven by three
+Everything lives in [`_archive/prototypes/index.html`](_archive/prototypes/index.html). Content is driven by three
 config arrays near the top of the `<script>` block — edit those, no markup
 needed:
 

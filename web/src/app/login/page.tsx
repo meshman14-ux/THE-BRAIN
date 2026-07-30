@@ -19,9 +19,7 @@ export default function LoginPage() {
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: {
-        emailRedirectTo: `${window.location.origin}/auth/confirm`,
-      },
+      options: { emailRedirectTo: `${window.location.origin}/auth/confirm` },
     });
     if (error) {
       setStatus("error");
@@ -33,36 +31,31 @@ export default function LoginPage() {
 
   return (
     <main className="min-h-dvh flex items-center justify-center px-5">
-      <div className="w-full max-w-[420px]">
-        <div className="text-center mb-6">
-          <div className="avatar-gradient w-16 h-16 rounded-full mx-auto mb-4 flex items-center justify-center text-3xl select-none">
-            🧠
-          </div>
-          <h1 className="text-xl font-bold">Enter THE BRAIN</h1>
-          <p className="text-sm text-[var(--muted)] mt-1">
-            A magic link will be sent to your email — no password needed.
-          </p>
+      <div className="w-full max-w-[400px]">
+        <div className="text-center mb-8">
+          <div className="text-5xl mb-4 select-none">🧠</div>
+          <h1 className="text-[1.7rem] font-semibold">THE BRAIN</h1>
+          <p className="label mt-2">LIFE_OS · EMPIRE_OS</p>
         </div>
 
-        {!supabaseConfigured ? (
-          <div className="brain-card p-5 text-sm text-[var(--muted)]">
-            Supabase isn&apos;t configured yet — add the environment variables
-            first (see the home page).
-          </div>
-        ) : status === "sent" ? (
-          <div className="brain-card p-6 text-center">
-            <div className="text-3xl mb-2">📬</div>
-            <p className="font-semibold mb-1">Check your email</p>
-            <p className="text-sm text-[var(--muted)]">
+        {status === "sent" ? (
+          <div className="card p-7 text-center">
+            <div className="text-3xl mb-3">📬</div>
+            <p className="font-semibold mb-2">Check your email</p>
+            <p className="text-sm text-[var(--muted)] leading-relaxed">
               A sign-in link is on its way to{" "}
-              <span className="text-[var(--accent)]">{email}</span>. Open it on
+              <span className="text-[var(--life)]">{email}</span>. Open it on
               this device.
             </p>
           </div>
         ) : (
-          <form onSubmit={sendLink} className="brain-card p-6 grid gap-3">
+          <form onSubmit={sendLink} className="card p-7 grid gap-3">
+            <label className="label" htmlFor="email">
+              Email
+            </label>
             <input
-              className="brain-input"
+              id="email"
+              className="input"
               type="email"
               required
               placeholder="you@example.com"
@@ -71,15 +64,18 @@ export default function LoginPage() {
               autoComplete="email"
             />
             <button
-              className="brain-btn"
+              className="btn mt-1"
               type="submit"
               disabled={status === "sending" || !email.trim()}
             >
               {status === "sending" ? "Sending…" : "Send magic link"}
             </button>
             {status === "error" && (
-              <p className="text-sm text-red-400">⚠ {errorMsg}</p>
+              <p className="text-sm text-[var(--bad)]">⚠ {errorMsg}</p>
             )}
+            <p className="text-xs text-[var(--faint)] text-center mt-1">
+              No password. The link signs you in.
+            </p>
           </form>
         )}
       </div>

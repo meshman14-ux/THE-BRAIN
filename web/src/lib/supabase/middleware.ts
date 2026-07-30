@@ -1,13 +1,11 @@
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-
-type CookieToSet = { name: string; value: string; options?: CookieOptions };
 import { supabaseUrl, supabaseAnonKey, supabaseConfigured } from "./env";
 
-/**
- * Refreshes the auth session on every request and protects /dashboard.
- * If Supabase isn't configured yet, it simply passes requests through.
- */
+type CookieToSet = { name: string; value: string; options?: CookieOptions };
+
+const PUBLIC_PATHS = ["/login", "/auth", "/manifest.webmanifest", "/sw.js"];
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
 
@@ -30,13 +28,14 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
-  // IMPORTANT: do not run code between createServerClient and getUser().
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Protect the private area.
-  if (!user && request.nextUrl.pathname.startsWith("/dashboard")) {
+  const path = request.nextUrl.pathname;
+  const isPublic = PUBLIC_PATHS.some((p) => path.startsWith(p));
+
+  if (!user && !isPublic) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
