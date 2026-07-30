@@ -121,19 +121,49 @@ export default function Chat() {
             </div>
           )}
 
-          {error && (
-            <div className="mt-5 rounded-lg border border-red-300 bg-red-50 px-3 py-2.5 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
-              <p className="font-medium">Something went wrong.</p>
-              <p className="mt-0.5 text-[13px] opacity-90">{error.message}</p>
-              <button
-                type="button"
-                onClick={() => regenerate()}
-                className="mt-2 rounded border border-red-400 px-2 py-1 text-xs font-medium dark:border-red-800"
-              >
-                Retry
-              </button>
-            </div>
-          )}
+          {error &&
+            (error.message.includes('NO_API_KEY') ? (
+              <div className="mt-5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3.5 text-sm text-amber-900 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-100">
+                <p className="font-semibold">Almost there — no API key yet.</p>
+                <p className="mt-1 text-[13px] leading-relaxed opacity-90">
+                  The app is deployed and working. It just needs an Anthropic key
+                  to talk to Claude. Nothing else is broken.
+                </p>
+                <ol className="mt-2.5 list-decimal space-y-1 pl-4 text-[13px] leading-relaxed opacity-90">
+                  <li>
+                    Get a key at{' '}
+                    <a
+                      className="underline underline-offset-2"
+                      href="https://console.anthropic.com/settings/keys"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      console.anthropic.com
+                    </a>{' '}
+                    (pay-as-you-go — around 0.7p per message on Haiku).
+                  </li>
+                  <li>
+                    Add it as <code className="font-mono">ANTHROPIC_API_KEY</code>{' '}
+                    in your Vercel project settings, or in{' '}
+                    <code className="font-mono">.env.local</code> when running
+                    locally.
+                  </li>
+                  <li>Redeploy, or restart the dev server.</li>
+                </ol>
+              </div>
+            ) : (
+              <div className="mt-5 rounded-lg border border-red-300 bg-red-50 px-3 py-2.5 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-200">
+                <p className="font-medium">Something went wrong.</p>
+                <p className="mt-0.5 text-[13px] opacity-90">{error.message}</p>
+                <button
+                  type="button"
+                  onClick={() => regenerate()}
+                  className="mt-2 rounded border border-red-400 px-2 py-1 text-xs font-medium dark:border-red-800"
+                >
+                  Retry
+                </button>
+              </div>
+            ))}
         </div>
       </div>
 

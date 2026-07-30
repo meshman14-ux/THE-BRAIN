@@ -4,7 +4,10 @@ import { convertToModelMessages, streamText, type UIMessage } from 'ai';
 // Allow streaming responses up to 60 seconds (Vercel Hobby cap).
 export const maxDuration = 60;
 
-const MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-5';
+// Cheapest capable default. Override in the environment for a stronger model:
+//   claude-sonnet-5  — better reasoning, ~3x the output cost
+//   claude-opus-5    — most capable, ~5x
+const MODEL = process.env.ANTHROPIC_MODEL ?? 'claude-haiku-4-5';
 
 const SYSTEM_PROMPT = [
   'You are a helpful, direct assistant.',
@@ -14,11 +17,10 @@ const SYSTEM_PROMPT = [
 ].join(' ');
 
 export async function POST(req: Request) {
+  // The client keys off this exact string to show its setup panel instead of a
+  // generic failure — keep the two in sync.
   if (!process.env.ANTHROPIC_API_KEY) {
-    return Response.json(
-      { error: 'ANTHROPIC_API_KEY is not set on the server.' },
-      { status: 500 },
-    );
+    return Response.json({ error: 'NO_API_KEY' }, { status: 503 });
   }
 
   let messages: UIMessage[];

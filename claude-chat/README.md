@@ -52,7 +52,7 @@ Every later `git push` redeploys automatically.
 | Variable | Required | Default | Notes |
 |---|---|---|---|
 | `ANTHROPIC_API_KEY` | yes | — | Server-side only. |
-| `ANTHROPIC_MODEL` | no | `claude-sonnet-5` | Set to `claude-opus-5` for the most capable model. |
+| `ANTHROPIC_MODEL` | no | `claude-haiku-4-5` | Cheapest capable model. Set `claude-sonnet-5` for better reasoning (~3x output cost), or `claude-opus-5` for the most capable (~5x). |
 
 ---
 
