@@ -1,12 +1,14 @@
 # CLAUDE.md — THE BRAIN
 
-The one canonical context file for this repo. Two applications live here; read the part that
-covers the files you're touching, and don't apply one part's conventions to the other:
+The one canonical context file for this repo.
 
-- **Part A — THE BRAIN OS** (`web/`): Next.js + Supabase. The build target. Phases 2+ happen here.
-- **Part B — the shipped single-file app** (`_archive/prototypes/`): `index.html` and friends.
-  Archived 2026-07-30, kept for reference and for the logic worth porting. New capability goes
-  into Part A. See the note at the head of Part B before serving it anywhere.
+**There is one application: THE BRAIN OS, in `web/` — Next.js + Supabase.** Its data layer is
+Supabase Postgres with RLS on 20 tables (§A4). That is the only live data layer; nothing in this
+repo stores user data in the browser.
+
+Everything under the "Archived" heading at the end describes a **retired** static app that no
+longer runs. It is kept because some of its logic is worth porting, not because it is current.
+If you are looking for how the system works today, you want Part A and nothing else.
 
 ---
 
@@ -87,7 +89,8 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
    what stops the system feeling bureaucratic.
 3. **12 areas** (called "pillars" in the DB, "Life Areas" in the UI): 7 LIFE_OS, 5 EMPIRE_OS.
 4. **Phone-first capture, desktop thinking.** Installable PWA, one box, zero required fields,
-   offline queue in localStorage that flushes on reconnect.
+   offline queue in localStorage that flushes on reconnect. That queue is a transient outbox for
+   unsent captures only — Supabase remains the system of record, never the browser.
 5. **Data model: typed tables + universal `links` table + `meta` jsonb everywhere.**
    Rigidity where it protects, flexibility where it frees.
 6. **AI = briefing + retrieval advisor.** Morning brief from own data; ask-anything over notes
@@ -243,16 +246,19 @@ code — RLS is what protects the data — but the service-role key must never a
 
 ---
 
-# Part B — the single-file app (`_archive/prototypes/`)
+# Archived: the pre-Supabase static app
 
-**Archived 2026-07-30.** It was the live GitHub Pages site while it sat at the repo root; once
-this branch merges to `main`, meshman14-ux.github.io/THE-BRAIN will 404 until either a redirect
-is added or Pages is pointed elsewhere. Nothing is deleted — the code and this documentation stay
-because the OCR parsers, payoff engine and Gita layer are all worth porting into Part A.
+> ⚠️ **Historical record. None of this is live.** Retired 2026-07-30 and moved to
+> `_archive/prototypes/`. It stored everything in browser `localStorage`; **that is not, and never
+> again will be, THE BRAIN's data layer** — Supabase with RLS is (§A4). The root `index.html` is
+> now only a redirect stub pointing at the deployed app.
+>
+> This section survives for one reason: the OCR parsers, the debt payoff engine and the Gita
+> layer are worth porting into Part A. Read it as source material, never as current behaviour,
+> and never apply its conventions to `web/`.
 
-One app, two modes: light theme = LIFE, dark = EMPIRE,
-toggled from the top bar. Everything below is about `_archive/prototypes/index.html` and its
-satellites — none of it applies to `web/`.
+It was one app with two modes: light theme = LIFE, dark = EMPIRE, toggled from the top bar.
+Section names below are prefixed `B` for historical continuity.
 
 ## B1. Views (state.view)
 
@@ -260,7 +266,7 @@ satellites — none of it applies to `web/`.
 `review` (Weekly Review) · `diag` (My Profile) · `docs` · `command` (Life/Empire Command, per
 mode) · `board` · `cash` · `inbox` (Paper Inbox) · `tasks` · `property` · phone-fast view.
 
-## B2. Data — all localStorage, one store per concern
+## B2. Data — localStorage (retired; superseded by Supabase, §A4)
 
 - `lifeos-tasks-v1` — tasks `{id,title,tag,when('today'|'week'),priority,due,done,doneAt,reason}`
 - `brain-reminders-v1` — reminders `{id,text,kind,date,time,recurDays,taskId,billId,done}`
