@@ -4,8 +4,9 @@ The one canonical context file for this repo. Two applications live here; read t
 covers the files you're touching, and don't apply one part's conventions to the other:
 
 - **Part A — THE BRAIN OS** (`web/`): Next.js + Supabase. The build target. Phases 2+ happen here.
-- **Part B — the shipped single-file app** (repo root): `index.html` and friends. Live today at
-  meshman14-ux.github.io/THE-BRAIN. Maintained, not extended — new capability goes into Part A.
+- **Part B — the shipped single-file app** (`_archive/prototypes/`): `index.html` and friends.
+  Archived 2026-07-30, kept for reference and for the logic worth porting. New capability goes
+  into Part A. See the note at the head of Part B before serving it anywhere.
 
 ---
 
@@ -156,7 +157,7 @@ Verified in this repo: **29/29 tests pass** (`tests/logic.test.ts`, vitest) and
 | `src/lib/logic.ts` + `tests/` + vitest | ✅ |
 | Goals + Projects UI (Phase 2) | ❌ next up |
 
-The pre-v1.2 scaffold is parked at `/web-v1-scaffold/` for reference; don't build on it.
+The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't build on it.
 
 > **Improvement over Jay's blueprint, deliberate:** his original This Week stored a day *index*
 > (0–6), so scheduling meant nothing once the week rolled over. This writes a real `do_date`.
@@ -242,11 +243,16 @@ code — RLS is what protects the data — but the service-role key must never a
 
 ---
 
-# Part B — the shipped single-file app (repo root)
+# Part B — the single-file app (`_archive/prototypes/`)
 
-Live at meshman14-ux.github.io/THE-BRAIN. One app, two modes: light theme = LIFE, dark = EMPIRE,
-toggled from the top bar. Everything below is about `index.html` and its satellites — none of it
-applies to `web/`.
+**Archived 2026-07-30.** It was the live GitHub Pages site while it sat at the repo root; once
+this branch merges to `main`, meshman14-ux.github.io/THE-BRAIN will 404 until either a redirect
+is added or Pages is pointed elsewhere. Nothing is deleted — the code and this documentation stay
+because the OCR parsers, payoff engine and Gita layer are all worth porting into Part A.
+
+One app, two modes: light theme = LIFE, dark = EMPIRE,
+toggled from the top bar. Everything below is about `_archive/prototypes/index.html` and its
+satellites — none of it applies to `web/`.
 
 ## B1. Views (state.view)
 
