@@ -1,0 +1,53 @@
+<!doctype html>
+<!--
+  Redirect stub — replaces the archived localStorage app.
+
+  This path used to serve the single-file THE BRAIN (Command Centre, debts,
+  tasks, Samsung Health import, printables). That app is not deleted: it lives
+  at _archive/prototypes/index.html, and its architecture is documented in
+  CLAUDE.md Part B. It was archived on 2026-07-30 when THE BRAIN OS (web/)
+  became the build target.
+
+  This file exists only so the GitHub Pages URL keeps working. Anyone with the
+  old bookmark lands on the live app instead of a 404.
+
+  If the Vercel URL ever changes, change it in all three places below: the
+  meta refresh, the script, and the noscript link.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>THE BRAIN</title>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="https://the-brain-os-meshman14-uxs-projects.vercel.app/">
+<meta http-equiv="refresh" content="0; url=https://the-brain-os-meshman14-uxs-projects.vercel.app/">
+<style>
+  body{margin:0;min-height:100vh;display:grid;place-items:center;
+       background:#f4f2ee;color:#20242b;
+       font-family:'Public Sans',system-ui,-apple-system,sans-serif;
+       text-align:center;padding:24px;line-height:1.6}
+  a{color:#4b57c9}
+  .m{color:#6b7280;font-size:14px}
+  @media (prefers-color-scheme:dark){
+    body{background:#15171c;color:#e8e6e1}
+    .m{color:#9aa1ab}
+  }
+</style>
+</head>
+<body>
+  <main>
+    <p>Opening THE BRAIN…</p>
+    <p class="m">
+      <a href="https://the-brain-os-meshman14-uxs-projects.vercel.app/">Continue</a>
+    </p>
+    <noscript>
+      <p class="m">
+        JavaScript is off, so the automatic redirect may not fire.<br>
+        <a href="https://the-brain-os-meshman14-uxs-projects.vercel.app/">Open THE BRAIN</a>
+      </p>
+    </noscript>
+  </main>
+  <script>location.replace("https://the-brain-os-meshman14-uxs-projects.vercel.app/");</script>
+</body>
+</html>
