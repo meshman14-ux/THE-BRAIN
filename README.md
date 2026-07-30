@@ -74,8 +74,12 @@ npm run build     # production build in app/dist
 
 Push to `main`. GitHub Actions (`.github/workflows/deploy.yml`) tests,
 builds and publishes to GitHub Pages automatically — the app at the site
-root, the legacy links hub + OPSDECK prototype preserved under `/legacy/`.
+root, the older links hub and Ledger page preserved under `/legacy/`.
 A red test suite blocks the deploy.
+
+Pages must be set to **GitHub Actions** as its source (Settings → Pages).
+With "Deploy from a branch" the workflow succeeds but the live site never
+changes.
 
 ## Extend it
 

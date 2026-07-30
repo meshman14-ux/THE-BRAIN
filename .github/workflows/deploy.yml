@@ -1,11 +1,15 @@
 name: Deploy to GitHub Pages
 
 # Builds THE BRAIN (the second-brain PWA in app/) and publishes it as the
-# site root, with the legacy OPSDECK prototype kept reachable underneath:
-#   /THE-BRAIN/            -> THE BRAIN app
-#   /THE-BRAIN/legacy/     -> the old links hub
-#   /THE-BRAIN/legacy/ops/ -> the built OPSDECK prototype
+# site root, with the older static pages kept reachable underneath:
+#   /THE-BRAIN/                   -> THE BRAIN app
+#   /THE-BRAIN/legacy/            -> the links hub
+#   /THE-BRAIN/legacy/ledger.html -> the Ledger AI character chat
 # Runs on every push to main.
+#
+# Pages must be set to "GitHub Actions" as its source (Settings → Pages),
+# not "Deploy from a branch" — otherwise this runs green and the live site
+# never changes.
 
 on:
   push:
@@ -43,18 +47,14 @@ jobs:
         working-directory: app
         run: npm run build
 
-      - name: Build the legacy OPSDECK prototype
-        working-directory: ops
-        run: |
-          npm ci
-          npm run build
-
+      # The app is the site root; the hand-written pages that used to be the
+      # site keep working under /legacy/ so nothing that was live 404s.
       - name: Assemble the site
         run: |
           mkdir -p _site/legacy
           cp -r app/dist/* _site/
           cp index.html _site/legacy/index.html
-          cp -r ops/dist _site/legacy/ops
+          cp ledger.html _site/legacy/ledger.html
 
       - uses: actions/upload-pages-artifact@v3
         with:

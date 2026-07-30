@@ -1,1 +1,0 @@
-{"root":["./src/App.tsx","./src/main.tsx","./src/components/ItemRow.tsx","./src/lib/dates.ts","./src/lib/parse.ts","./src/lib/store.ts","./src/pages/Capture.tsx","./src/pages/Everything.tsx","./src/pages/Today.tsx","./tests/dates.test.ts","./tests/parse.test.ts","./tests/store.test.ts"],"version":"5.9.3"}
