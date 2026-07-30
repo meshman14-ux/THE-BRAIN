@@ -442,6 +442,250 @@ function addMindful(d,mins){ var all=load(K.mindful,{}); all[d]=(all[d]||0)+mins
 function moodFor(d){ var all=load(K.moods,{}); return all[d]||""; }
 function setMood(d,m){ var all=load(K.moods,{}); all[d]=m; save(K.moods,all); }
 
+/* ---------------------------------------------------------------------------
+   OCR — shared by the Samsung Health import and the bill camera.
+   The engine is ~2MB, so it is fetched on first use rather than at boot.
+   Everything below degrades to "type it in yourself" when offline.
+   --------------------------------------------------------------------------- */
+var OCR_CDN = "https://cdn.jsdelivr.net/npm/tesseract.js@7/dist/tesseract.min.js";
+var _ocrP = null;
+function _ocrReady(){
+  if(window.Tesseract) return Promise.resolve(window.Tesseract);
+  if(_ocrP) return _ocrP;
+  _ocrP = new Promise(function(res,rej){
+    var s=document.createElement("script");
+    s.src=OCR_CDN; s.async=true;
+    s.onload=function(){ window.Tesseract ? res(window.Tesseract) : rej(new Error("engine")); };
+    s.onerror=function(){ _ocrP=null; rej(new Error("offline")); };
+    document.head.appendChild(s);
+  });
+  return _ocrP;
+}
+function _ocrFile(file){
+  return _ocrReady().then(function(T){
+    return T.recognize(file,"eng");
+  }).then(function(r){ return (r&&r.data&&r.data.text)||""; });
+}
+/* Downscaled JPEG so a year of screenshots still fits in localStorage. */
+function _thumb(file,px){
+  return new Promise(function(res){
+    var fr=new FileReader();
+    fr.onload=function(){
+      var img=new Image();
+      img.onload=function(){
+        var sc=Math.min(1,px/(img.width||px));
+        var w=Math.max(1,Math.round((img.width||px)*sc)), h=Math.max(1,Math.round((img.height||px)*sc));
+        var cv=document.createElement("canvas"); cv.width=w; cv.height=h;
+        cv.getContext("2d").drawImage(img,0,0,w,h);
+        try{ res(cv.toDataURL("image/jpeg",0.5)); }catch(e){ res(""); }
+      };
+      img.onerror=function(){ res(""); };
+      img.src=fr.result;
+    };
+    fr.onerror=function(){ res(""); };
+    fr.readAsDataURL(file);
+  });
+}
+
+var MONTHS=["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
+function _n(s){ var v=Number(String(s).replace(/[,\s]/g,"")); return isFinite(v)?v:null; }
+function _pad2(n){ return (n<10?"0":"")+n; }
+function _isoYMD(y,m,d){ return y+"-"+_pad2(m)+"-"+_pad2(d); }
+function _grab(flat,pats){
+  for(var i=0;i<pats.length;i++){
+    var m=flat.match(pats[i]);
+    if(m){ var v=_n(m[1]); if(v!=null) return v; }
+  }
+  return null;
+}
+/* A screenshot with no year is recent, never months ahead — so if assuming
+   this year lands in the future, it belongs to last year. */
+function _rollYear(d,mo,yr,now,ty){
+  if(!mo||!d) return null;
+  if(yr) return _isoYMD(yr,mo,d);
+  var guess=_isoYMD(ty,mo,d);
+  return guess>now ? _isoYMD(ty-1,mo,d) : guess;
+}
+function _parseDateish(text,todayIso){
+  var t=String(text||""), now=todayIso||today(), ty=+now.slice(0,4), m;
+  if(/\btoday\b/i.test(t)) return now;
+  if(/\byesterday\b/i.test(t)) return addDays(now,-1);
+  m=t.match(/\b(20\d\d)[-\/](\d{1,2})[-\/](\d{1,2})\b/);
+  if(m) return _isoYMD(+m[1],+m[2],+m[3]);
+  m=t.match(/\b(\d{1,2})[\/.](\d{1,2})[\/.](20\d\d)\b/);          // UK: day first
+  if(m) return _isoYMD(+m[3],+m[2],+m[1]);
+  var mon="("+MONTHS.join("|")+")[a-z]*\\.?";
+  m=t.match(new RegExp("\\b(\\d{1,2})\\s*"+mon+"\\s*(20\\d\\d)?","i"));
+  if(m) return _rollYear(+m[1],MONTHS.indexOf(m[2].toLowerCase().slice(0,3))+1,m[3]?+m[3]:null,now,ty);
+  m=t.match(new RegExp("\\b"+mon+"\\s*(\\d{1,2})(?:,?\\s*(20\\d\\d))?","i"));
+  if(m) return _rollYear(+m[2],MONTHS.indexOf(m[1].toLowerCase().slice(0,3))+1,m[3]?+m[3]:null,now,ty);
+  return null;
+}
+
+/* Samsung Health screenshot -> check-in patch. Every field is optional: a
+   screenshot showing only steps is still worth filing. */
+function _parseSHealth(text,todayIso){
+  var flat=String(text||"").replace(/[  ]/g," ").replace(/\n/g,"  ");
+  var out={date:_parseDateish(text,todayIso)};
+  var NUM="(\\d[\\d,]*(?:\\.\\d+)?)";   // no whitespace inside, or "3,001  410" merges
+
+  out.steps=_grab(flat,[
+    new RegExp("\\bsteps?\\b[^\\d]{0,15}"+NUM,"i"),
+    new RegExp(NUM+"\\s*steps?\\b","i")
+  ]);
+  out.activeMin=_grab(flat,[
+    new RegExp("active\\s*(?:time|minutes?|mins?)[^\\d]{0,10}"+NUM,"i"),
+    new RegExp(NUM+"\\s*(?:min|mins|minutes)\\b","i")
+  ]);
+  out.actCal=_grab(flat,[
+    new RegExp("active[^\\d]{0,18}?"+NUM+"\\s*(?:k?cal)","i"),
+    new RegExp("active\\s*(?:calorie|cal|kcal)[a-z]*[^\\d]{0,10}"+NUM,"i")
+  ]);
+  out.totalCal=_grab(flat,[
+    new RegExp("total[^\\d]{0,18}?"+NUM+"\\s*(?:k?cal)","i"),
+    new RegExp("total\\s*(?:calorie|cal|kcal)[a-z]*[^\\d]{0,10}"+NUM,"i")
+  ]);
+  // An unqualified calorie figure is the active burn — Samsung's headline
+  // number. Never let it overwrite a labelled one.
+  if(out.actCal==null&&out.totalCal==null) out.actCal=_grab(flat,[new RegExp(NUM+"\\s*k?cal\\b","i")]);
+
+  var km=_grab(flat,[new RegExp(NUM+"\\s*km\\b","i")]);
+  if(km==null){
+    var mi=_grab(flat,[new RegExp(NUM+"\\s*(?:mi|miles?)\\b","i")]);
+    if(mi!=null) km=Math.round(mi*1.609344*100)/100;
+  }
+  out.distKm=km;
+  if(out.steps!=null&&out.steps<100&&/[.,]/.test(flat)) out.steps=null;  // decimal is OCR noise
+  out.found=["steps","activeMin","actCal","totalCal","distKm"].filter(function(k){ return out[k]!=null; });
+  return out;
+}
+
+/* Bill photo -> something fileBill() can take. Always reviewed before filing. */
+function _parseBill(text,todayIso){
+  var raw=String(text||""), flat=raw.replace(/[  ]/g," ").replace(/\n/g,"  ");
+  var out={payee:null,amount:null,due:null};
+  var NUM="(\\d[\\d,]*(?:\\.\\d{2})?)";
+  out.amount=_grab(flat,[
+    new RegExp("(?:amount\\s*due|total\\s*due|balance\\s*due|amount\\s*payable)[^\\d£]{0,12}£?\\s*"+NUM,"i"),
+    new RegExp("(?:total|due)[^\\d£]{0,12}£\\s*"+NUM,"i"),
+    new RegExp("£\\s*"+NUM,"i")
+  ]);
+  out.due=_billDue(raw,todayIso);
+  var lines=raw.split(/\n+/).map(function(s){return s.trim();}).filter(Boolean);
+  for(var i=0;i<lines.length&&i<12;i++){
+    var L=lines[i];
+    if(L.length<2||L.length>40) continue;
+    if(/^\W+$/.test(L)||/\d{3}/.test(L)) continue;
+    if(/^(invoice|bill|statement|receipt|tax|vat|account|customer|date|due|total|amount|page|ref)\b/i.test(L)) continue;
+    out.payee=L.replace(/[|_]+/g,"").trim(); break;
+  }
+  return out;
+}
+function _billDue(raw,todayIso){
+  var now=todayIso||today(), lines=String(raw||"").split(/\n+/), i, d;
+  // A date on a line mentioning due/payable beats one anywhere else. Check
+  // every such line — "Amount due £89.40" carries no date, the next one might.
+  for(i=0;i<lines.length;i++){
+    if(!/due|payable/i.test(lines[i])) continue;
+    d=_parseDateish(lines[i],todayIso); if(d) return d;
+  }
+  // Otherwise the latest date not already past — an invoice date sits behind
+  // us, a due date doesn't. Better null than a reminder on the wrong day.
+  var best=null;
+  for(i=0;i<lines.length;i++){
+    d=_parseDateish(lines[i],todayIso);
+    if(d&&d>=now&&(best===null||d>best)) best=d;
+  }
+  return best;
+}
+
+/* ---- Samsung Health import ---- */
+function getSHealth(){ var v=load(K.shealth,[]); return Array.isArray(v)?v:[]; }
+function _fileSHealth(rec,thumb){
+  if(!rec||!rec.date) return false;
+  var patch={};
+  ["steps","activeMin","actCal","totalCal","distKm"].forEach(function(k){
+    if(rec[k]!=null) patch[k]=rec[k];
+  });
+  if(!Object.keys(patch).length) return false;
+  setCheckinFor(rec.date,patch);
+  var g=getSHealth().filter(function(x){ return x.date!==rec.date; });
+  g.push({date:rec.date,steps:rec.steps,activeMin:rec.activeMin,actCal:rec.actCal,
+          totalCal:rec.totalCal,distKm:rec.distKm,thumb:thumb||""});
+  g.sort(function(a,b){ return (b.date||"").localeCompare(a.date||""); });
+  save(K.shealth,g.slice(0,60));   // keep localStorage bounded
+  return true;
+}
+var SH_COLS={date:"date",day:"date",steps:"steps",step:"steps",
+  activemin:"activeMin",activetime:"activeMin",activeminutes:"activeMin",
+  actcal:"actCal",activecalories:"actCal",activecalorie:"actCal",
+  totalcal:"totalCal",totalcalories:"totalCal",calories:"actCal",
+  distkm:"distKm",distance:"distKm"};
+function _parseSHealthData(txt){
+  var rows=[];
+  try{
+    var j=JSON.parse(txt);
+    (Array.isArray(j)?j:(j.data||[])).forEach(function(o){
+      var r={}; Object.keys(o||{}).forEach(function(k){
+        var t=SH_COLS[String(k).toLowerCase().replace(/[^a-z]/g,"")];
+        if(t) r[t]=t==="date"?String(o[k]).slice(0,10):_n(o[k]);
+      });
+      if(r.date) rows.push(r);
+    });
+    return rows;
+  }catch(e){ /* not JSON — fall through to CSV */ }
+  var lines=String(txt||"").split(/\r?\n/).filter(function(l){ return l.trim(); });
+  if(lines.length<2) return rows;
+  var head=lines[0].split(",").map(function(h){ return SH_COLS[h.toLowerCase().replace(/[^a-z]/g,"")]||null; });
+  for(var i=1;i<lines.length;i++){
+    var cells=lines[i].split(","), r={};
+    head.forEach(function(t,ix){
+      if(!t||cells[ix]==null) return;
+      var v=cells[ix].trim();
+      r[t]= t==="date" ? (_parseDateish(v)||v.slice(0,10)) : _n(v);
+    });
+    if(r.date) rows.push(r);
+  }
+  return rows;
+}
+/* Screenshots (OCR) or a csv/json export. Files are handled independently so
+   one unreadable image never sinks the batch. */
+function importSamsung(files){
+  var list=Array.prototype.slice.call(files||[]);
+  if(!list.length) return;
+  var imgs=list.filter(function(f){ return /^image\//.test(f.type); });
+  var data=list.filter(function(f){ return !/^image\//.test(f.type); });
+  var wrote=0, skipped=0, pending=list.length;
+  function finish(){
+    if(--pending>0) return;
+    toast(wrote ? ("Imported "+wrote+" day"+(wrote===1?"":"s")+(skipped?" · "+skipped+" unreadable":""))
+                : "Nothing readable in those files.");
+    render();
+  }
+  data.forEach(function(f){
+    var fr=new FileReader();
+    fr.onload=function(){
+      _parseSHealthData(fr.result).forEach(function(r){ if(_fileSHealth(r,"")) wrote++; });
+      finish();
+    };
+    fr.onerror=function(){ skipped++; finish(); };
+    fr.readAsText(f);
+  });
+  if(imgs.length) toast("Reading "+imgs.length+" screenshot"+(imgs.length===1?"":"s")+"…");
+  imgs.forEach(function(f){
+    Promise.all([_ocrFile(f),_thumb(f,180)]).then(function(a){
+      var rec=_parseSHealth(a[0]);
+      if(!rec.date) rec.date=today();          // undated screenshot files under today
+      if(rec.found.length&&_fileSHealth(rec,a[1])) wrote++; else skipped++;
+      finish();
+    }).catch(function(e){
+      skipped++;
+      if(String(e&&e.message)==="offline") toast("Couldn't load the reader — needs internet once.");
+      finish();
+    });
+  });
+}
+
 function getHabits(){ return load(K.habits,{list:[],log:{}}); }
 function setHabits(v){ save(K.habits,v); }
 function toggleHabit(hid,d){
@@ -730,11 +974,38 @@ function vBoard(){
         }).join("")+'</div>'+
       '</div>'+
     '</div>'+
+    '<h2 class="sec">Samsung Health</h2>'+
+    '<div class="card">'+
+      '<div class="row" style="margin-bottom:8px">'+
+        '<button class="btn" id="shPick">⤓ Import Samsung Health</button>'+
+        '<input type="file" id="shFile" accept="image/*,.csv,.json" multiple style="display:none">'+
+      '</div>'+
+      '<div class="mut">Screenshot your daily activity and pick the images — each one files itself '+
+      'under its own date. A csv or json export works too, and works offline.</div>'+
+      shGallery()+
+    '</div>'+
     '<h2 class="sec">Habits</h2>'+
     '<div class="card"><div class="row" style="margin-bottom:6px">'+
       '<input class="inp" id="hName" placeholder="New habit (e.g. Train, Read, Pray)" style="flex:1">'+
       '<button class="btn" id="hAdd">Add habit</button></div>'+
       (h.list.length?h.list.map(habitRow).join(""):'<div class="empty">No habits yet.</div>')+'</div>';
+}
+function shGallery(){
+  var g=getSHealth();
+  if(!g.length) return '';
+  return '<div style="display:flex;gap:10px;overflow-x:auto;margin-top:13px;padding-bottom:4px">'+
+    g.slice(0,20).map(function(x){
+      var bits=[];
+      if(x.steps!=null) bits.push(x.steps.toLocaleString()+" steps");
+      if(x.activeMin!=null) bits.push(x.activeMin+" min");
+      if(x.distKm!=null) bits.push(x.distKm+" km");
+      return '<div style="flex:0 0 auto;width:104px">'+
+        (x.thumb?'<img src="'+x.thumb+'" alt="" style="width:104px;border-radius:8px;display:block;border:1px solid var(--line)">'
+                :'<div style="width:104px;height:74px;border-radius:8px;border:1px solid var(--line);display:grid;place-items:center" class="mut">csv</div>')+
+        '<div class="bMono" style="margin-top:5px">'+esc(x.date)+'</div>'+
+        '<div class="mut" style="font-size:11px;line-height:1.35">'+esc(bits.join(" · ")||"—")+'</div>'+
+      '</div>';
+    }).join("")+'</div>';
 }
 function numField(lbl,id,val){
   return '<div><div class="bMono">'+esc(lbl)+'</div><input class="inp" id="'+id+'" type="number" step="any" value="'+(val==null?"":esc(val))+'" style="margin-top:4px"></div>';
@@ -747,6 +1018,11 @@ function vInbox(){
   var owed=unpaid.reduce(function(s,b){return s+(Number(b.amount)||0);},0);
   return '<div class="card"><h3 class="ch">File a bill</h3>'+
     '<div class="mut" style="margin-bottom:9px">Filing a bill creates its FIN task and a due-date reminder automatically.</div>'+
+    '<div class="row" style="margin-bottom:9px">'+
+      '<button class="btn gh" id="biPick">📷 Photograph a bill</button>'+
+      '<input type="file" id="biFile" accept="image/*" capture="environment" style="display:none">'+
+      '<span class="mut">Reads the payee, amount and due date into the boxes below. Check them before filing.</span>'+
+    '</div>'+
     '<div class="row"><input class="inp" id="bPayee" placeholder="Who to pay" style="flex:2;min-width:170px">'+
     '<input class="inp" id="bAmt" type="number" step="0.01" placeholder="Amount £" style="flex:0 0 140px">'+
     '<input class="inp" id="bDue" type="date" value="'+today()+'" style="flex:0 0 160px">'+
@@ -1238,6 +1514,25 @@ function wire(){
     fileBill({payee:p,amount:el("bAmt").value,due:el("bDue").value});
     toast("Filed — task + reminder created"); render();
   });
+  // Bill camera — fills the boxes, never files on its own. You confirm.
+  var biPick=el("biPick"), biFile=el("biFile");
+  if(biPick&&biFile){
+    biPick.addEventListener("click",function(){ biFile.click(); });
+    biFile.addEventListener("change",function(){
+      var f=this.files&&this.files[0]; this.value="";
+      if(!f) return;
+      toast("Reading the bill…");
+      _ocrFile(f).then(function(txt){
+        var b=_parseBill(txt), got=[];
+        if(b.payee){ el("bPayee").value=b.payee; got.push("payee"); }
+        if(b.amount!=null){ el("bAmt").value=b.amount; got.push("amount"); }
+        if(b.due){ el("bDue").value=b.due; got.push("due date"); }
+        toast(got.length?("Found "+got.join(", ")+" — check it, then File it"):"Couldn't read that one. Type it in.");
+      }).catch(function(e){
+        toast(String(e&&e.message)==="offline"?"Couldn't load the reader — needs internet once.":"Couldn't read that one.");
+      });
+    });
+  }
   // Cash
   var cAdd=el("cAdd");
   if(cAdd) cAdd.addEventListener("click",function(){
@@ -1255,6 +1550,12 @@ function wire(){
       trained:el("cTrained").checked,dev:el("cDev").checked});
     toast("Check-in saved"); render();
   });
+  // Samsung Health import — hidden file input, driven by the visible button.
+  var shPick=el("shPick"), shFile=el("shFile");
+  if(shPick&&shFile){
+    shPick.addEventListener("click",function(){ shFile.click(); });
+    shFile.addEventListener("change",function(){ importSamsung(this.files); this.value=""; });
+  }
   var mA=el("mAdd"); if(mA) mA.addEventListener("click",function(){ addMindful(state.date,25); toast("+25 min focus"); render(); });
   var mC=el("mClear"); if(mC) mC.addEventListener("click",function(){
     var all=load(K.mindful,{}); all[state.date]=0; save(K.mindful,all); render(); });
