@@ -34,3 +34,4 @@ No build step — commit and push, and GitHub Pages redeploys automatically.
 
 Pages is configured to deploy from the `main` branch (root). Pushing to `main`
 publishes the change within a minute or so.
+<!-- rebuild -->
