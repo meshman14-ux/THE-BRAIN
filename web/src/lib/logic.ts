@@ -227,18 +227,38 @@ export function projectProgress<T extends Pick<Task, "status">>(
 }
 
 /**
- * A goal's progress. A hand-set `progress` always wins — if you have said
- * where you are, the system does not argue. Otherwise it is the mean of the
- * goal's projects that have measurable progress. Null when nothing is known.
+ * What you SAY your progress is. `goals.progress` is NOT NULL with default 0,
+ * so this is always a number — it can never encode "work it out for me".
  */
-export function goalProgress(
-  goal: Pick<Goal, "progress">,
-  projectPercents: (number | null)[]
-): number | null {
-  if (goal.progress != null) return clampPercent(goal.progress);
+export function statedProgress(goal: Pick<Goal, "progress">): number {
+  return clampPercent(goal.progress);
+}
+
+/**
+ * What the WORK says: the mean of the projects that have measurable progress.
+ * Null when nothing underneath is measurable — which is not the same as 0.
+ */
+export function derivedProgress(projectPercents: (number | null)[]): number | null {
   const known = projectPercents.filter((n): n is number => n != null);
   if (known.length === 0) return null;
   return Math.round(known.reduce((a, b) => a + b, 0) / known.length);
+}
+
+/** Gap wide enough to be worth surfacing rather than nagging about. */
+export const PROGRESS_DRIFT = 15;
+
+/**
+ * True when your stated progress and the underlying work disagree materially.
+ * This is the honest-list mechanism: a goal sitting at 80% while its projects
+ * sit at 20% is the thing you most need shown to you.
+ */
+export function progressDrifts(
+  stated: number,
+  derived: number | null,
+  threshold: number = PROGRESS_DRIFT
+): boolean {
+  if (derived == null) return false;
+  return Math.abs(stated - derived) >= threshold;
 }
 
 /** Percentages are 0–100. Out-of-range stored values are clamped, not trusted. */
@@ -315,12 +335,22 @@ export function goalRollup<
   projects: P[],
   tasksByProject: (projectId: string) => Pick<Task, "status">[],
   todayIso: string
-): { projects: P[]; percent: number | null; overdue: boolean } {
+): {
+  projects: P[];
+  stated: number;
+  derived: number | null;
+  drifts: boolean;
+  overdue: boolean;
+} {
   const mine = projectsForGoal(projects, goal.id).filter(isLive);
   const percents = mine.map((p) => projectProgress(tasksByProject(p.id)));
+  const stated = statedProgress(goal);
+  const derived = derivedProgress(percents);
   return {
     projects: mine,
-    percent: goalProgress(goal, percents),
+    stated,
+    derived,
+    drifts: progressDrifts(stated, derived),
     overdue: isOverdue(goal, todayIso),
   };
 }

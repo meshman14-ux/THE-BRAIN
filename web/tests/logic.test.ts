@@ -18,7 +18,9 @@ import {
   isLive,
   projectsForGoal,
   projectProgress,
-  goalProgress,
+  statedProgress,
+  derivedProgress,
+  progressDrifts,
   clampPercent,
   isOverdue,
   daysUntil,
@@ -274,9 +276,11 @@ describe("capture routing", () => {
 const goal = (over: Partial<Goal> = {}): Goal => ({
   id: Math.random().toString(36).slice(2),
   title: "g",
+  description: null,
   pillar_id: null,
+  vision_id: null,
   target_date: null,
-  progress: null,
+  progress: 0,
   status: "active",
   ...over,
 });
@@ -284,8 +288,10 @@ const goal = (over: Partial<Goal> = {}): Goal => ({
 const project = (over: Partial<Project> = {}): Project => ({
   id: Math.random().toString(36).slice(2),
   title: "p",
+  description: null,
   pillar_id: null,
   goal_id: null,
+  start_date: null,
   due_date: null,
   status: "active",
   ...over,
@@ -336,31 +342,48 @@ describe("projectProgress", () => {
   });
 });
 
-describe("goalProgress", () => {
-  it("prefers a hand-set value over anything derived", () => {
-    expect(goalProgress(goal({ progress: 70 }), [10, 10])).toBe(70);
+describe("statedProgress / derivedProgress", () => {
+  it("stated is always a number — the column is NOT NULL, so it can never mean 'derive it'", () => {
+    expect(statedProgress(goal({ progress: 70 }))).toBe(70);
+    expect(statedProgress(goal({ progress: 0 }))).toBe(0);
   });
 
-  it("averages its projects when unset", () => {
-    expect(goalProgress(goal({ progress: null }), [100, 50, 0])).toBe(50);
+  it("stated clamps a stored value that is out of range", () => {
+    expect(statedProgress(goal({ progress: 140 }))).toBe(100);
+    expect(statedProgress(goal({ progress: -5 }))).toBe(0);
   });
 
-  it("ignores projects with no measurable progress", () => {
-    expect(goalProgress(goal({ progress: null }), [80, null, null])).toBe(80);
+  it("derived averages the projects that have measurable progress", () => {
+    expect(derivedProgress([100, 50, 0])).toBe(50);
+    expect(derivedProgress([80, null, null])).toBe(80);
   });
 
-  it("is null when nothing is known", () => {
-    expect(goalProgress(goal({ progress: null }), [])).toBeNull();
-    expect(goalProgress(goal({ progress: null }), [null])).toBeNull();
+  it("derived is null when nothing underneath is measurable — not 0", () => {
+    expect(derivedProgress([])).toBeNull();
+    expect(derivedProgress([null])).toBeNull();
+  });
+});
+
+describe("progressDrifts", () => {
+  it("flags a goal claiming more than its work supports", () => {
+    expect(progressDrifts(80, 20)).toBe(true);
   });
 
-  it("clamps a stored value that is out of range", () => {
-    expect(goalProgress(goal({ progress: 140 }), [])).toBe(100);
-    expect(goalProgress(goal({ progress: -5 }), [])).toBe(0);
+  it("stays quiet when the two roughly agree", () => {
+    expect(progressDrifts(50, 45)).toBe(false);
   });
 
-  it("treats a hand-set 0 as a real answer, not as absent", () => {
-    expect(goalProgress(goal({ progress: 0 }), [90])).toBe(0);
+  it("triggers exactly at the threshold, not just past it", () => {
+    expect(progressDrifts(50, 35)).toBe(true);
+    expect(progressDrifts(50, 36)).toBe(false);
+  });
+
+  it("cannot drift against nothing", () => {
+    expect(progressDrifts(90, null)).toBe(false);
+  });
+
+  it("flags under-claiming too — the gap matters in both directions", () => {
+    expect(progressDrifts(10, 90)).toBe(true);
   });
 });
 
@@ -455,14 +478,18 @@ describe("goalRollup", () => {
     };
     const r = goalRollup(g, [p1, p2, dropped, other], (id) => tasks[id] ?? [], TODAY);
     expect(r.projects.map((p) => p.id)).toEqual(["p1", "p2"]);
-    expect(r.percent).toBe(75); // (50 + 100) / 2
+    expect(r.derived).toBe(75); // (50 + 100) / 2
+    expect(r.stated).toBe(0); // untouched by hand
+    expect(r.drifts).toBe(true); // claims 0, work says 75
     expect(r.overdue).toBe(true);
   });
 
   it("copes with a goal that has no projects", () => {
     const r = goalRollup(goal({ id: "g1" }), [], () => [], TODAY);
     expect(r.projects).toEqual([]);
-    expect(r.percent).toBeNull();
+    expect(r.derived).toBeNull();
+    expect(r.stated).toBe(0);
+    expect(r.drifts).toBe(false); // nothing to disagree with
     expect(r.overdue).toBe(false);
   });
 });
