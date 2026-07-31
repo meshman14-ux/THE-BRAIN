@@ -15,8 +15,20 @@ import {
   areasFor,
   noteFromCapture,
   taskTitleFromCapture,
+  isLive,
+  projectsForGoal,
+  projectProgress,
+  statedProgress,
+  derivedProgress,
+  progressDrifts,
+  clampPercent,
+  isOverdue,
+  daysUntil,
+  sortGoals,
+  goalsByPillar,
+  goalRollup,
 } from "../src/lib/logic";
-import type { Pillar, Task } from "../src/lib/types";
+import type { Goal, Pillar, Project, Task } from "../src/lib/types";
 
 const task = (over: Partial<Task> = {}): Task => ({
   id: Math.random().toString(36).slice(2),
@@ -254,5 +266,230 @@ describe("capture routing", () => {
   it("caps a task title at the column limit", () => {
     const t = taskTitleFromCapture("y".repeat(500));
     expect(t).toHaveLength(300);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * The cascade — Goals → Projects → Tasks
+ * ------------------------------------------------------------------ */
+
+const goal = (over: Partial<Goal> = {}): Goal => ({
+  id: Math.random().toString(36).slice(2),
+  title: "g",
+  description: null,
+  pillar_id: null,
+  vision_id: null,
+  target_date: null,
+  progress: 0,
+  status: "active",
+  ...over,
+});
+
+const project = (over: Partial<Project> = {}): Project => ({
+  id: Math.random().toString(36).slice(2),
+  title: "p",
+  description: null,
+  pillar_id: null,
+  goal_id: null,
+  start_date: null,
+  due_date: null,
+  status: "active",
+  ...over,
+});
+
+const TODAY = "2026-07-30";
+
+describe("isLive", () => {
+  it("counts only active items", () => {
+    expect(isLive(goal({ status: "active" }))).toBe(true);
+    (["paused", "done", "dropped"] as const).forEach((s) =>
+      expect(isLive(goal({ status: s }))).toBe(false)
+    );
+  });
+});
+
+describe("projectsForGoal", () => {
+  it("returns a goal's projects", () => {
+    const ps = [project({ goal_id: "g1" }), project({ goal_id: "g2" }), project({ goal_id: "g1" })];
+    expect(projectsForGoal(ps, "g1")).toHaveLength(2);
+  });
+
+  it("treats unattached projects as a real view, not leftovers", () => {
+    const ps = [project({ goal_id: null }), project({ goal_id: "g1" })];
+    expect(projectsForGoal(ps, null)).toHaveLength(1);
+  });
+});
+
+describe("projectProgress", () => {
+  it("is done over counted, as a percentage", () => {
+    const ts = [task({ status: "done" }), task({ status: "done" }), task({ status: "open" }), task({ status: "doing" })];
+    expect(projectProgress(ts)).toBe(50);
+  });
+
+  it("excludes dropped tasks from the denominator — cutting scope must not punish you", () => {
+    const ts = [task({ status: "done" }), task({ status: "dropped" }), task({ status: "dropped" })];
+    expect(projectProgress(ts)).toBe(100);
+  });
+
+  it("distinguishes 'no tasks' (null) from 'none done' (0)", () => {
+    expect(projectProgress([])).toBeNull();
+    expect(projectProgress([task({ status: "dropped" })])).toBeNull();
+    expect(projectProgress([task({ status: "open" })])).toBe(0);
+  });
+
+  it("rounds to whole percent", () => {
+    expect(projectProgress([task({ status: "done" }), task({ status: "open" }), task({ status: "open" })])).toBe(33);
+  });
+});
+
+describe("statedProgress / derivedProgress", () => {
+  it("stated is always a number — the column is NOT NULL, so it can never mean 'derive it'", () => {
+    expect(statedProgress(goal({ progress: 70 }))).toBe(70);
+    expect(statedProgress(goal({ progress: 0 }))).toBe(0);
+  });
+
+  it("stated clamps a stored value that is out of range", () => {
+    expect(statedProgress(goal({ progress: 140 }))).toBe(100);
+    expect(statedProgress(goal({ progress: -5 }))).toBe(0);
+  });
+
+  it("derived averages the projects that have measurable progress", () => {
+    expect(derivedProgress([100, 50, 0])).toBe(50);
+    expect(derivedProgress([80, null, null])).toBe(80);
+  });
+
+  it("derived is null when nothing underneath is measurable — not 0", () => {
+    expect(derivedProgress([])).toBeNull();
+    expect(derivedProgress([null])).toBeNull();
+  });
+});
+
+describe("progressDrifts", () => {
+  it("flags a goal claiming more than its work supports", () => {
+    expect(progressDrifts(80, 20)).toBe(true);
+  });
+
+  it("stays quiet when the two roughly agree", () => {
+    expect(progressDrifts(50, 45)).toBe(false);
+  });
+
+  it("triggers exactly at the threshold, not just past it", () => {
+    expect(progressDrifts(50, 35)).toBe(true);
+    expect(progressDrifts(50, 36)).toBe(false);
+  });
+
+  it("cannot drift against nothing", () => {
+    expect(progressDrifts(90, null)).toBe(false);
+  });
+
+  it("flags under-claiming too — the gap matters in both directions", () => {
+    expect(progressDrifts(10, 90)).toBe(true);
+  });
+});
+
+describe("clampPercent", () => {
+  it("bounds to 0..100 and rounds", () => {
+    expect(clampPercent(50.4)).toBe(50);
+    expect(clampPercent(-1)).toBe(0);
+    expect(clampPercent(101)).toBe(100);
+    expect(clampPercent(NaN)).toBe(0);
+  });
+});
+
+describe("isOverdue", () => {
+  it("is true for a live item past its date", () => {
+    expect(isOverdue(goal({ target_date: "2026-07-29" }), TODAY)).toBe(true);
+  });
+
+  it("is false on the day itself — you still have today", () => {
+    expect(isOverdue(goal({ target_date: TODAY }), TODAY)).toBe(false);
+  });
+
+  it("never marks finished work overdue, however late it was", () => {
+    expect(isOverdue(goal({ target_date: "2020-01-01", status: "done" }), TODAY)).toBe(false);
+    expect(isOverdue(goal({ target_date: "2020-01-01", status: "dropped" }), TODAY)).toBe(false);
+  });
+
+  it("reads due_date for projects and is false with no date at all", () => {
+    expect(isOverdue(project({ due_date: "2026-07-01" }), TODAY)).toBe(true);
+    expect(isOverdue(goal({ target_date: null }), TODAY)).toBe(false);
+  });
+});
+
+describe("daysUntil", () => {
+  it("counts forward, backward and handles no date", () => {
+    expect(daysUntil("2026-08-02", TODAY)).toBe(3);
+    expect(daysUntil(TODAY, TODAY)).toBe(0);
+    expect(daysUntil("2026-07-28", TODAY)).toBe(-2);
+    expect(daysUntil(null, TODAY)).toBeNull();
+  });
+
+  it("crosses a month boundary correctly", () => {
+    expect(daysUntil("2026-08-01", "2026-07-31")).toBe(1);
+  });
+});
+
+describe("sortGoals", () => {
+  it("puts overdue first, then soonest, with undated last", () => {
+    const a = goal({ title: "soon", target_date: "2026-08-05" });
+    const b = goal({ title: "late", target_date: "2026-07-01" });
+    const c = goal({ title: "undated", target_date: null });
+    const d = goal({ title: "later", target_date: "2026-09-01" });
+    expect(sortGoals([c, d, a, b], TODAY).map((g) => g.title)).toEqual([
+      "late",
+      "soon",
+      "later",
+      "undated",
+    ]);
+  });
+
+  it("does not mutate its input", () => {
+    const gs = [goal({ target_date: "2026-09-01" }), goal({ target_date: "2026-08-01" })];
+    const before = gs.map((g) => g.id);
+    sortGoals(gs, TODAY);
+    expect(gs.map((g) => g.id)).toEqual(before);
+  });
+});
+
+describe("goalsByPillar", () => {
+  it("groups by area and keeps arealess goals under null", () => {
+    const m = goalsByPillar([
+      goal({ pillar_id: "p1" }),
+      goal({ pillar_id: null }),
+      goal({ pillar_id: "p1" }),
+    ]);
+    expect(m.get("p1")).toHaveLength(2);
+    expect(m.get(null)).toHaveLength(1);
+  });
+});
+
+describe("goalRollup", () => {
+  it("gathers live projects, rolls up progress, and flags overdue", () => {
+    const g = goal({ id: "g1", target_date: "2026-07-01" });
+    const p1 = project({ id: "p1", goal_id: "g1" });
+    const p2 = project({ id: "p2", goal_id: "g1" });
+    const dropped = project({ id: "p3", goal_id: "g1", status: "dropped" });
+    const other = project({ id: "p4", goal_id: "g2" });
+    const tasks: Record<string, Task[]> = {
+      p1: [task({ status: "done" }), task({ status: "open" })],
+      p2: [task({ status: "done" })],
+      p3: [task({ status: "open" })],
+      p4: [task({ status: "open" })],
+    };
+    const r = goalRollup(g, [p1, p2, dropped, other], (id) => tasks[id] ?? [], TODAY);
+    expect(r.projects.map((p) => p.id)).toEqual(["p1", "p2"]);
+    expect(r.derived).toBe(75); // (50 + 100) / 2
+    expect(r.stated).toBe(0); // untouched by hand
+    expect(r.drifts).toBe(true); // claims 0, work says 75
+    expect(r.overdue).toBe(true);
+  });
+
+  it("copes with a goal that has no projects", () => {
+    const r = goalRollup(goal({ id: "g1" }), [], () => [], TODAY);
+    expect(r.projects).toEqual([]);
+    expect(r.derived).toBeNull();
+    expect(r.stated).toBe(0);
+    expect(r.drifts).toBe(false); // nothing to disagree with
+    expect(r.overdue).toBe(false);
   });
 });

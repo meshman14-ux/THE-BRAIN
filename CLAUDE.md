@@ -114,6 +114,15 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 - **`people.cadence_days`** — lets the system say *"you haven't spoken to your brother in 47 days
   and you said 14."* Highest-value insight in the schema.
 - **`pillars.standard`** — the standard the area holds. A pillar never gets ticked off.
+- **`goals.progress` is `integer NOT NULL default 0`.** It can never mean "work it out
+  for me", so the app keeps two separate signals: `statedProgress` (what you claim) and
+  `derivedProgress` (the mean of the goal's projects). When they disagree by ≥15 points
+  the goal says so — a goal at 80% whose projects sit at 20% is exactly what you need shown.
+- **`goals.status` and `projects.status` have NO check constraint** — unlike `tasks.status`,
+  they are free text defaulting to `'active'`. `ItemStatus` is a convention the app upholds,
+  not something the database enforces. Treat values read back as possibly outside the union.
+- **The cascade columns exist and are nullable**: `projects.goal_id`, `tasks.project_id`.
+  Nullable is the point — decision 2 makes every level above a task optional.
 
 ## A4. Database (live project)
 
@@ -149,8 +158,8 @@ Migrations applied to the live project: `the_brain_os_v1_full_schema`,
 
 ## A5. Build state (v1.2, unpacked into `web/` 2026-07-30)
 
-Verified in this repo: **29/29 tests pass** (`tests/logic.test.ts`, vitest) and
-**`npm run build` produces exactly 11 routes**.
+Verified in this repo: **57/57 tests pass** (`tests/logic.test.ts`, vitest) and
+**`npm run build` produces exactly 12 routes**.
 
 | Piece | State |
 |---|---|
@@ -158,7 +167,7 @@ Verified in this repo: **29/29 tests pass** (`tests/logic.test.ts`, vitest) and
 | Dashboard (12 areas), Capture, Inbox/Triage, Planner (Kanban), This Week | ✅ in `src/app/(app)/` |
 | Paper theme + dark toggle | ✅ |
 | `src/lib/logic.ts` + `tests/` + vitest | ✅ |
-| Goals + Projects UI (Phase 2) | ❌ next up |
+| Goals + Projects UI (Phase 2) | ✅ `/goals` — the cascade, stated vs derived progress |
 
 The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't build on it.
 
@@ -174,6 +183,7 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /auth/confirm          verifies + redirects, calls seed_pillars()
 /auth/signout          POST
 /(app)/dashboard       the 12 Life Areas, split LIFE_OS / EMPIRE_OS
+/(app)/goals           goals → projects, with unattached projects listed separately
 /(app)/planner         Kanban
 /(app)/week            7-day scheduler
 /(app)/capture         one-box capture (PWA start_url)
@@ -202,8 +212,8 @@ Public paths: `/login`, `/auth`, `/manifest.webmanifest`, `/sw.js`.
 
 ## A8. Build order & open items
 
-Phases: 0 auth/RLS/PWA/areas ✅ · 1 Inbox+Capture+Planner+Week ✅ · **2 Goals + Projects ← next**
-· 3 Notes + links + backlinks · 4 LIFE_OS (habits, journal, people, metrics) · 5 EMPIRE_OS
+Phases: 0 auth/RLS/PWA/areas ✅ · 1 Inbox+Capture+Planner+Week ✅ · 2 Goals + Projects ✅
+· **3 Notes + links + backlinks ← next** · 4 LIFE_OS (habits, journal, people, metrics) · 5 EMPIRE_OS
 (ventures, assets, investments, opportunities) · 6 Review rituals · 7 AI layer.
 
 Open items:
@@ -222,6 +232,12 @@ Open items:
    a coffee shop), 7 debts/bills, 3 vehicles (tax/MOT), property at **Kathleen St**.
 5. His blueprint has **5** review cadences (daily, weekly, monthly, quarterly, annual); we
    deliberately build **3**. Confirm with him before adding monthly/annual.
+6. **Vehicles has no pillar.** The blueprint defines 10 areas; the seeded 12 cover all of them
+   except Vehicles, which carries real deadlines (tax/MOT on three vehicles). Adding it as a
+   13th amends locked decision 3 — awaiting Jay's sign-off, deliberately not done quietly.
+7. **No ESLint config.** v1.2 ships none, and `next lint` is deprecated and prompts
+   interactively. `npx tsc --noEmit` is the current gate and is clean. Add a flat
+   `eslint.config.mjs` when convenient.
 
 ## A9. Commands
 

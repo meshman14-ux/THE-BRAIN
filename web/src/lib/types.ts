@@ -23,6 +23,52 @@ export type InboxItem = {
 export type Priority = "High" | "Med" | "Low";
 export type TaskStatus = "open" | "doing" | "done" | "dropped" | "waiting";
 
+/**
+ * Goals and projects share a lifecycle: live, parked, finished, abandoned.
+ *
+ * Unlike `tasks.status`, the database does NOT constrain these columns — they
+ * are plain text defaulting to 'active'. This union is a convention the app
+ * upholds, not a guarantee the database enforces, so treat anything read back
+ * as possibly outside it.
+ */
+export type ItemStatus = "active" | "paused" | "done" | "dropped";
+
+export type Goal = {
+  id: string;
+  title: string;
+  description: string | null;
+  /** Optional per decision 2 — a goal need not hang off an area. */
+  pillar_id: string | null;
+  vision_id: string | null;
+  target_date: string | null;
+  /**
+   * What you say your progress is: 0–100, NOT NULL in the database, default 0.
+   * Because it is always present it can never mean "derive it for me" — what
+   * the projects imply is computed separately by `derivedProgress`.
+   */
+  progress: number;
+  status: ItemStatus;
+};
+
+export type Project = {
+  id: string;
+  title: string;
+  description: string | null;
+  pillar_id: string | null;
+  /** Optional — a project without a goal is normal, not an error. */
+  goal_id: string | null;
+  start_date: string | null;
+  due_date: string | null;
+  status: ItemStatus;
+};
+
+export const ITEM_STATUS_LABEL: Record<ItemStatus, string> = {
+  active: "Active",
+  paused: "Paused",
+  done: "Done",
+  dropped: "Dropped",
+};
+
 export type Task = {
   id: string;
   title: string;
