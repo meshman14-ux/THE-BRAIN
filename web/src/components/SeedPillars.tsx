@@ -29,7 +29,7 @@ export default function SeedPillars() {
         <div className="text-5xl mb-4 select-none">🧠</div>
         <h1 className="text-[1.7rem] font-semibold">Initialise THE BRAIN</h1>
         <p className="text-sm text-[var(--muted)] mt-3 leading-relaxed">
-          This plants your twelve pillars — seven in LIFE_OS, five in EMPIRE_OS —
+          This plants your thirteen pillars — eight in LIFE_OS, five in EMPIRE_OS —
           each with the standard it holds. You can rename, reword and reorder any
           of them afterwards.
         </p>
@@ -57,7 +57,7 @@ export default function SeedPillars() {
         </ul>
 
         <button className="btn w-full mt-6" onClick={seed} disabled={busy}>
-          {busy ? "Planting…" : "Plant the twelve pillars"}
+          {busy ? "Planting…" : "Plant the thirteen pillars"}
         </button>
         {err && <p className="text-sm text-[var(--bad)] mt-3">⚠ {err}</p>}
       </div>

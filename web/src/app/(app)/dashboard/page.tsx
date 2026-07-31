@@ -39,7 +39,7 @@ export default async function Dashboard() {
       <header>
         <p className="label">Command centre</p>
         <h1 className="text-[1.7rem] font-semibold mt-1.5">
-          The twelve pillars
+          The thirteen pillars
         </h1>
         <p className="text-sm text-[var(--muted)] mt-2 max-w-[62ch] leading-relaxed">
           A pillar is a domain with a standard to maintain — it never gets ticked

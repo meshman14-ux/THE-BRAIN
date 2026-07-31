@@ -87,7 +87,10 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 2. **Hierarchy: Vision → Pillars → Goals → Projects → Tasks.** Everything above Projects is
    **optional per item** — a task never requires a goal to exist. This is non-negotiable: it's
    what stops the system feeling bureaucratic.
-3. **12 areas** (called "pillars" in the DB, "Life Areas" in the UI): 7 LIFE_OS, 5 EMPIRE_OS.
+3. **13 areas** (called "pillars" in the DB, "Life Areas" in the UI): 8 LIFE_OS, 5 EMPIRE_OS.
+   *Amended 2026-07-31 with Jay's sign-off — was 12/7/5. Vehicles was added because his
+   blueprint tracks three vehicles whose tax and MOT dates are hard deadlines with no home
+   in the original twelve, where they fell into Home & Admin and got lost.*
 4. **Phone-first capture, desktop thinking.** Installable PWA, one box, zero required fields,
    offline queue in localStorage that flushes on reconnect. That queue is a transient outbox for
    unsent captures only — Supabase remains the system of record, never the browser.
@@ -147,7 +150,7 @@ create policy "own" on <t> for all
   using (auth.uid() = user_id) with check (auth.uid() = user_id);
 ```
 
-**`seed_pillars()`** — `security invoker`, `search_path` pinned, idempotent. Plants the 12 areas
+**`seed_pillars()`** — `security invoker`, `search_path` pinned, idempotent. Plants the 13 areas
 for the calling user. Called from `/auth/confirm` on sign-in and from the first-run screen.
 
 Migrations applied to the live project: `the_brain_os_v1_full_schema`,
@@ -164,7 +167,7 @@ Verified in this repo: **57/57 tests pass** (`tests/logic.test.ts`, vitest) and
 | Piece | State |
 |---|---|
 | Magic-link login, `/auth/confirm`, `/auth/signout`, middleware | ✅ |
-| Dashboard (12 areas), Capture, Inbox/Triage, Planner (Kanban), This Week | ✅ in `src/app/(app)/` |
+| Dashboard (13 areas), Capture, Inbox/Triage, Planner (Kanban), This Week | ✅ in `src/app/(app)/` |
 | Paper theme + dark toggle | ✅ |
 | `src/lib/logic.ts` + `tests/` + vitest | ✅ |
 | Goals + Projects UI (Phase 2) | ✅ `/goals` — the cascade, stated vs derived progress |
@@ -182,7 +185,7 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /login                 magic link
 /auth/confirm          verifies + redirects, calls seed_pillars()
 /auth/signout          POST
-/(app)/dashboard       the 12 Life Areas, split LIFE_OS / EMPIRE_OS
+/(app)/dashboard       the 13 Life Areas, split LIFE_OS / EMPIRE_OS
 /(app)/goals           goals → projects, with unattached projects listed separately
 /(app)/planner         Kanban
 /(app)/week            7-day scheduler
@@ -221,7 +224,7 @@ Open items:
 1. **Capture the live schema into the repo.** The live project's 20-table schema has never been
    committed; pull it into `supabase/` so it stops being tribal knowledge.
 2. **Jay has never completed first sign-in.** Verify the magic-link round trip end to end, and
-   that the 12 areas appear.
+   that the 13 areas appear.
 3. **Three missing area names.** Jay's Blueprint v2 defines **11** Life Areas ("7 from V1 · 4
    new"). Known: Businesses, Finances, Vehicles, Property, Learning & Growth, Second Brain,
    Life Admin & Documents, Reviews. The other three are in
@@ -232,9 +235,10 @@ Open items:
    a coffee shop), 7 debts/bills, 3 vehicles (tax/MOT), property at **Kathleen St**.
 5. His blueprint has **5** review cadences (daily, weekly, monthly, quarterly, annual); we
    deliberately build **3**. Confirm with him before adding monthly/annual.
-6. **Vehicles has no pillar.** The blueprint defines 10 areas; the seeded 12 cover all of them
-   except Vehicles, which carries real deadlines (tax/MOT on three vehicles). Adding it as a
-   13th amends locked decision 3 — awaiting Jay's sign-off, deliberately not done quietly.
+6. ~~Vehicles has no pillar.~~ **Resolved 2026-07-31** — added as the 13th area with Jay's
+   sign-off (migration `add_vehicles_pillar_thirteen_areas`). Seed it with the three vehicles
+   from the blueprint: Van `DK05 LVL`, Zafira `WK57 XWO`, BMW `ME54 JAY`, each with tax and
+   MOT dates.
 7. **No ESLint config.** v1.2 ships none, and `next lint` is deprecated and prompts
    interactively. `npx tsc --noEmit` is the current gate and is clean. Add a flat
    `eslint.config.mjs` when convenient.

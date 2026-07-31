@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 
 /**
  * Magic-link landing. Handles both the token_hash and PKCE (code) flows,
- * then seeds the 12 pillars if this is a first sign-in.
+ * then seeds the 13 pillars if this is a first sign-in.
  */
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
 
   if (!ok) return NextResponse.redirect(`${origin}/login?error=link`);
 
-  // First run: plant the twelve pillars. Idempotent inside the function.
+  // First run: plant the thirteen pillars. Idempotent inside the function.
   await supabase.rpc("seed_pillars");
 
   return NextResponse.redirect(`${origin}/dashboard`);
