@@ -35,6 +35,7 @@ import {
   isShelved,
   areasFor,
 } from "@/lib/logic";
+import { VENTURE_BRANCH } from "@/lib/references";
 import { Panel, Empty, Kpi, Bar, Tag } from "@/components/ui";
 import AreaBars from "@/components/AreaBars";
 
@@ -226,12 +227,9 @@ export default async function EmpirePage() {
               {ordered.map((v) => {
                 const c = counts[v.id] ?? { projects: 0, tasks: 0 };
                 const shelved = isShelved(v);
-                return (
-                  <div
-                    key={v.id}
-                    className="flex items-start gap-3 rounded-[10px] border border-[var(--border)] px-3.5 py-2.5"
-                    style={{ opacity: shelved ? 0.62 : 1 }}
-                  >
+                const branch = VENTURE_BRANCH[v.name];
+                const inner = (
+                  <>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-[0.9rem] font-semibold">
@@ -260,6 +258,24 @@ export default async function EmpirePage() {
                         {STAGE_LABEL[v.stage]}
                       </Tag>
                     </div>
+                  </>
+                );
+                const cls =
+                  "flex items-start gap-3 rounded-[10px] border border-[var(--border)] px-3.5 py-2.5";
+                // Every division links to its branch page — except MAINFRAME,
+                // which lives in a separate system this row only points at.
+                return branch ? (
+                  <Link
+                    key={v.id}
+                    href={`/${branch}`}
+                    className={`${cls} card-hover no-underline text-[var(--text)]`}
+                    style={{ opacity: shelved ? 0.62 : 1 }}
+                  >
+                    {inner}
+                  </Link>
+                ) : (
+                  <div key={v.id} className={cls} style={{ opacity: shelved ? 0.62 : 1 }}>
+                    {inner}
                   </div>
                 );
               })}

@@ -186,8 +186,8 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-01)
 
-Verified in this repo: **116/116 tests pass** (`tests/logic.test.ts`, vitest) and
-**`npm run build` produces exactly 15 routes**.
+Verified in this repo: **123/123 tests pass** (`tests/logic.test.ts`, vitest) and
+**`npm run build` produces exactly 16 routes**.
 
 **The three-tier split is live in the UI** (Jay asked for it explicitly, 2026-08-01): THE BRAIN
 at `/dashboard` is the main dashboard and reads over both systems; LIFE_OS at `/life` is
@@ -202,7 +202,8 @@ the command centre summarises and links, exactly as §A2 always described. Don't
 | **EMPIRE_OS** — the CEO dashboard at `/empire` | ✅ KPIs, divisions, week priorities, four-horizon goals, build progress, the 5 empire areas with the same editor, vision footer |
 | Capture, Inbox/Triage, Planner (Kanban), This Week | ✅ in `src/app/(app)/` |
 | Goals + Projects UI (Phase 2) | ✅ `/goals` — the cascade, stated vs derived progress |
-| Honest placeholders for unbuilt sidebar views | ✅ `(app)/[slug]` + `src/lib/placeholders.ts` — delete a row there when its view gets built |
+| Branch pages for unbuilt views + all 9 divisions | ✅ `(app)/[slug]` + `src/lib/placeholders.ts` — each says what it will be, links to where it already lives in the system, and carries its reference shelf. Delete a row when its view gets built |
+| **The reference library** at `/library` | ✅ `src/lib/references.ts` — curated UK-focused shelves per pillar and per branch (researched 2026-08-01), surfaced on pillar pages, branch pages and `/library`. Integrity-tested: every seeded pillar has a shelf, every venture maps to a branch, https-only, no orphan keys |
 | Paper theme + dark toggle | ✅ both dashboards checked in both, and at 390px |
 | `src/lib/logic.ts` + `tests/` + vitest | ✅ |
 
@@ -232,9 +233,12 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /(app)/week            7-day scheduler
 /(app)/capture         one-box capture (PWA start_url)
 /(app)/inbox           triage
-/(app)/pillar/[id]     area detail
-/(app)/[slug]          honest "not built yet" pages for the sidebar's unbuilt views
-                       (registry: src/lib/placeholders.ts; unknown slugs 404)
+/(app)/pillar/[id]     area detail + its reference shelf, back-links to its system
+/(app)/library         the reference library — every curated shelf in one place
+/(app)/[slug]          branch pages: what the view will be, its strings into the
+                       system, and its reference shelf (src/lib/placeholders.ts +
+                       src/lib/references.ts; unknown slugs 404). Every venture on
+                       /empire links to its branch page except MAINFRAME.
 ```
 
 `src/middleware.ts` refreshes the session and redirects unauthenticated users to `/login`.

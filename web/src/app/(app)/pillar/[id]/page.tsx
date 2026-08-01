@@ -2,6 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Pillar } from "@/lib/types";
+import { refsForPillar } from "@/lib/references";
 
 export const dynamic = "force-dynamic";
 
@@ -49,16 +50,27 @@ export default async function PillarPage({
     ]);
 
   const sysClass = p.system === "life" ? "sys-life" : "sys-empire";
+  const systemHref = p.system === "life" ? "/life" : "/empire";
+  const systemLabel = p.system === "life" ? "LIFE_OS" : "EMPIRE_OS";
+  const refs = refsForPillar(p.name);
 
   return (
     <div className={`${sysClass} max-w-[860px] mx-auto grid gap-7`}>
       <header>
-        <Link
-          href="/dashboard"
-          className="text-sm text-[var(--muted)] no-underline hover:text-[var(--text)]"
-        >
-          ← All pillars
-        </Link>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Link
+            href={systemHref}
+            className="text-sm text-[var(--muted)] no-underline hover:text-[var(--text)]"
+          >
+            ← {systemLabel}
+          </Link>
+          <Link
+            href="/dashboard"
+            className="text-sm text-[var(--faint)] no-underline hover:text-[var(--text)]"
+          >
+            · THE BRAIN
+          </Link>
+        </div>
         <div className="flex items-start gap-4 mt-4">
           <span className="text-4xl leading-none select-none">
             {p.emoji ?? "◆"}
@@ -113,6 +125,44 @@ export default async function PillarPage({
           />
         ))}
       </Section>
+
+      {refs.length > 0 && (
+        <section>
+          <div className="flex items-baseline gap-3 mb-3">
+            <h2
+              className="text-xs font-bold tracking-[0.12em] uppercase"
+              style={{ color: "var(--accent)" }}
+            >
+              Reference shelf
+            </h2>
+            <Link
+              href="/library"
+              className="ml-auto text-[0.72rem] font-semibold no-underline"
+              style={{ color: "var(--accent)" }}
+            >
+              FULL LIBRARY →
+            </Link>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {refs.map((r) => (
+              <a
+                key={r.url}
+                href={r.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="card card-hover px-4 py-3 no-underline text-[var(--text)] block"
+              >
+                <p className="text-[0.84rem] font-medium leading-snug">
+                  {r.title} <span className="text-[var(--faint)]">↗</span>
+                </p>
+                <p className="text-[0.72rem] text-[var(--muted)] mt-0.5 leading-snug">
+                  {r.why}
+                </p>
+              </a>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

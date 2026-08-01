@@ -138,6 +138,56 @@ export const PLACEHOLDERS: Placeholder[] = [
     what: "The pinned plan: order of attack, monthly payment, projected clear date. The engine exists in the old app and gets ported onto the Debt remaining metric.",
     phase: "Phase 4 · LIFE_OS",
   },
+
+  /* -- EMPIRE_OS divisions — one branch page per venture ----------- */
+  {
+    slug: "a-to-z-trailerz",
+    name: "A to Z Trailerz",
+    what: "The first income engine, at launch. This page becomes the division cockpit: stock, sales, and the projects that get it to revenue.",
+    phase: "Phase 5 · EMPIRE_OS",
+  },
+  {
+    slug: "amazon-fba",
+    name: "Amazon FBA",
+    what: "Product research stage. Becomes the division cockpit: shortlisted products, margin maths, supplier threads.",
+    phase: "Phase 5 · EMPIRE_OS",
+  },
+  {
+    slug: "ai-software",
+    name: "AI Software",
+    what: "The idea with the highest ceiling. Becomes the division cockpit when it moves past idea — this very system is the proof of capability.",
+    phase: "Phase 5 · EMPIRE_OS",
+  },
+  {
+    slug: "coffee-shop",
+    name: "Coffee Shop",
+    what: "Parked future division. When it wakes, this page holds the site search, the licences and the numbers.",
+    phase: "Backlog · EMPIRE_OS",
+  },
+  {
+    slug: "microgreens",
+    name: "Microgreens",
+    what: "Parked future division. Low setup cost, two-week crop cycles, chefs on standing orders — when it wakes, the trial grow gets tracked here.",
+    phase: "Backlog · EMPIRE_OS",
+  },
+  {
+    slug: "resin-epoxy",
+    name: "Resin & Epoxy",
+    what: "Parked future division. Craft products with real safety and labelling rules — the shelf below covers them before the first pour.",
+    phase: "Backlog · EMPIRE_OS",
+  },
+  {
+    slug: "festivals",
+    name: "Festivals",
+    what: "Parked as a THE BRAIN division — the live festival operation runs in MAINFRAME, a separate system this one only points at.",
+    phase: "Backlog · EMPIRE_OS",
+  },
+  {
+    slug: "charity-india",
+    name: "Charity (India)",
+    what: "Parked future division. UK charity setup plus India's FCRA rules make the paperwork the actual project — the shelf below maps it.",
+    phase: "Backlog · EMPIRE_OS",
+  },
 ];
 
 export function placeholderFor(slug: string): Placeholder | undefined {

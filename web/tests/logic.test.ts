@@ -994,3 +994,135 @@ describe("countsByVenture", () => {
     expect(countsByVenture([], [])).toEqual({});
   });
 });
+
+/* ==================================================================== *
+ * The reference library — integrity of the curated data
+ *
+ * references.ts is data, and data rots quietly. These tests make the
+ * registry structurally sound: every seeded area has a shelf, every
+ * division links somewhere real, every URL is https and unique on its
+ * shelf, and every internal string points at a route that exists.
+ * ==================================================================== */
+
+import {
+  PILLAR_REFS,
+  BRANCH_REFS,
+  BRANCH_RELATED,
+  VENTURE_BRANCH,
+  refsForPillar,
+  refsForBranch,
+} from "../src/lib/references";
+import { PLACEHOLDERS, placeholderFor } from "../src/lib/placeholders";
+
+const SEEDED_PILLARS = [
+  "Training & Fitness",
+  "Nutrition & Recovery",
+  "Mind & Growth",
+  "Family",
+  "Friends & Network",
+  "Home & Admin",
+  "Vehicles",
+  "Money & Security",
+  "Ventures",
+  "Property & Assets",
+  "Capital & Investments",
+  "Brand & Network",
+  "Systems & Tools",
+];
+
+const SEEDED_VENTURES = [
+  "A to Z Trailerz",
+  "Amazon FBA",
+  "Kathleen St",
+  "AI Software",
+  "Coffee Shop",
+  "Microgreens",
+  "Resin & Epoxy",
+  "Festivals",
+  "Charity (India)",
+];
+
+const REAL_ROUTES = [
+  "/dashboard",
+  "/life",
+  "/empire",
+  "/goals",
+  "/planner",
+  "/week",
+  "/capture",
+  "/inbox",
+  "/library",
+];
+
+describe("reference library integrity", () => {
+  it("gives every seeded pillar a non-empty shelf", () => {
+    for (const name of SEEDED_PILLARS) {
+      expect(refsForPillar(name).length, `shelf for ${name}`).toBeGreaterThan(0);
+    }
+  });
+
+  it("has no shelf for a pillar that was never seeded", () => {
+    // A key that matches nothing is a shelf nobody can reach.
+    for (const key of Object.keys(PILLAR_REFS)) {
+      expect(SEEDED_PILLARS, `orphan pillar shelf: ${key}`).toContain(key);
+    }
+  });
+
+  it("maps every seeded venture except MAINFRAME to a branch page", () => {
+    for (const name of SEEDED_VENTURES) {
+      const slug = VENTURE_BRANCH[name];
+      expect(slug, `branch for ${name}`).toBeTruthy();
+      expect(placeholderFor(slug), `placeholder for ${slug}`).toBeTruthy();
+      expect(refsForBranch(slug).length, `shelf for ${slug}`).toBeGreaterThan(0);
+    }
+    // The pointer row stays a pointer: linking it would pretend to contain it.
+    expect(VENTURE_BRANCH["MAINFRAME"]).toBeUndefined();
+  });
+
+  it("keys every branch shelf and every related-map entry to a real slug", () => {
+    const slugs = new Set(PLACEHOLDERS.map((p) => p.slug));
+    for (const key of Object.keys(BRANCH_REFS)) {
+      expect(slugs.has(key), `orphan branch shelf: ${key}`).toBe(true);
+    }
+    for (const key of Object.keys(BRANCH_RELATED)) {
+      expect(slugs.has(key), `orphan related entry: ${key}`).toBe(true);
+    }
+  });
+
+  it("uses https everywhere and never repeats a URL on one shelf", () => {
+    const shelves = [...Object.values(PILLAR_REFS), ...Object.values(BRANCH_REFS)];
+    for (const shelf of shelves) {
+      const urls = shelf.map((r) => r.url);
+      expect(new Set(urls).size, `duplicate on shelf: ${urls.join(", ")}`).toBe(urls.length);
+      for (const r of shelf) {
+        expect(r.url.startsWith("https://"), `not https: ${r.url}`).toBe(true);
+        expect(r.title.trim().length).toBeGreaterThan(0);
+        expect(r.why.trim().length).toBeGreaterThan(0);
+      }
+    }
+  });
+
+  it("points every internal string at a route that exists", () => {
+    const slugs = new Set(PLACEHOLDERS.map((p) => p.slug));
+    for (const [slug, rel] of Object.entries(BRANCH_RELATED)) {
+      for (const r of rel.routes ?? []) {
+        const ok =
+          REAL_ROUTES.includes(r.href) || slugs.has(r.href.replace(/^\//, ""));
+        expect(ok, `${slug} links to unknown route ${r.href}`).toBe(true);
+      }
+      for (const name of rel.pillars ?? []) {
+        expect(SEEDED_PILLARS, `${slug} names unknown pillar ${name}`).toContain(name);
+      }
+    }
+  });
+
+  it("respects the house rule: nothing on the food shelves mentions beef", () => {
+    const foodShelves = [
+      ...refsForBranch("food"),
+      ...refsForPillar("Nutrition & Recovery"),
+    ];
+    for (const r of foodShelves) {
+      expect(`${r.title} ${r.why}`.toLowerCase().includes("beef recipes")).toBe(false);
+    }
+  });
+});

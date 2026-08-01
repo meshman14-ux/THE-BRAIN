@@ -34,6 +34,7 @@ import {
   sortVentures,
   isShelved,
 } from "@/lib/logic";
+import { VENTURE_BRANCH } from "@/lib/references";
 import SeedPillars from "@/components/SeedPillars";
 import TodayThree, { type TodayItem } from "@/components/TodayThree";
 import TrainToday from "@/components/TrainToday";
@@ -209,6 +210,7 @@ export default async function TheBrain() {
     { label: "Daily Wall", href: "/daily-wall" },
     { label: "Mind Map", href: "/map" },
     { label: "Motivation", href: "/motivation" },
+    { label: "Library", href: "/library" },
     { label: "Documents", href: "/documents" },
     { label: "Reviews", href: "/reviews" },
     { label: "Me", href: "/me" },
@@ -434,24 +436,39 @@ export default async function TheBrain() {
                   </Empty>
                 ) : (
                   <div className="grid gap-2">
-                    {topVentures.map((v) => (
-                      <div
-                        key={v.id}
-                        className="flex items-start gap-2.5 rounded-[10px] border border-[var(--border)] px-3.5 py-2.5"
-                      >
-                        <div className="min-w-0 flex-1">
-                          <p className="text-[0.84rem] font-semibold leading-snug">
-                            {v.name}
-                          </p>
-                          {v.one_liner && (
-                            <p className="text-[0.72rem] text-[var(--muted)] mt-0.5 leading-snug">
-                              {v.one_liner}
+                    {topVentures.map((v) => {
+                      const branch = VENTURE_BRANCH[v.name];
+                      const inner = (
+                        <>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[0.84rem] font-semibold leading-snug">
+                              {v.name}
                             </p>
-                          )}
+                            {v.one_liner && (
+                              <p className="text-[0.72rem] text-[var(--muted)] mt-0.5 leading-snug">
+                                {v.one_liner}
+                              </p>
+                            )}
+                          </div>
+                          <Tag colour={STAGE_COLOUR[v.stage]}>{STAGE_LABEL[v.stage]}</Tag>
+                        </>
+                      );
+                      const cls =
+                        "flex items-start gap-2.5 rounded-[10px] border border-[var(--border)] px-3.5 py-2.5";
+                      return branch ? (
+                        <Link
+                          key={v.id}
+                          href={`/${branch}`}
+                          className={`${cls} card-hover no-underline text-[var(--text)]`}
+                        >
+                          {inner}
+                        </Link>
+                      ) : (
+                        <div key={v.id} className={cls}>
+                          {inner}
                         </div>
-                        <Tag colour={STAGE_COLOUR[v.stage]}>{STAGE_LABEL[v.stage]}</Tag>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
                 <p className="text-[0.7rem] text-[var(--faint)] leading-relaxed">
