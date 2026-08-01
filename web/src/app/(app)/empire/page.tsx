@@ -35,7 +35,7 @@ import {
   isShelved,
   areasFor,
 } from "@/lib/logic";
-import { VENTURE_BRANCH } from "@/lib/references";
+import { branchForVenture } from "@/lib/references";
 import { Panel, Empty, Kpi, Bar, Tag } from "@/components/ui";
 import AreaBars from "@/components/AreaBars";
 
@@ -227,7 +227,7 @@ export default async function EmpirePage() {
               {ordered.map((v) => {
                 const c = counts[v.id] ?? { projects: 0, tasks: 0 };
                 const shelved = isShelved(v);
-                const branch = VENTURE_BRANCH[v.name];
+                const branch = branchForVenture(v.name);
                 const inner = (
                   <>
                     <div className="min-w-0 flex-1">

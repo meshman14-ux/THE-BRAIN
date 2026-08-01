@@ -186,8 +186,20 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-01)
 
-Verified in this repo: **123/123 tests pass** (`tests/logic.test.ts`, vitest) and
+Verified in this repo: **160/160 tests pass** (`tests/logic.test.ts`, vitest) and
 **`npm run build` produces exactly 16 routes**.
+
+**`/dashboard` is built to Jay's own prototype** (`THE BRAIN.dc.html` in his claude.ai/design
+project "THE BRAIN", implemented 2026-08-01): watchtower ("needs attention", assembled from
+overdue tasks, people cadences/birthdays, venture drift and unscored areas — `watchtowerAlerts`),
+greeting-by-hour hero with the Gita verse of the day (`src/lib/gita.ts`, deterministic by date,
+§B4 ported), the two system panels (LIFE: three/steps/sleep/debt-cleared bar · EMPIRE: cash
+this month from assets, stage board), the shared LIFE/EMPIRE task list, and the productivity
+strip (14-day streak bars, life-vs-empire split, 7-day habit ring). Venture branch slugs are
+**derived** from names via `ventureSlug()` — a rename moves the page with it (the hand-map
+broke exactly this way when "A to Z Trailerz" became "A to Z Traderz"); retired slugs live in
+`BRANCH_ALIASES` and redirect. Unknown branch slugs resolve against the ventures table before
+404ing, so a venture added tomorrow is clickable today.
 
 **The three-tier split is live in the UI** (Jay asked for it explicitly, 2026-08-01): THE BRAIN
 at `/dashboard` is the main dashboard and reads over both systems; LIFE_OS at `/life` is

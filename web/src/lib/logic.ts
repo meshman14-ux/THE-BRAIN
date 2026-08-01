@@ -900,6 +900,268 @@ export function sortVentures<
   });
 }
 
+/* ------------------------------------------------------------------ *
+ * The Command Centre — Jay's THE BRAIN design, over real data
+ * ------------------------------------------------------------------ */
+
+/**
+ * Greeting by hour, from Jay's prototype. Passed the hour rather than
+ * reading the clock so it is testable and so server and client agree.
+ */
+export function greetingFor(hour: number): { word: string; emoji: string } {
+  if (hour < 5) return { word: "Still up", emoji: "🌙" };
+  if (hour < 12) return { word: "Good morning", emoji: "☀️" };
+  if (hour < 18) return { word: "Good afternoon", emoji: "🌤" };
+  return { word: "Good evening", emoji: "🌘" };
+}
+
+/** What the watchtower is shouting about. Lower rank = louder. */
+export type AlertKind = "overdue" | "due" | "person" | "birthday" | "drift" | "unscored";
+
+export type WatchAlert = {
+  kind: AlertKind;
+  label: string;
+  text: string;
+  href: string;
+};
+
+const ALERT_RANK: Record<AlertKind, number> = {
+  overdue: 0,
+  due: 1,
+  birthday: 2,
+  person: 3,
+  drift: 4,
+  unscored: 5,
+};
+
+export const ALERT_TONE: Record<AlertKind, string> = {
+  overdue: "var(--bad)",
+  due: "var(--warn)",
+  birthday: "var(--accent)",
+  person: "var(--accent)",
+  drift: "var(--warn)",
+  unscored: "var(--faint)",
+};
+
+/**
+ * Everything quietly going wrong, in one list, worst first.
+ *
+ * This is the panel that earns the system its keep: it is assembled from
+ * facts already in the database rather than from anything Jay has to
+ * remember to enter. An empty watchtower is a real state and means exactly
+ * what it says — nothing is slipping.
+ */
+export function watchtowerAlerts(input: {
+  tasks: Pick<Task, "id" | "title" | "due_date" | "status">[];
+  people: {
+    id: string;
+    name: string;
+    last_contact: string | null;
+    cadence_days: number | null;
+    birthday: string | null;
+  }[];
+  ventures: (Pick<Venture, "id" | "name" | "stage" | "status" | "progress">)[];
+  pillars: Pick<Pillar, "id" | "name" | "score">[];
+  todayIso: string;
+  dueDays?: number;
+}): WatchAlert[] {
+  const { tasks, people, ventures, pillars, todayIso } = input;
+  const dueDays = input.dueDays ?? DUE_WINDOW_DAYS;
+  const out: WatchAlert[] = [];
+
+  for (const t of tasks) {
+    if (!isOpenWork(t) || !t.due_date) continue;
+    const days = daysUntil(t.due_date, todayIso);
+    if (days == null) continue;
+    if (days < 0) {
+      out.push({
+        kind: "overdue",
+        label: "OVERDUE",
+        text: `${t.title} — ${Math.abs(days)}d late`,
+        href: "/planner",
+      });
+    } else if (days <= dueDays) {
+      out.push({
+        kind: "due",
+        label: days === 0 ? "TODAY" : `${days}D`,
+        text: t.title,
+        href: "/planner",
+      });
+    }
+  }
+
+  for (const p of people) {
+    // The highest-value insight in the schema: you said 14 days, it's been 47.
+    if (p.cadence_days != null && p.last_contact) {
+      const since = -(daysUntil(p.last_contact, todayIso) ?? 0);
+      if (since > p.cadence_days) {
+        out.push({
+          kind: "person",
+          label: "TOUCH BASE",
+          text: `${p.name} — ${since}d since you spoke, you said ${p.cadence_days}`,
+          href: "/family",
+        });
+      }
+    }
+    if (p.birthday) {
+      const d = daysUntilBirthday(p.birthday, todayIso);
+      if (d != null && d <= 14) {
+        out.push({
+          kind: "birthday",
+          label: d === 0 ? "TODAY" : `${d}D`,
+          text: `${p.name}'s birthday`,
+          href: "/family",
+        });
+      }
+    }
+  }
+
+  for (const v of ventures) {
+    const r = ventureRollup(v);
+    if (r.drifts && r.stated != null) {
+      out.push({
+        kind: "drift",
+        label: "DRIFT",
+        text: `${v.name} — you say ${r.stated}%, its stage says ${r.derived}%`,
+        href: "/empire",
+      });
+    }
+  }
+
+  const unscored = pillars.filter((p) => p.score == null).length;
+  if (unscored > 0 && unscored < pillars.length) {
+    out.push({
+      kind: "unscored",
+      label: "UNSCORED",
+      text: `${unscored} area${unscored === 1 ? "" : "s"} not scored — the ranking is incomplete`,
+      href: "/life",
+    });
+  }
+
+  return out.sort((a, b) => ALERT_RANK[a.kind] - ALERT_RANK[b.kind]);
+}
+
+/**
+ * Days until the next occurrence of a birthday, ignoring the birth year.
+ * Returns 0 on the day itself. Null when the date cannot be read.
+ */
+export function daysUntilBirthday(
+  birthday: string,
+  todayIso: string
+): number | null {
+  const bd = birthday.slice(5); // MM-DD
+  if (!/^\d{2}-\d{2}$/.test(bd)) return null;
+  const year = Number(todayIso.slice(0, 4));
+  const thisYear = `${year}-${bd}`;
+  if (thisYear >= todayIso) return daysUntil(thisYear, todayIso);
+  return daysUntil(`${year + 1}-${bd}`, todayIso);
+}
+
+/**
+ * The last `days` days as booleans, oldest first — the 14 little bars on
+ * the productivity panel. Today is the final bar, so the row reads
+ * left-to-right as history arriving at now.
+ */
+export function streakHistory(
+  doneOn: string[],
+  todayIso: string,
+  days: number = 14
+): boolean[] {
+  const set = new Set(doneOn);
+  return Array.from({ length: days }, (_, i) =>
+    set.has(addDays(todayIso, -(days - 1 - i)))
+  );
+}
+
+/**
+ * Open tasks split by subsystem, for the LIFE vs EMPIRE bar. Tasks with no
+ * area count as neither: they are real work, but they have not been told
+ * which life they belong to, and guessing would make the bar a fiction.
+ */
+export function taskSplit(
+  tasks: Pick<Task, "pillar_id" | "status">[],
+  pillars: Pick<Pillar, "id" | "system">[]
+): { life: number; empire: number; unassigned: number; done: number } {
+  const systemOf = new Map(pillars.map((p) => [p.id, p.system]));
+  let life = 0,
+    empire = 0,
+    unassigned = 0,
+    done = 0;
+  for (const t of tasks) {
+    if (t.status === "done") {
+      done += 1;
+      continue;
+    }
+    if (!isOpenWork(t)) continue;
+    const sys = t.pillar_id ? systemOf.get(t.pillar_id) : undefined;
+    if (sys === "life") life += 1;
+    else if (sys === "empire") empire += 1;
+    else unassigned += 1;
+  }
+  return { life, empire, unassigned, done };
+}
+
+/**
+ * Habit consistency over a window: logs landed ÷ logs possible, as 0–100.
+ * Null when there are no active habits — a percentage of nothing is not 0,
+ * and the ring should say so rather than showing a damning empty circle.
+ */
+export function habitConsistency(
+  habitIds: string[],
+  logs: { habit_id: string; done_on: string }[],
+  todayIso: string,
+  days: number = 7
+): number | null {
+  if (habitIds.length === 0) return null;
+  const from = addDays(todayIso, -(days - 1));
+  const ids = new Set(habitIds);
+  const hit = new Set(
+    logs
+      .filter((l) => ids.has(l.habit_id) && l.done_on >= from && l.done_on <= todayIso)
+      .map((l) => `${l.habit_id}|${l.done_on}`)
+  );
+  return clampPercent((hit.size / (habitIds.length * days)) * 100);
+}
+
+/**
+ * How much of the debt is cleared: from the highest reading ever recorded
+ * down to the latest. Null until there are two readings — with one point
+ * there is no "cleared", only a balance.
+ */
+export function debtCleared(
+  readings: Pick<MetricReading, "taken_on" | "value">[]
+): { peak: number; latest: number; percent: number } | null {
+  if (readings.length < 2) return null;
+  const latest = latestReading(readings);
+  if (!latest) return null;
+  const peak = Math.max(...readings.map((r) => r.value));
+  if (peak <= 0) return null;
+  return {
+    peak,
+    latest: latest.value,
+    percent: clampPercent(((peak - latest.value) / peak) * 100),
+  };
+}
+
+/**
+ * Net monthly cash from assets: what they earn minus what they cost.
+ * Null when no asset carries either figure — see formatGBP on why that is
+ * a dash and not a zero.
+ */
+export function cashThisMonth(
+  assets: { income_monthly: number | null; cost_monthly: number | null; status: string }[]
+): number | null {
+  const live = assets.filter((a) => a.status === "active");
+  const known = live.filter(
+    (a) => a.income_monthly != null || a.cost_monthly != null
+  );
+  if (known.length === 0) return null;
+  return known.reduce(
+    (sum, a) => sum + (a.income_monthly ?? 0) - (a.cost_monthly ?? 0),
+    0
+  );
+}
+
 export type VentureCounts = { projects: number; tasks: number };
 
 /**

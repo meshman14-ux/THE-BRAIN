@@ -467,11 +467,11 @@ export const BRANCH_REFS: Record<string, RefLink[]> = {
     },
   ],
 
-  "a-to-z-trailerz": [
+  "a-to-z-traderz": [
     {
       title: "GOV.UK · Towing with a car",
       url: "https://www.gov.uk/towing-with-car",
-      why: "Licence and weight rules every customer will ask about.",
+      why: "Licence and weight rules every trailer customer will ask about.",
     },
     {
       title: "GOV.UK · Trailer registration",
@@ -487,6 +487,170 @@ export const BRANCH_REFS: Record<string, RefLink[]> = {
       title: "GOV.UK · Set up a business",
       url: "https://www.gov.uk/set-up-business",
       why: "The launch paperwork, done properly from day one.",
+    },
+  ],
+
+  "building-maintenance": [
+    {
+      title: "GOV.UK · Construction Industry Scheme (CIS)",
+      url: "https://www.gov.uk/what-is-the-construction-industry-scheme",
+      why: "Register before invoicing a contractor, or 30% is deducted instead of 20%.",
+    },
+    {
+      title: "TrustMark",
+      url: "https://www.trustmark.org.uk/business",
+      why: "The only government-endorsed quality scheme for work in people's homes.",
+    },
+    {
+      title: "Gas Safe Register",
+      url: "https://www.gassaferegister.co.uk/",
+      why: "Any gas work without registration is a criminal offence, not a risk.",
+    },
+    {
+      title: "NICEIC · Competent Person schemes",
+      url: "https://niceic.com/",
+      why: "Part P self-certification for notifiable domestic electrical work.",
+    },
+    {
+      title: "HSE · Construction",
+      url: "https://www.hse.gov.uk/construction/",
+      why: "Working at height and asbestos are the two that end businesses.",
+    },
+  ],
+
+  "bedlinog-house": [
+    {
+      title: "GOV.UK · Renting out your property",
+      url: "https://www.gov.uk/renting-out-a-property",
+      why: "The tenancy baseline: safety certificates, deposits, repairs, tax.",
+    },
+    {
+      title: "GOV.UK · Deposit protection schemes",
+      url: "https://www.gov.uk/deposit-protection-schemes-and-landlords",
+      why: "30 days to protect a deposit; miss it and you cannot serve a section 21.",
+    },
+    {
+      title: "Gas Safe Register",
+      url: "https://www.gassaferegister.co.uk/",
+      why: "Annual check, certificate to the tenant within 28 days.",
+    },
+    {
+      title: "NRLA",
+      url: "https://www.nrla.org.uk/",
+      why: "Tenancy paperwork, arrears process and an advice line.",
+    },
+  ],
+
+  "treharris-house": [
+    {
+      title: "GOV.UK · Renting out your property",
+      url: "https://www.gov.uk/renting-out-a-property",
+      why: "The tenancy baseline: safety certificates, deposits, repairs, tax.",
+    },
+    {
+      title: "GOV.UK · Find an energy certificate",
+      url: "https://www.gov.uk/find-energy-certificate",
+      why: "Band E minimum to let; EPCs last ten years.",
+    },
+    {
+      title: "Rent Smart Wales",
+      url: "https://www.rentsmart.gov.wales/",
+      why: "Welsh landlords must register and be licensed — it is not optional here.",
+    },
+    {
+      title: "NRLA",
+      url: "https://www.nrla.org.uk/",
+      why: "Documents and the advice line when a tenancy turns awkward.",
+    },
+  ],
+
+  "storage-solutions": [
+    {
+      title: "Self Storage Association UK",
+      url: "https://www.ssauk.com/",
+      why: "The trade body — market data before committing the £1,000.",
+    },
+    {
+      title: "GOV.UK · Planning permission",
+      url: "https://www.gov.uk/planning-permission-england-wales",
+      why: "Containers and outbuildings often need it; find out before buying.",
+    },
+    {
+      title: "GOV.UK · Set up a business",
+      url: "https://www.gov.uk/set-up-business",
+      why: "The structure and tax registration for a new division.",
+    },
+  ],
+
+  "photo-booth": [
+    {
+      title: "GOV.UK · Licence finder",
+      url: "https://www.gov.uk/licence-finder",
+      why: "Events and public places carry licences worth checking before the £1,500.",
+    },
+    {
+      title: "ICO · Guide to UK GDPR",
+      url: "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/",
+      why: "A booth stores photographs of people — that is personal data.",
+    },
+    {
+      title: "GOV.UK · Public liability insurance",
+      url: "https://www.gov.uk/public-liability-insurance",
+      why: "Every venue will ask for the certificate before letting you in.",
+    },
+  ],
+
+  "stencil-art": [
+    {
+      title: "Laws on selling homemade crafts in the UK",
+      url: "https://craftcert.co.uk/blog/laws-selling-homemade-crafts-uk",
+      why: "Labelling, liability and Trading Standards, in plain English.",
+    },
+    {
+      title: "GOV.UK · Intellectual property overview",
+      url: "https://www.gov.uk/intellectual-property-an-overview",
+      why: "Stencils of someone else's artwork or logo is the obvious trap.",
+    },
+    {
+      title: "Etsy Seller Handbook",
+      url: "https://www.etsy.com/seller-handbook",
+      why: "The cheapest first shopfront for a £500 test.",
+    },
+  ],
+
+  "stump-pump": [
+    {
+      title: "GOV.UK · Patents",
+      url: "https://www.gov.uk/topic/intellectual-property/patents",
+      why: "Publish or sell before filing and the invention becomes unpatentable.",
+    },
+    {
+      title: "Intellectual Property Office · Search patents",
+      url: "https://www.gov.uk/search-for-patent",
+      why: "Check nobody has already patented it before spending on a prototype.",
+    },
+    {
+      title: "GOV.UK · UKCA marking",
+      url: "https://www.gov.uk/guidance/using-the-ukca-marking",
+      why: "A physical product sold in Great Britain usually needs conformity marking.",
+    },
+  ],
+
+  "find-my-stash": [
+    {
+      title: "ICO · Guide to UK GDPR",
+      url: "https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/",
+      why: "Any app holding user data starts here, not after launch.",
+    },
+    {
+      title: "Y Combinator · Startup library",
+      url: "https://www.ycombinator.com/library",
+      why: "How to test a concept before building it — this one is still a concept.",
+    },
+    {
+      title: "Claude API documentation",
+      url: "https://docs.claude.com/",
+      why: "If it needs intelligence, this is the fastest route to a prototype.",
     },
   ],
 
@@ -577,7 +741,7 @@ export const BRANCH_REFS: Record<string, RefLink[]> = {
     },
   ],
 
-  "resin-epoxy": [
+  "resin-and-epoxy": [
     {
       title: "HSE · COSHH basics",
       url: "https://www.hse.gov.uk/coshh/",
@@ -684,31 +848,70 @@ export const BRANCH_RELATED: Record<
     pillars: ["Money & Security"],
     routes: [{ label: "Finance", href: "/finance" }],
   },
-  "a-to-z-trailerz": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — at launch", href: "/empire" }] },
+  "a-to-z-traderz": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — at launch", href: "/empire" }] },
+  "building-maintenance": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — at launch", href: "/empire" }] },
+  "bedlinog-house": {
+    pillars: ["Property & Assets"],
+    routes: [{ label: "EMPIRE_OS — the property portfolio", href: "/empire" }],
+  },
+  "treharris-house": {
+    pillars: ["Property & Assets"],
+    routes: [{ label: "EMPIRE_OS — the property portfolio", href: "/empire" }],
+  },
+  "storage-solutions": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — parked in the backlog", href: "/empire" }] },
+  "photo-booth": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — parked in the backlog", href: "/empire" }] },
+  "stencil-art": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — parked in the backlog", href: "/empire" }] },
+  "stump-pump": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — parked in the backlog", href: "/empire" }] },
+  "find-my-stash": { pillars: ["Systems & Tools"], routes: [{ label: "EMPIRE_OS — parked in the backlog", href: "/empire" }] },
   "amazon-fba": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — at research", href: "/empire" }] },
   "ai-software": { pillars: ["Systems & Tools"], routes: [{ label: "EMPIRE_OS — the idea with the highest ceiling", href: "/empire" }] },
   "coffee-shop": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — parked in the backlog", href: "/empire" }] },
   microgreens: { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — parked in the backlog", href: "/empire" }] },
-  "resin-epoxy": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — parked in the backlog", href: "/empire" }] },
+  "resin-and-epoxy": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — parked in the backlog", href: "/empire" }] },
   festivals: { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — MAINFRAME runs the live ops", href: "/empire" }] },
   "charity-india": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — parked in the backlog", href: "/empire" }] },
 };
 
 /**
- * Venture name → branch slug, so every division on the CEO dashboard links
- * to its branch page. MAINFRAME is deliberately absent: it is a pointer to
- * an external system and THE BRAIN never pretends to contain it.
+ * A venture's branch slug, derived from its name rather than looked up in a
+ * hand-maintained table.
+ *
+ * This is deliberate. The first version of this file mapped names to slugs
+ * by hand, and the moment a venture was renamed ("A to Z Trailerz" →
+ * "A to Z Traderz") its link silently stopped resolving — nothing errored,
+ * the row just quietly stopped being clickable. Deriving the slug means a
+ * rename moves the page with it, and a venture added tomorrow gets a branch
+ * without anyone editing this file.
  */
-export const VENTURE_BRANCH: Record<string, string> = {
-  "A to Z Trailerz": "a-to-z-trailerz",
-  "Amazon FBA": "amazon-fba",
-  "Kathleen St": "kathleen-st",
-  "AI Software": "ai-software",
-  "Coffee Shop": "coffee-shop",
-  Microgreens: "microgreens",
-  "Resin & Epoxy": "resin-epoxy",
-  Festivals: "festivals",
-  "Charity (India)": "charity-india",
+export function ventureSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Ventures THE BRAIN deliberately does not give a branch page.
+ * MAINFRAME is a pointer to a separate system; opening a page here would
+ * imply this system contains it, which it never does.
+ */
+export const EXTERNAL_VENTURES = new Set(["MAINFRAME"]);
+
+/** The slug a venture links to, or null when it deliberately has no page. */
+export function branchForVenture(name: string): string | null {
+  if (EXTERNAL_VENTURES.has(name)) return null;
+  return ventureSlug(name);
+}
+
+/**
+ * Legacy names kept resolving, so old links and bookmarks survive a rename.
+ * Key = retired slug, value = the slug it now lives at.
+ */
+export const BRANCH_ALIASES: Record<string, string> = {
+  "a-to-z-trailerz": "a-to-z-traderz",
+  // Hand-written slug from the first registry; the derived form has "and".
+  "resin-epoxy": "resin-and-epoxy",
 };
 
 export function refsForPillar(name: string): RefLink[] {

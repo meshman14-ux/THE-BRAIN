@@ -1,8 +1,15 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { placeholderFor } from "@/lib/placeholders";
-import { refsForBranch, BRANCH_RELATED } from "@/lib/references";
+import { placeholderFor, type Placeholder } from "@/lib/placeholders";
+import {
+  refsForBranch,
+  BRANCH_RELATED,
+  BRANCH_ALIASES,
+  ventureSlug,
+  EXTERNAL_VENTURES,
+} from "@/lib/references";
+import { STAGE_LABEL, type VentureStage } from "@/lib/types";
 import { Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -11,7 +18,11 @@ export const dynamic = "force-dynamic";
  * A branch page. The view itself may not be built yet, but the branch is
  * real: it says what it will become, links to where it already lives in the
  * system, and carries its reference shelf — so the page is useful today,
- * not an apology. Slugs not in the registry are genuinely unknown and 404.
+ * not an apology.
+ *
+ * Resolution order: a hand-written registry row, then a retired-slug alias,
+ * then the ventures table itself. That last step is what stops a renamed or
+ * newly added division from 404ing while somebody remembers to edit a file.
  */
 export default async function BranchPage({
   params,
@@ -19,7 +30,39 @@ export default async function BranchPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const p = placeholderFor(slug);
+
+  // A renamed branch keeps its old address working rather than dying.
+  const alias = BRANCH_ALIASES[slug];
+  if (alias) redirect(`/${alias}`);
+
+  let p: Placeholder | undefined = placeholderFor(slug);
+
+  if (!p) {
+    const supabase = await createClient();
+    const { data: ventures } = await supabase
+      .from("ventures")
+      .select("name, stage, status, one_liner");
+    const match = (ventures ?? []).find(
+      (v: { name: string }) =>
+        ventureSlug(v.name) === slug && !EXTERNAL_VENTURES.has(v.name)
+    ) as
+      | { name: string; stage: VentureStage; status: string; one_liner: string | null }
+      | undefined;
+    if (match) {
+      const shelved = match.status !== "active";
+      p = {
+        slug,
+        name: match.name,
+        what:
+          (match.one_liner ? `${match.one_liner}. ` : "") +
+          (shelved
+            ? "Parked in the backlog. When it wakes, this page becomes its cockpit."
+            : "A live division. This page becomes its cockpit: the projects, the numbers and the next move."),
+        phase: `${shelved ? "Backlog" : `${STAGE_LABEL[match.stage]} stage`} · EMPIRE_OS`,
+      };
+    }
+  }
+
   if (!p) notFound();
 
   const refs = refsForBranch(slug);

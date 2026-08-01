@@ -1008,7 +1008,10 @@ import {
   PILLAR_REFS,
   BRANCH_REFS,
   BRANCH_RELATED,
-  VENTURE_BRANCH,
+  BRANCH_ALIASES,
+  ventureSlug,
+  branchForVenture,
+  EXTERNAL_VENTURES,
   refsForPillar,
   refsForBranch,
 } from "../src/lib/references";
@@ -1030,16 +1033,26 @@ const SEEDED_PILLARS = [
   "Systems & Tools",
 ];
 
+// The ventures on the books as of 2026-08-01, MAINFRAME excluded.
+// Kept current so "every venture has a shelf" means every actual venture.
 const SEEDED_VENTURES = [
-  "A to Z Trailerz",
+  "A to Z Traderz",
   "Amazon FBA",
   "Kathleen St",
   "AI Software",
+  "Building + Maintenance",
+  "Bedlinog House",
+  "Treharris House",
   "Coffee Shop",
   "Microgreens",
   "Resin & Epoxy",
   "Festivals",
   "Charity (India)",
+  "Storage Solutions",
+  "Photo Booth",
+  "Stencil Art",
+  "Stump Pump",
+  "Find My Stash",
 ];
 
 const REAL_ROUTES = [
@@ -1068,15 +1081,46 @@ describe("reference library integrity", () => {
     }
   });
 
-  it("maps every seeded venture except MAINFRAME to a branch page", () => {
+  it("derives a branch slug from any venture name", () => {
+    expect(ventureSlug("A to Z Traderz")).toBe("a-to-z-traderz");
+    expect(ventureSlug("Resin & Epoxy")).toBe("resin-and-epoxy");
+    expect(ventureSlug("Charity (India)")).toBe("charity-india");
+    expect(ventureSlug("Building + Maintenance")).toBe("building-maintenance");
+    expect(ventureSlug("  Spaced  Out  ")).toBe("spaced-out");
+  });
+
+  /**
+   * The regression this guards, which actually happened: the branch map was
+   * keyed by hand on "A to Z Trailerz". The venture was renamed to
+   * "A to Z Traderz" and its link silently stopped resolving — nothing
+   * errored, the row just quietly stopped being clickable. Deriving the slug
+   * means a rename moves the page with it.
+   */
+  it("keeps linking a venture after it is renamed", () => {
+    expect(branchForVenture("A to Z Traderz")).toBe("a-to-z-traderz");
+    expect(branchForVenture("Something Invented Tomorrow")).toBe(
+      "something-invented-tomorrow"
+    );
+  });
+
+  it("keeps the retired slug working so old links survive", () => {
+    expect(BRANCH_ALIASES["a-to-z-trailerz"]).toBe("a-to-z-traderz");
+    for (const [from, to] of Object.entries(BRANCH_ALIASES)) {
+      expect(placeholderFor(to), `alias ${from} → ${to} must land somewhere`).toBeTruthy();
+      expect(placeholderFor(from), `${from} should be retired, not duplicated`).toBeUndefined();
+    }
+  });
+
+  it("gives every seeded venture a shelf, and leaves MAINFRAME a pointer", () => {
     for (const name of SEEDED_VENTURES) {
-      const slug = VENTURE_BRANCH[name];
+      const slug = branchForVenture(name);
       expect(slug, `branch for ${name}`).toBeTruthy();
-      expect(placeholderFor(slug), `placeholder for ${slug}`).toBeTruthy();
-      expect(refsForBranch(slug).length, `shelf for ${slug}`).toBeGreaterThan(0);
+      expect(placeholderFor(slug!), `placeholder for ${slug}`).toBeTruthy();
+      expect(refsForBranch(slug!).length, `shelf for ${slug}`).toBeGreaterThan(0);
     }
     // The pointer row stays a pointer: linking it would pretend to contain it.
-    expect(VENTURE_BRANCH["MAINFRAME"]).toBeUndefined();
+    expect(branchForVenture("MAINFRAME")).toBeNull();
+    expect(EXTERNAL_VENTURES.has("MAINFRAME")).toBe(true);
   });
 
   it("keys every branch shelf and every related-map entry to a real slug", () => {
@@ -1124,5 +1168,303 @@ describe("reference library integrity", () => {
     for (const r of foodShelves) {
       expect(`${r.title} ${r.why}`.toLowerCase().includes("beef recipes")).toBe(false);
     }
+  });
+});
+
+/* ==================================================================== *
+ * The Command Centre — Jay's THE BRAIN design, over real data
+ * ==================================================================== */
+
+import {
+  greetingFor,
+  watchtowerAlerts,
+  daysUntilBirthday,
+  streakHistory,
+  taskSplit,
+  habitConsistency,
+  debtCleared,
+  cashThisMonth,
+} from "../src/lib/logic";
+import { GITA, verseOfDay } from "../src/lib/gita";
+
+describe("greeting", () => {
+  it("changes through the day and never leaves a gap", () => {
+    expect(greetingFor(2).word).toBe("Still up");
+    expect(greetingFor(8).word).toBe("Good morning");
+    expect(greetingFor(14).word).toBe("Good afternoon");
+    expect(greetingFor(21).word).toBe("Good evening");
+    for (let h = 0; h < 24; h++) {
+      expect(greetingFor(h).word.length, `hour ${h}`).toBeGreaterThan(0);
+      expect(greetingFor(h).emoji.length, `hour ${h}`).toBeGreaterThan(0);
+    }
+  });
+
+  it("switches exactly on the boundaries", () => {
+    expect(greetingFor(4).word).toBe("Still up");
+    expect(greetingFor(5).word).toBe("Good morning");
+    expect(greetingFor(11).word).toBe("Good morning");
+    expect(greetingFor(12).word).toBe("Good afternoon");
+    expect(greetingFor(17).word).toBe("Good afternoon");
+    expect(greetingFor(18).word).toBe("Good evening");
+  });
+});
+
+describe("the Gita layer", () => {
+  it("gives the same verse all day, on server and client alike", () => {
+    expect(verseOfDay(FRI)).toEqual(verseOfDay(FRI));
+    expect(verseOfDay(FRI).ref).toBeTruthy();
+    expect(verseOfDay(FRI).v.length).toBeGreaterThan(10);
+  });
+
+  it("rotates with the date", () => {
+    const a = verseOfDay("2026-08-01");
+    const b = verseOfDay("2026-08-02");
+    expect(a.v).not.toBe(b.v);
+  });
+
+  it("varies by offset so two panels differ on the same day", () => {
+    expect(verseOfDay(FRI, 0).v).not.toBe(verseOfDay(FRI, 1).v);
+  });
+
+  it("wraps the array cleanly, forwards and backwards", () => {
+    expect(verseOfDay(FRI, GITA.length)).toEqual(verseOfDay(FRI, 0));
+    expect(verseOfDay(FRI, -1)).toEqual(verseOfDay(FRI, GITA.length - 1));
+  });
+
+  it("has no empty or duplicated verses", () => {
+    const seen = new Set(GITA.map((g) => g.v));
+    expect(seen.size).toBe(GITA.length);
+    for (const g of GITA) {
+      expect(g.v.trim().length).toBeGreaterThan(0);
+      expect(g.ref).toMatch(/^BG \d+\.\d+$/);
+    }
+  });
+});
+
+describe("daysUntilBirthday", () => {
+  it("counts to this year's date, and 0 on the day", () => {
+    expect(daysUntilBirthday("1990-08-05", FRI)).toBe(5);
+    expect(daysUntilBirthday("1990-07-31", FRI)).toBe(0);
+  });
+
+  it("rolls to next year once the date has passed", () => {
+    // 30 July already gone on 31 July → next year.
+    expect(daysUntilBirthday("1990-07-30", FRI)).toBe(364);
+  });
+
+  it("ignores the birth year entirely", () => {
+    expect(daysUntilBirthday("1955-08-05", FRI)).toBe(
+      daysUntilBirthday("2005-08-05", FRI)
+    );
+  });
+});
+
+describe("watchtower", () => {
+  const base = { people: [], ventures: [], pillars: [], todayIso: FRI };
+
+  it("is empty when nothing is slipping", () => {
+    expect(watchtowerAlerts({ ...base, tasks: [] })).toEqual([]);
+  });
+
+  it("shouts loudest about overdue work", () => {
+    const alerts = watchtowerAlerts({
+      ...base,
+      tasks: [
+        { id: "1", title: "soon", due_date: "2026-08-03", status: "open" },
+        { id: "2", title: "late", due_date: "2026-07-20", status: "open" },
+      ],
+    });
+    expect(alerts.map((a) => a.kind)).toEqual(["overdue", "due"]);
+    expect(alerts[0].text).toContain("11d late");
+  });
+
+  it("ignores finished work and undated work", () => {
+    const alerts = watchtowerAlerts({
+      ...base,
+      tasks: [
+        { id: "1", title: "done", due_date: "2026-07-01", status: "done" },
+        { id: "2", title: "undated", due_date: null, status: "open" },
+      ],
+    });
+    expect(alerts).toEqual([]);
+  });
+
+  it("surfaces the cadence insight — you said 14, it has been 47", () => {
+    const alerts = watchtowerAlerts({
+      ...base,
+      tasks: [],
+      people: [
+        { id: "p", name: "Brother", last_contact: "2026-06-14", cadence_days: 14, birthday: null },
+      ],
+    });
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].kind).toBe("person");
+    expect(alerts[0].text).toContain("47d since you spoke");
+    expect(alerts[0].text).toContain("you said 14");
+  });
+
+  it("stays quiet while a cadence is still being kept", () => {
+    const alerts = watchtowerAlerts({
+      ...base,
+      tasks: [],
+      people: [
+        { id: "p", name: "Mum", last_contact: "2026-07-29", cadence_days: 14, birthday: null },
+      ],
+    });
+    expect(alerts).toEqual([]);
+  });
+
+  it("gives two weeks' warning on a birthday", () => {
+    const near = watchtowerAlerts({
+      ...base, tasks: [],
+      people: [{ id: "p", name: "Dad", last_contact: null, cadence_days: null, birthday: "1960-08-10" }],
+    });
+    expect(near.map((a) => a.kind)).toEqual(["birthday"]);
+    const far = watchtowerAlerts({
+      ...base, tasks: [],
+      people: [{ id: "p", name: "Dad", last_contact: null, cadence_days: null, birthday: "1960-10-10" }],
+    });
+    expect(far).toEqual([]);
+  });
+
+  it("flags a venture whose claim and stage disagree", () => {
+    const alerts = watchtowerAlerts({
+      ...base, tasks: [],
+      ventures: [{ id: "v", name: "AI Software", stage: "idea", status: "active", progress: 90 }],
+    });
+    expect(alerts.map((a) => a.kind)).toEqual(["drift"]);
+    expect(alerts[0].text).toContain("90%");
+    expect(alerts[0].text).toContain("10%");
+  });
+
+  it("mentions unscored areas only once some are scored", () => {
+    const none = watchtowerAlerts({
+      ...base, tasks: [],
+      pillars: [{ id: "a", name: "A", score: null }, { id: "b", name: "B", score: null }],
+    });
+    expect(none).toEqual([]); // nothing scored at all is a first-run state, not an alert
+
+    const some = watchtowerAlerts({
+      ...base, tasks: [],
+      pillars: [{ id: "a", name: "A", score: 5 }, { id: "b", name: "B", score: null }],
+    });
+    expect(some.map((a) => a.kind)).toEqual(["unscored"]);
+  });
+});
+
+describe("streakHistory", () => {
+  it("returns one bar per day, oldest first, today last", () => {
+    const h = streakHistory([FRI, "2026-07-30"], FRI, 14);
+    expect(h).toHaveLength(14);
+    expect(h[13]).toBe(true); // today
+    expect(h[12]).toBe(true); // yesterday
+    expect(h[11]).toBe(false);
+  });
+
+  it("is all-false with no logs", () => {
+    expect(streakHistory([], FRI, 5)).toEqual([false, false, false, false, false]);
+  });
+});
+
+describe("taskSplit", () => {
+  const ps = [
+    { id: "L", system: "life" as const },
+    { id: "E", system: "empire" as const },
+  ];
+
+  it("counts open work per system and keeps arealess work separate", () => {
+    const split = taskSplit(
+      [
+        { pillar_id: "L", status: "open" },
+        { pillar_id: "L", status: "doing" },
+        { pillar_id: "E", status: "open" },
+        { pillar_id: null, status: "open" },
+        { pillar_id: "L", status: "done" },
+        { pillar_id: "E", status: "dropped" },
+      ],
+      ps
+    );
+    expect(split).toEqual({ life: 2, empire: 1, unassigned: 1, done: 1 });
+  });
+
+  it("is all zeros on an empty system", () => {
+    expect(taskSplit([], ps)).toEqual({ life: 0, empire: 0, unassigned: 0, done: 0 });
+  });
+});
+
+describe("habitConsistency", () => {
+  it("is null with no habits — a percentage of nothing is not 0", () => {
+    expect(habitConsistency([], [], FRI)).toBeNull();
+  });
+
+  it("is 0 when habits exist but nothing was logged", () => {
+    expect(habitConsistency(["h"], [], FRI, 7)).toBe(0);
+  });
+
+  it("counts logs landed over logs possible", () => {
+    const logs = [FRI, "2026-07-30", "2026-07-29"].map((d) => ({ habit_id: "h", done_on: d }));
+    expect(habitConsistency(["h"], logs, FRI, 7)).toBe(43); // 3/7
+  });
+
+  it("ignores logs outside the window and other habits", () => {
+    const logs = [
+      { habit_id: "h", done_on: "2026-06-01" },
+      { habit_id: "other", done_on: FRI },
+    ];
+    expect(habitConsistency(["h"], logs, FRI, 7)).toBe(0);
+  });
+
+  it("caps at 100 across several habits", () => {
+    const days = ["2026-07-25","2026-07-26","2026-07-27","2026-07-28","2026-07-29","2026-07-30",FRI];
+    const logs = days.flatMap((d) => [
+      { habit_id: "a", done_on: d },
+      { habit_id: "b", done_on: d },
+    ]);
+    expect(habitConsistency(["a", "b"], logs, FRI, 7)).toBe(100);
+  });
+});
+
+describe("debtCleared", () => {
+  const r = (taken_on: string, value: number) => ({ taken_on, value });
+
+  it("refuses to compute a percentage from a single point", () => {
+    expect(debtCleared([r(FRI, 8317)])).toBeNull();
+    expect(debtCleared([])).toBeNull();
+  });
+
+  it("measures from the peak down to the latest", () => {
+    const c = debtCleared([r("2026-01-01", 12000), r("2026-05-01", 9500), r(FRI, 8317)]);
+    expect(c).not.toBeNull();
+    expect(c!.peak).toBe(12000);
+    expect(c!.latest).toBe(8317);
+    expect(c!.percent).toBe(31);
+  });
+
+  it("reads 0% cleared when the debt has only grown", () => {
+    const c = debtCleared([r("2026-01-01", 5000), r(FRI, 9000)]);
+    expect(c!.percent).toBe(0);
+  });
+});
+
+describe("cashThisMonth", () => {
+  const a = (income: number | null, cost: number | null, status = "active") => ({
+    income_monthly: income, cost_monthly: cost, status,
+  });
+
+  it("is null when no asset carries a figure", () => {
+    expect(cashThisMonth([])).toBeNull();
+    expect(cashThisMonth([a(null, null)])).toBeNull();
+  });
+
+  it("nets income against cost", () => {
+    expect(cashThisMonth([a(900, 300), a(null, 120)])).toBe(480);
+  });
+
+  it("can be negative, and says so rather than hiding it", () => {
+    expect(cashThisMonth([a(0, 6462)])).toBe(-6462);
+  });
+
+  it("ignores assets that are not active", () => {
+    expect(cashThisMonth([a(900, 0), a(5000, 0, "sold")])).toBe(900);
   });
 });

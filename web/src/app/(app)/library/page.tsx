@@ -5,7 +5,7 @@ import { areasFor } from "@/lib/logic";
 import {
   PILLAR_REFS,
   BRANCH_REFS,
-  VENTURE_BRANCH,
+  branchForVenture,
   type RefLink,
 } from "@/lib/references";
 import { placeholderFor } from "@/lib/placeholders";
@@ -19,11 +19,14 @@ export const dynamic = "force-dynamic";
  */
 export default async function Library() {
   const supabase = await createClient();
-  const { data: pillars } = await supabase
-    .from("pillars")
-    .select("id, system, name, emoji, standard, sort_order, active")
-    .eq("active", true)
-    .order("sort_order");
+  const [{ data: pillars }, { data: ventures }] = await Promise.all([
+    supabase
+      .from("pillars")
+      .select("id, system, name, emoji, standard, sort_order, active")
+      .eq("active", true)
+      .order("sort_order"),
+    supabase.from("ventures").select("name, sort_order").order("sort_order"),
+  ]);
 
   const all = (pillars ?? []) as Pillar[];
   const life = areasFor(all, "life");
@@ -32,7 +35,11 @@ export default async function Library() {
   // Branch shelves that belong to LIFE (routes exist as placeholder pages).
   const lifeBranches = ["finance", "debt-payoff", "health", "food"];
   const planBranches = ["motivation", "reviews"];
-  const divisionSlugs = Object.values(VENTURE_BRANCH);
+  // Divisions come from the ventures table rather than a hand-kept list, so
+  // a venture added or renamed shows up here without anyone editing a file.
+  const divisionSlugs = ((ventures ?? []) as { name: string }[])
+    .map((v) => branchForVenture(v.name))
+    .filter((s): s is string => s != null);
 
   return (
     <div className="max-w-[920px] mx-auto grid gap-8">
