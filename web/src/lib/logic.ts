@@ -20,7 +20,15 @@ import {
   type TaskStatus,
   type Venture,
   type VentureStage,
+  type Vehicle,
+  type VehicleDateKey,
+  type DeadlineState,
+  type Debt,
+  type DebtPayment,
   VENTURE_STAGES,
+  VEHICLE_DATE_KEYS,
+  DUE_SOON_DAYS,
+  PAYMENTS_PER_YEAR,
 } from "./types";
 
 /* ------------------------------------------------------------------ *
@@ -1190,4 +1198,235 @@ export function countsByVenture(
     out[v].tasks += 1;
   }
   return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * LIFE_OS — vehicles
+ *
+ * Every function here treats a missing date as *unknown*, never as safe and
+ * never as late. That distinction is the whole feature: a reminder system you
+ * cannot trust is worse than no reminder system, and the fastest way to lose
+ * that trust is to shout "OVERDUE" about a date nobody ever entered.
+ * ------------------------------------------------------------------ */
+
+export type Deadline = {
+  key: VehicleDateKey;
+  date: string | null;
+  days: number | null;
+  state: DeadlineState;
+};
+
+/** Where one dated obligation stands today. */
+export function deadlineState(
+  date: string | null,
+  todayIso: string,
+  dueSoonDays: number = DUE_SOON_DAYS
+): DeadlineState {
+  const days = daysUntil(date, todayIso);
+  if (days == null) return "not_recorded";
+  if (days < 0) return "overdue";
+  if (days <= dueSoonDays) return "due_soon";
+  return "ok";
+}
+
+/** All four obligations for one vehicle, in a fixed order. */
+export function vehicleDeadlines(
+  vehicle: Pick<Vehicle, VehicleDateKey>,
+  todayIso: string,
+  dueSoonDays: number = DUE_SOON_DAYS
+): Deadline[] {
+  return VEHICLE_DATE_KEYS.map((key) => {
+    const date = vehicle[key] ?? null;
+    return {
+      key,
+      date,
+      days: daysUntil(date, todayIso),
+      state: deadlineState(date, todayIso, dueSoonDays),
+    };
+  });
+}
+
+const DEADLINE_RANK: Record<DeadlineState, number> = {
+  overdue: 0,
+  due_soon: 1,
+  not_recorded: 2,
+  ok: 3,
+};
+
+/**
+ * The worst state across a vehicle's obligations — what its row should say.
+ * Unknown ranks *below* due-soon but *above* fine: it deserves attention, but
+ * not the alarm reserved for something genuinely lapsed.
+ */
+export function vehicleWorstState(
+  vehicle: Pick<Vehicle, VehicleDateKey>,
+  todayIso: string,
+  dueSoonDays: number = DUE_SOON_DAYS
+): DeadlineState {
+  return vehicleDeadlines(vehicle, todayIso, dueSoonDays)
+    .map((d) => d.state)
+    .reduce(
+      (worst, s) => (DEADLINE_RANK[s] < DEADLINE_RANK[worst] ? s : worst),
+      "ok" as DeadlineState
+    );
+}
+
+export type UpcomingDeadline = Deadline & {
+  vehicleId: string;
+  vehicleName: string;
+};
+
+/**
+ * Everything genuinely due inside the window, soonest first.
+ *
+ * Undated obligations are excluded — they cannot be "due in 30 days" when
+ * nobody knows when they are due, and padding the list with them would train
+ * Jay to ignore it. Sold and SORN vehicles drop out entirely.
+ */
+export function upcomingDeadlines(
+  vehicles: (Pick<Vehicle, VehicleDateKey | "status"> & {
+    id: string;
+    name: string;
+  })[],
+  todayIso: string,
+  withinDays: number = DUE_SOON_DAYS
+): UpcomingDeadline[] {
+  return vehicles
+    .filter((v) => v.status === "active")
+    .flatMap((v) =>
+      vehicleDeadlines(v, todayIso, withinDays)
+        .filter((d) => d.state === "overdue" || d.state === "due_soon")
+        .map((d) => ({ ...d, vehicleId: v.id, vehicleName: v.name }))
+    )
+    .sort((a, b) => (a.days ?? 0) - (b.days ?? 0));
+}
+
+/** Vehicles ordered worst-first, matching the dashboard's governing habit. */
+export function sortVehicles<
+  T extends Pick<Vehicle, VehicleDateKey | "status" | "sort_order" | "name">
+>(vehicles: T[], todayIso: string): T[] {
+  return [...vehicles].sort((a, b) => {
+    const av = a.status === "active" ? 0 : 1;
+    const bv = b.status === "active" ? 0 : 1;
+    if (av !== bv) return av - bv;
+    const ar = DEADLINE_RANK[vehicleWorstState(a, todayIso)];
+    const br = DEADLINE_RANK[vehicleWorstState(b, todayIso)];
+    if (ar !== br) return ar - br;
+    if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * LIFE_OS — debts
+ * ------------------------------------------------------------------ */
+
+export type DebtTotal = {
+  /** Sum of the balances actually recorded. */
+  known: number;
+  /** Active debts whose balance nobody has confirmed yet. */
+  unknownCount: number;
+  /** Active debts with a balance. */
+  knownCount: number;
+  /** True only when every active debt has a balance. Derived, never stored. */
+  complete: boolean;
+};
+
+/**
+ * What Jay owes, and how much of that is actually known.
+ *
+ * `complete` is derived rather than stored, which makes it self-maintaining:
+ * the moment the last balance is entered the figure stops being provisional on
+ * its own, with no flag anyone has to remember to flip.
+ *
+ * A null balance contributes nothing to `known` and increments `unknownCount`.
+ * It is never treated as zero — Jay confirmed his £8,317 covers only some of
+ * his creditors, and a partial figure shown as a total would tell him he is
+ * closer to done than he is.
+ */
+export function debtTotal(
+  debts: Pick<Debt, "current_balance" | "status">[]
+): DebtTotal {
+  const active = debts.filter((d) => d.status === "active");
+  const known = active.filter((d) => d.current_balance != null);
+  return {
+    known: known.reduce((sum, d) => sum + Number(d.current_balance ?? 0), 0),
+    unknownCount: active.length - known.length,
+    knownCount: known.length,
+    complete: active.length > 0 && known.length === active.length,
+  };
+}
+
+/**
+ * How long this debt takes to clear at the current plan, in payments.
+ *
+ * Null whenever the answer would be a guess: no balance, no plan, or a plan of
+ * zero that would never clear anything. Returning a number here when the
+ * inputs are unknown would be the most damaging kind of wrong — a debt-free
+ * date Jay might actually plan around.
+ */
+export function payoffPayments(
+  debt: Pick<Debt, "current_balance" | "plan_amount">
+): number | null {
+  const balance = debt.current_balance;
+  const payment = debt.plan_amount;
+  if (balance == null || payment == null) return null;
+  if (payment <= 0) return null;
+  if (balance <= 0) return 0;
+  return Math.ceil(balance / payment);
+}
+
+/**
+ * The same projection expressed in months, so plans on different frequencies
+ * can be compared. Null for the same reasons as `payoffPayments`.
+ */
+export function payoffMonths(
+  debt: Pick<Debt, "current_balance" | "plan_amount" | "plan_frequency">
+): number | null {
+  const payments = payoffPayments(debt);
+  if (payments == null) return null;
+  const freq = debt.plan_frequency;
+  if (!freq) return null;
+  const perYear = PAYMENTS_PER_YEAR[freq];
+  if (!perYear) return null;
+  return Math.ceil((payments / perYear) * 12);
+}
+
+/** The soonest scheduled payment across every debt, or null when none. */
+export function nextPaymentDue<
+  T extends Pick<DebtPayment, "due_on" | "status">
+>(payments: T[], todayIso: string): T | null {
+  const upcoming = payments
+    .filter((p) => p.status === "scheduled" && p.due_on >= todayIso)
+    .sort((a, b) => a.due_on.localeCompare(b.due_on));
+  return upcoming[0] ?? null;
+}
+
+/** Scheduled payments whose date has passed — chased, not silently ignored. */
+export function missedPayments<
+  T extends Pick<DebtPayment, "due_on" | "status">
+>(payments: T[], todayIso: string): T[] {
+  return payments
+    .filter((p) => p.status === "scheduled" && p.due_on < todayIso)
+    .sort((a, b) => a.due_on.localeCompare(b.due_on));
+}
+
+/**
+ * Debts ordered for a phone call: unknown balances first, because finding out
+ * is the actual next action, then largest known balance.
+ */
+export function sortDebts<
+  T extends Pick<Debt, "current_balance" | "status" | "creditor">
+>(debts: T[]): T[] {
+  return [...debts].sort((a, b) => {
+    const aa = a.status === "active" ? 0 : 1;
+    const ba = b.status === "active" ? 0 : 1;
+    if (aa !== ba) return aa - ba;
+    const au = a.current_balance == null ? 0 : 1;
+    const bu = b.current_balance == null ? 0 : 1;
+    if (au !== bu) return au - bu;
+    const diff = Number(b.current_balance ?? 0) - Number(a.current_balance ?? 0);
+    if (diff !== 0) return diff;
+    return a.creditor.localeCompare(b.creditor);
+  });
 }

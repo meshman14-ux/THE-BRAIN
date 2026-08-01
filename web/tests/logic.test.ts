@@ -1468,3 +1468,267 @@ describe("cashThisMonth", () => {
     expect(cashThisMonth([a(900, 0), a(5000, 0, "sold")])).toBe(900);
   });
 });
+
+/* ==================================================================== *
+ * LIFE_OS — vehicles and debts
+ * ==================================================================== */
+
+import {
+  deadlineState,
+  vehicleDeadlines,
+  vehicleWorstState,
+  upcomingDeadlines,
+  sortVehicles,
+  debtTotal,
+  payoffPayments,
+  payoffMonths,
+  nextPaymentDue,
+  missedPayments,
+  sortDebts,
+} from "../src/lib/logic";
+import type { Debt, Vehicle } from "../src/lib/types";
+
+const vehicle = (over: Partial<Vehicle> = {}): Vehicle => ({
+  id: "v1",
+  name: "BMW",
+  registration: "ME54 JAY",
+  make_model: null,
+  tax_due: null,
+  mot_due: null,
+  insurance_due: null,
+  last_service: null,
+  next_service: null,
+  status: "active",
+  pillar_id: null,
+  sort_order: 0,
+  notes: null,
+  ...over,
+});
+
+const debt = (over: Partial<Debt> = {}): Debt => ({
+  id: "d1",
+  creditor: "Advantis",
+  kind: "credit",
+  reference: null,
+  original_amount: null,
+  current_balance: null,
+  status: "active",
+  plan_amount: null,
+  plan_frequency: null,
+  plan_day: null,
+  plan_start: null,
+  pillar_id: null,
+  venture_id: null,
+  notes: null,
+  sort_order: 0,
+  ...over,
+});
+
+describe("deadlineState", () => {
+  it("distinguishes overdue, due soon and fine", () => {
+    expect(deadlineState("2026-07-01", TODAY)).toBe("overdue");
+    expect(deadlineState("2026-08-10", TODAY)).toBe("due_soon");
+    expect(deadlineState("2027-06-01", TODAY)).toBe("ok");
+  });
+
+  it("treats today as due soon, not overdue — you still have today", () => {
+    expect(deadlineState(TODAY, TODAY)).toBe("due_soon");
+  });
+
+  it("calls a missing date not_recorded, never overdue and never fine", () => {
+    expect(deadlineState(null, TODAY)).toBe("not_recorded");
+  });
+});
+
+describe("vehicleDeadlines", () => {
+  it("returns all four obligations in a fixed order", () => {
+    const ds = vehicleDeadlines(vehicle(), TODAY);
+    expect(ds.map((d) => d.key)).toEqual([
+      "tax_due",
+      "mot_due",
+      "insurance_due",
+      "next_service",
+    ]);
+  });
+
+  it("RAISES NO FALSE ALARMS for a vehicle with no dates recorded", () => {
+    const ds = vehicleDeadlines(vehicle(), TODAY);
+    expect(ds.every((d) => d.state === "not_recorded")).toBe(true);
+    expect(ds.some((d) => d.state === "overdue")).toBe(false);
+    expect(ds.some((d) => d.state === "ok")).toBe(false);
+  });
+});
+
+describe("vehicleWorstState", () => {
+  it("reports the worst obligation on the vehicle", () => {
+    const v = vehicle({ tax_due: "2027-01-01", mot_due: "2026-07-01" });
+    expect(vehicleWorstState(v, TODAY)).toBe("overdue");
+  });
+
+  it("ranks unknown below due-soon but above fine", () => {
+    const unknown = vehicle({ tax_due: "2027-01-01" }); // rest null
+    expect(vehicleWorstState(unknown, TODAY)).toBe("not_recorded");
+    const soon = vehicle({
+      tax_due: "2026-08-05",
+      mot_due: "2027-01-01",
+      insurance_due: "2027-01-01",
+      next_service: "2027-01-01",
+    });
+    expect(vehicleWorstState(soon, TODAY)).toBe("due_soon");
+  });
+
+  it("is ok only when every obligation is dated and comfortably away", () => {
+    const v = vehicle({
+      tax_due: "2027-01-01",
+      mot_due: "2027-02-01",
+      insurance_due: "2027-03-01",
+      next_service: "2027-04-01",
+    });
+    expect(vehicleWorstState(v, TODAY)).toBe("ok");
+  });
+});
+
+describe("upcomingDeadlines", () => {
+  it("lists what is genuinely due, soonest first", () => {
+    const vs = [
+      vehicle({ id: "a", name: "BMW", mot_due: "2026-08-20" }),
+      vehicle({ id: "b", name: "Zafira", tax_due: "2026-08-02" }),
+    ];
+    const out = upcomingDeadlines(vs, TODAY, 30);
+    expect(out.map((d) => d.vehicleName)).toEqual(["Zafira", "BMW"]);
+  });
+
+  it("excludes undated obligations — they cannot be due in 30 days", () => {
+    expect(upcomingDeadlines([vehicle()], TODAY, 30)).toEqual([]);
+  });
+
+  it("ignores sold and SORN vehicles", () => {
+    const vs = [vehicle({ status: "sold", mot_due: "2026-08-02" })];
+    expect(upcomingDeadlines(vs, TODAY, 30)).toEqual([]);
+  });
+});
+
+describe("sortVehicles", () => {
+  it("puts the worst first and sinks inactive vehicles", () => {
+    const vs = [
+      vehicle({ id: "ok", name: "OK", tax_due: "2027-01-01", mot_due: "2027-01-01", insurance_due: "2027-01-01", next_service: "2027-01-01" }),
+      vehicle({ id: "sold", name: "Sold", status: "sold", mot_due: "2020-01-01" }),
+      vehicle({ id: "late", name: "Late", mot_due: "2026-07-01" }),
+    ];
+    expect(sortVehicles(vs, TODAY).map((v) => v.id)).toEqual(["late", "ok", "sold"]);
+  });
+});
+
+describe("debtTotal", () => {
+  it("sums only what is known and counts what is not", () => {
+    const ds = [
+      debt({ current_balance: 5000 }),
+      debt({ current_balance: 3317 }),
+      debt({ current_balance: null }),
+    ];
+    const t = debtTotal(ds);
+    expect(t.known).toBe(8317);
+    expect(t.knownCount).toBe(2);
+    expect(t.unknownCount).toBe(1);
+  });
+
+  it("is INCOMPLETE while any active debt has no balance — Jay's £8,317 case", () => {
+    const ds = [debt({ current_balance: 8317 }), debt({ current_balance: null })];
+    expect(debtTotal(ds).complete).toBe(false);
+  });
+
+  it("becomes complete on its own once the last balance is entered", () => {
+    const ds = [debt({ current_balance: 8317 }), debt({ current_balance: 500 })];
+    expect(debtTotal(ds).complete).toBe(true);
+  });
+
+  it("never counts a null balance as zero", () => {
+    expect(debtTotal([debt({ current_balance: null })]).known).toBe(0);
+    expect(debtTotal([debt({ current_balance: null })]).complete).toBe(false);
+  });
+
+  it("ignores cleared debts entirely", () => {
+    const ds = [debt({ current_balance: 100, status: "cleared" }), debt({ current_balance: 50 })];
+    const t = debtTotal(ds);
+    expect(t.known).toBe(50);
+    expect(t.complete).toBe(true);
+  });
+
+  it("is not complete when there are no debts at all", () => {
+    expect(debtTotal([]).complete).toBe(false);
+  });
+});
+
+describe("payoffPayments / payoffMonths", () => {
+  it("counts the payments needed, rounding up", () => {
+    expect(payoffPayments(debt({ current_balance: 1000, plan_amount: 300 }))).toBe(4);
+  });
+
+  it("refuses to guess when the balance is unknown", () => {
+    expect(payoffPayments(debt({ current_balance: null, plan_amount: 300 }))).toBeNull();
+  });
+
+  it("refuses to guess when there is no plan", () => {
+    expect(payoffPayments(debt({ current_balance: 1000, plan_amount: null }))).toBeNull();
+  });
+
+  it("returns null for a zero plan rather than infinity", () => {
+    expect(payoffPayments(debt({ current_balance: 1000, plan_amount: 0 }))).toBeNull();
+  });
+
+  it("is 0 for an already-cleared balance", () => {
+    expect(payoffPayments(debt({ current_balance: 0, plan_amount: 50 }))).toBe(0);
+  });
+
+  it("converts frequency to months so plans can be compared", () => {
+    expect(payoffMonths(debt({ current_balance: 1200, plan_amount: 100, plan_frequency: "monthly" }))).toBe(12);
+    expect(payoffMonths(debt({ current_balance: 1200, plan_amount: 100, plan_frequency: "weekly" }))).toBe(3);
+  });
+
+  it("is null without a frequency — payments alone are not a timescale", () => {
+    expect(payoffMonths(debt({ current_balance: 1200, plan_amount: 100 }))).toBeNull();
+  });
+});
+
+describe("nextPaymentDue / missedPayments", () => {
+  const pay = (due_on: string, status: "scheduled" | "paid" | "missed" = "scheduled") =>
+    ({ id: due_on, debt_id: "d1", amount: 50, due_on, paid_on: null, status });
+
+  it("finds the soonest scheduled payment from today onward", () => {
+    const ps = [pay("2026-09-01"), pay("2026-08-05"), pay("2026-08-20")];
+    expect(nextPaymentDue(ps, TODAY)?.due_on).toBe("2026-08-05");
+  });
+
+  it("ignores payments already made", () => {
+    const ps = [pay("2026-08-05", "paid"), pay("2026-08-20")];
+    expect(nextPaymentDue(ps, TODAY)?.due_on).toBe("2026-08-20");
+  });
+
+  it("is null when nothing is scheduled", () => {
+    expect(nextPaymentDue([], TODAY)).toBeNull();
+  });
+
+  it("surfaces payments whose date has passed rather than hiding them", () => {
+    const ps = [pay("2026-07-01"), pay("2026-09-01")];
+    expect(missedPayments(ps, TODAY).map((p) => p.due_on)).toEqual(["2026-07-01"]);
+  });
+});
+
+describe("sortDebts", () => {
+  it("puts unknown balances first — finding out is the next action", () => {
+    const ds = [
+      debt({ id: "big", creditor: "Big", current_balance: 5000 }),
+      debt({ id: "unknown", creditor: "Unknown", current_balance: null }),
+      debt({ id: "small", creditor: "Small", current_balance: 100 }),
+    ];
+    expect(sortDebts(ds).map((d) => d.id)).toEqual(["unknown", "big", "small"]);
+  });
+
+  it("sinks cleared debts below active ones", () => {
+    const ds = [
+      debt({ id: "cleared", current_balance: 9999, status: "cleared" }),
+      debt({ id: "active", current_balance: 1 }),
+    ];
+    expect(sortDebts(ds).map((d) => d.id)).toEqual(["active", "cleared"]);
+  });
+});

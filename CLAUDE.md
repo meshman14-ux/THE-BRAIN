@@ -171,14 +171,19 @@ for the calling user. Called from `/auth/confirm` on sign-in and from the first-
 Migrations applied to the live project: `the_brain_os_v1_full_schema`,
 `harden_seed_pillars_search_path`, `planner_kanban_and_richer_areas`,
 `add_vehicles_pillar_thirteen_areas`, `empire_os_venture_stages`,
-`life_os_area_scores_and_debt_metric`. **Do not re-apply any of them.**
+`life_os_area_scores_and_debt_metric`, `debts_and_vehicles` (the SQL for the last
+is captured at `supabase/migrations/20260801_debts_and_vehicles.sql`).
+**Do not re-apply any of them.**
 
-**Seeded data (2026-07-31/08-01):** the 13 pillars; 10 ventures (A to Z Trailerz *launch*,
-Amazon FBA *research*, Kathleen St *stabilise*, AI Software *idea*, five backlog divisions,
-and MAINFRAME as a pointer row); the "Debt remaining" metric with £8,317 read on 2026-08-01
-plus a "Monthly income" metric with no readings; a daily "Training" habit with no logs; and
-the 20-year vision row. Tasks, goals, projects, notes and the inbox are empty — the first-run
-empty states are load-bearing.
+**Seeded data (verified live 2026-08-01):** the 13 pillars; **18 ventures** (A to Z Traderz
+*launch*, Building + Maintenance *launch*, Amazon FBA *research*, Kathleen St / Bedlinog
+House / Treharris House *stabilise*, AI Software *idea*, nine backlog divisions, and
+MAINFRAME as a pointer row); **8 creditors** in `debts` (balances NULL until Jay supplies
+them); **4 vehicles** in `vehicles` (dates NULL); the "Debt remaining" metric with £8,317
+read on 2026-08-01 (a PARTIAL figure — see open item 4) plus a "Monthly income" metric with
+no readings; a daily "Training" habit with no logs; and the 20-year vision row. Tasks,
+goals, projects, notes and the inbox start empty — the first-run empty states are
+load-bearing.
 
 **Auth:** magic link only, no passwords. Signups **disabled** — Jay's user already exists
 (`meshman14@gmail.com`). Supabase Site URL and redirect allow-list point at the live Vercel
@@ -186,8 +191,8 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-01)
 
-Verified in this repo: **160/160 tests pass** (`tests/logic.test.ts`, vitest) and
-**`npm run build` produces exactly 16 routes**.
+Verified in this repo: **191/191 tests pass** (`tests/logic.test.ts`, vitest) and
+**`npm run build` produces exactly 18 routes**. `npx tsc --noEmit` is clean.
 
 **`/dashboard` is built to Jay's own prototype** (`THE BRAIN.dc.html` in his claude.ai/design
 project "THE BRAIN", implemented 2026-08-01): watchtower ("needs attention", assembled from
@@ -214,8 +219,10 @@ the command centre summarises and links, exactly as §A2 always described. Don't
 | **EMPIRE_OS** — the CEO dashboard at `/empire` | ✅ KPIs, divisions, week priorities, four-horizon goals, build progress, the 5 empire areas with the same editor, vision footer |
 | Capture, Inbox/Triage, Planner (Kanban), This Week | ✅ in `src/app/(app)/` |
 | Goals + Projects UI (Phase 2) | ✅ `/goals` — the cascade, stated vs derived progress |
-| Branch pages for unbuilt views + all 9 divisions | ✅ `(app)/[slug]` + `src/lib/placeholders.ts` — each says what it will be, links to where it already lives in the system, and carries its reference shelf. Delete a row when its view gets built |
+| Branch pages for unbuilt views + all divisions | ✅ `(app)/[slug]` + `src/lib/placeholders.ts` — each says what it will be, links to where it already lives in the system, and carries its reference shelf. Delete a row when its view gets built |
 | **The reference library** at `/library` | ✅ `src/lib/references.ts` — curated UK-focused shelves per pillar and per branch (researched 2026-08-01), surfaced on pillar pages, branch pages and `/library`. Integrity-tested: every seeded pillar has a shelf, every venture maps to a branch, https-only, no orphan keys |
+| Debts + payment plans | ✅ `/life/debts` — creditors, plans, honest partial total |
+| Vehicles | ✅ `/life/vehicles` — tax/MOT/insurance/service, worst-first |
 | Paper theme + dark toggle | ✅ both dashboards checked in both, and at 390px |
 | `src/lib/logic.ts` + `tests/` + vitest | ✅ |
 
@@ -245,6 +252,8 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /(app)/week            7-day scheduler
 /(app)/capture         one-box capture (PWA start_url)
 /(app)/inbox           triage
+/(app)/life/debts      creditors, balances, payment plans, payoff projection
+/(app)/life/vehicles   tax · MOT · insurance · service, worst-first
 /(app)/pillar/[id]     area detail + its reference shelf, back-links to its system
 /(app)/library         the reference library — every curated shelf in one place
 /(app)/[slug]          branch pages: what the view will be, its strings into the
@@ -287,9 +296,17 @@ Open items:
    completed against the live URL; the 13 areas render.
 3. ~~Three missing area names.~~ **Superseded 2026-07-31** — the 13 areas were settled and
    seeded with Jay's sign-off; no remap is pending.
-4. Blueprint data still worth seeding: 7 debts/bills, and the 3 vehicles under the Vehicles
-   pillar — Van `DK05 LVL`, Zafira `WK57 XWO`, BMW `ME54 JAY`, each with tax and MOT dates.
-   (The 10 ventures and Kathleen St were seeded 2026-07-31.)
+4. ~~Blueprint data still worth seeding.~~ **Done 2026-08-01.** 18 ventures live (the mind
+   maps added Building + Maintenance, Bedlinog House, Treharris House, Storage Solutions,
+   Photo Booth, Stencil Art, Stump Pump, Find My Stash). The venture is **A to Z Traderz**,
+   not "Trailerz" — the design PDF was wrong. Debts have their own tables with 8 named
+   creditors seeded, all balances NULL. **Jay confirmed the £8,317 headline is PARTIAL, not
+   a total** — `debtTotal()` therefore derives `complete` from whether every active debt has
+   a balance, and the UI says "known across 5 of 8 creditors" rather than showing a figure
+   that flatters him. Vehicles: **FOUR, not three** — BMW `ME54 JAY`, Zafira `WF57 XWD`
+   (the earlier `WK57 XWO` in this file was wrong), Canter `DK05 LVL`, TT `FN03 DFP`. All
+   four rows exist with every date NULL — he has not supplied them. A null date renders as
+   "not recorded", never as overdue and never as fine; there is a test that proves it.
 5. His blueprint has **5** review cadences (daily, weekly, monthly, quarterly, annual); we
    deliberately build **3**. Confirm with him before adding monthly/annual.
 6. **No ESLint config.** v1.2 ships none, and `next lint` is deprecated and prompts

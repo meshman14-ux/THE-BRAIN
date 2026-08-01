@@ -215,3 +215,121 @@ export function weekDates(ref: Date = new Date()): string[] {
 }
 
 export const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+/* ------------------------------------------------------------------ *
+ * LIFE_OS — vehicles
+ * ------------------------------------------------------------------ */
+
+/**
+ * The state of one dated obligation on a vehicle.
+ *
+ * `not_recorded` is a first-class state, not a variant of `ok`. A vehicle
+ * whose MOT date nobody has entered is not compliant and not overdue — it is
+ * unknown, and the only honest thing the UI can do is ask for the date.
+ */
+export type DeadlineState = "overdue" | "due_soon" | "ok" | "not_recorded";
+
+export const DEADLINE_LABEL: Record<DeadlineState, string> = {
+  overdue: "Overdue",
+  due_soon: "Due soon",
+  ok: "OK",
+  not_recorded: "Not recorded",
+};
+
+/** Anything closer than this counts as "due soon". */
+export const DUE_SOON_DAYS = 30;
+
+export type VehicleDateKey =
+  | "tax_due"
+  | "mot_due"
+  | "insurance_due"
+  | "next_service";
+
+export const VEHICLE_DATE_LABEL: Record<VehicleDateKey, string> = {
+  tax_due: "Tax",
+  mot_due: "MOT",
+  insurance_due: "Insurance",
+  next_service: "Service",
+};
+
+export const VEHICLE_DATE_KEYS: VehicleDateKey[] = [
+  "tax_due",
+  "mot_due",
+  "insurance_due",
+  "next_service",
+];
+
+export type Vehicle = {
+  id: string;
+  name: string;
+  registration: string | null;
+  make_model: string | null;
+  tax_due: string | null;
+  mot_due: string | null;
+  insurance_due: string | null;
+  last_service: string | null;
+  next_service: string | null;
+  /** 'active' | 'sorn' | 'sold' — free text, a convention the app upholds. */
+  status: string;
+  pillar_id: string | null;
+  sort_order: number;
+  notes: string | null;
+};
+
+/* ------------------------------------------------------------------ *
+ * LIFE_OS — debts
+ * ------------------------------------------------------------------ */
+
+export type DebtKind =
+  | "council_tax"
+  | "credit"
+  | "utility"
+  | "vehicle"
+  | "benefit"
+  | "other";
+
+export const DEBT_KIND_LABEL: Record<DebtKind, string> = {
+  council_tax: "Council tax",
+  credit: "Credit",
+  utility: "Utility",
+  vehicle: "Vehicle",
+  benefit: "Benefit",
+  other: "Other",
+};
+
+export type PlanFrequency = "weekly" | "fortnightly" | "monthly";
+
+/** Payments per year, for projecting a payoff. */
+export const PAYMENTS_PER_YEAR: Record<PlanFrequency, number> = {
+  weekly: 52,
+  fortnightly: 26,
+  monthly: 12,
+};
+
+export type Debt = {
+  id: string;
+  creditor: string;
+  kind: DebtKind;
+  reference: string | null;
+  original_amount: number | null;
+  /** NULL means not yet confirmed with the creditor. It does NOT mean zero. */
+  current_balance: number | null;
+  status: string;
+  plan_amount: number | null;
+  plan_frequency: PlanFrequency | null;
+  plan_day: number | null;
+  plan_start: string | null;
+  pillar_id: string | null;
+  venture_id: string | null;
+  notes: string | null;
+  sort_order: number;
+};
+
+export type DebtPayment = {
+  id: string;
+  debt_id: string;
+  amount: number;
+  due_on: string;
+  paid_on: string | null;
+  status: "scheduled" | "paid" | "missed";
+};
