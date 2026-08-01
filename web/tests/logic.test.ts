@@ -1058,6 +1058,8 @@ const SEEDED_VENTURES = [
 const REAL_ROUTES = [
   "/dashboard",
   "/life",
+  "/life/debts",
+  "/life/vehicles",
   "/empire",
   "/goals",
   "/planner",
@@ -1105,8 +1107,12 @@ describe("reference library integrity", () => {
 
   it("keeps the retired slug working so old links survive", () => {
     expect(BRANCH_ALIASES["a-to-z-trailerz"]).toBe("a-to-z-traderz");
+    // A placeholder graduates to a real route when its view ships.
+    expect(BRANCH_ALIASES["vehicles"]).toBe("life/vehicles");
     for (const [from, to] of Object.entries(BRANCH_ALIASES)) {
-      expect(placeholderFor(to), `alias ${from} → ${to} must land somewhere`).toBeTruthy();
+      const lands =
+        placeholderFor(to) != null || REAL_ROUTES.includes(`/${to}`);
+      expect(lands, `alias ${from} → ${to} must land somewhere`).toBe(true);
       expect(placeholderFor(from), `${from} should be retired, not duplicated`).toBeUndefined();
     }
   });

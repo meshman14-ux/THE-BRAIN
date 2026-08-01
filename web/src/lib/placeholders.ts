@@ -78,12 +78,8 @@ export const PLACEHOLDERS: Placeholder[] = [
     what: "The property: arrears, renovation, tenancy. Tracked today as a venture on the CEO dashboard.",
     phase: "Phase 5 · EMPIRE_OS",
   },
-  {
-    slug: "vehicles",
-    name: "Vehicles",
-    what: "Tax, MOT and insurance per vehicle, with every renewal seen coming. The Vehicles pillar holds the standard already.",
-    phase: "Phase 4 · LIFE_OS",
-  },
+  // "vehicles" was retired 2026-08-01: the view it promised is built at
+  // /life/vehicles. BRANCH_ALIASES redirects the old slug there.
   {
     slug: "family",
     name: "Family",

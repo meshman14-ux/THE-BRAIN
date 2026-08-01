@@ -146,7 +146,7 @@ export const PILLAR_REFS: Record<string, RefLink[]> = {
     {
       title: "GOV.UK · Check MOT history",
       url: "https://www.gov.uk/check-mot-history",
-      why: "Every MOT result and advisory for any of the three vehicles.",
+      why: "Every MOT result and advisory for any of the four vehicles.",
     },
     {
       title: "GOV.UK · Get MOT reminders",
@@ -827,7 +827,10 @@ export const BRANCH_RELATED: Record<
   advisor: { routes: [{ label: "The AI digest slot on THE BRAIN", href: "/dashboard" }] },
   finance: {
     pillars: ["Money & Security"],
-    routes: [{ label: "Debt payoff plan", href: "/debt-payoff" }],
+    routes: [
+      { label: "Debts — live now, every creditor", href: "/life/debts" },
+      { label: "Debt payoff plan", href: "/debt-payoff" },
+    ],
   },
   health: { pillars: ["Training & Fitness", "Nutrition & Recovery"], routes: [{ label: "LIFE_OS — score both areas", href: "/life" }] },
   food: { pillars: ["Nutrition & Recovery"] },
@@ -835,7 +838,6 @@ export const BRANCH_RELATED: Record<
     pillars: ["Property & Assets"],
     routes: [{ label: "EMPIRE_OS — the venture at stabilise", href: "/empire" }],
   },
-  vehicles: { pillars: ["Vehicles"] },
   family: { pillars: ["Family", "Friends & Network"] },
   personal: { pillars: ["Mind & Growth"], routes: [{ label: "LIFE_OS", href: "/life" }] },
   map: { routes: [{ label: "THE BRAIN — the map in list form, for now", href: "/dashboard" }] },
@@ -846,7 +848,10 @@ export const BRANCH_RELATED: Record<
   me: {},
   "debt-payoff": {
     pillars: ["Money & Security"],
-    routes: [{ label: "Finance", href: "/finance" }],
+    routes: [
+      { label: "Debts — live now, every creditor", href: "/life/debts" },
+      { label: "Finance", href: "/finance" },
+    ],
   },
   "a-to-z-traderz": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — at launch", href: "/empire" }] },
   "building-maintenance": { pillars: ["Ventures"], routes: [{ label: "EMPIRE_OS — at launch", href: "/empire" }] },
@@ -912,6 +917,8 @@ export const BRANCH_ALIASES: Record<string, string> = {
   "a-to-z-trailerz": "a-to-z-traderz",
   // Hand-written slug from the first registry; the derived form has "and".
   "resin-epoxy": "resin-and-epoxy",
+  // The placeholder retired when the real view shipped at /life/vehicles.
+  vehicles: "life/vehicles",
 };
 
 export function refsForPillar(name: string): RefLink[] {

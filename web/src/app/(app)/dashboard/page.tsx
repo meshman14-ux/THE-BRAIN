@@ -250,7 +250,7 @@ export default async function TheBrain() {
     { label: "Health", href: "/health" },
     { label: "Food", href: "/food" },
     { label: "Kathleen St", href: "/kathleen-st" },
-    { label: "Vehicles", href: "/vehicles" },
+    { label: "Vehicles", href: "/life/vehicles" },
     { label: "Family", href: "/family" },
     { label: "Personal", href: "/personal" },
   ];
@@ -491,7 +491,10 @@ export default async function TheBrain() {
 
               <div>
                 <p className="label">Debt-free goal</p>
-                <div className="rounded-[10px] border border-[var(--border)] px-3.5 py-3 mt-2">
+                <Link
+                  href="/life/debts"
+                  className="rounded-[10px] border border-[var(--border)] px-3.5 py-3 mt-2 block no-underline text-[var(--text)] card-hover"
+                >
                   <div className="flex items-baseline gap-2 flex-wrap">
                     <span
                       className="mono text-[1.15rem] font-semibold"
@@ -511,10 +514,10 @@ export default async function TheBrain() {
                   </div>
                   <p className="text-[0.68rem] text-[var(--faint)] mt-2 leading-snug">
                     {cleared
-                      ? `From a peak of ${formatGBP(cleared.peak)}.`
-                      : "Log the balance again and the bar starts showing progress."}
+                      ? `From a peak of ${formatGBP(cleared.peak)}. The creditors →`
+                      : "A partial figure — the creditors behind it live in Debts →"}
                   </p>
-                </div>
+                </Link>
               </div>
 
               <div>
