@@ -187,13 +187,19 @@ URL and a magic-link round trip has been completed against it.
 ## A5. Build state (as of 2026-08-01)
 
 Verified in this repo: **116/116 tests pass** (`tests/logic.test.ts`, vitest) and
-**`npm run build` produces exactly 14 routes**.
+**`npm run build` produces exactly 15 routes**.
+
+**The three-tier split is live in the UI** (Jay asked for it explicitly, 2026-08-01): THE BRAIN
+at `/dashboard` is the main dashboard and reads over both systems; LIFE_OS at `/life` is
+personal; EMPIRE_OS at `/empire` is business. Each system owns its own areas and their editor;
+the command centre summarises and links, exactly as §A2 always described. Don't merge them back.
 
 | Piece | State |
 |---|---|
 | Magic-link login, `/auth/confirm`, `/auth/signout`, middleware | ✅ |
-| **JAY_OS** — the personal dashboard at `/dashboard` | ✅ sidebar, hero, KPI strip, worst-first areas + status, ventures, pick-three Today, AI-digest placeholder |
-| **EMPIRE_OS** — the CEO dashboard at `/empire` | ✅ KPIs, divisions, week priorities, four-horizon goals, build progress, vision footer |
+| **THE BRAIN** — the command centre at `/dashboard` | ✅ sidebar (Systems / Workspace / Arms / Plan / Pinned), hero, cross-system KPI strip, LIFE_OS + EMPIRE_OS summary panels, pick-three Today, AI-digest placeholder |
+| **LIFE_OS** — the personal dashboard at `/life` | ✅ the 8 life areas worst-first with the score/status/focus editor, area status, life-scoped KPIs, training streak |
+| **EMPIRE_OS** — the CEO dashboard at `/empire` | ✅ KPIs, divisions, week priorities, four-horizon goals, build progress, the 5 empire areas with the same editor, vision footer |
 | Capture, Inbox/Triage, Planner (Kanban), This Week | ✅ in `src/app/(app)/` |
 | Goals + Projects UI (Phase 2) | ✅ `/goals` — the cascade, stated vs derived progress |
 | Honest placeholders for unbuilt sidebar views | ✅ `(app)/[slug]` + `src/lib/placeholders.ts` — delete a row there when its view gets built |
@@ -218,8 +224,9 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /login                 magic link
 /auth/confirm          verifies + redirects, calls seed_pillars()
 /auth/signout          POST
-/(app)/dashboard       JAY_OS — the personal dashboard (sidebar, KPIs, areas, today's three)
-/(app)/empire          EMPIRE_OS — the CEO dashboard
+/(app)/dashboard       THE BRAIN — the command centre (sidebar, cross-system KPIs, today's three)
+/(app)/life            LIFE_OS — the 8 personal areas, scores, streak
+/(app)/empire          EMPIRE_OS — the CEO dashboard + the 5 business areas
 /(app)/goals           goals → projects, with unattached projects listed separately
 /(app)/planner         Kanban
 /(app)/week            7-day scheduler

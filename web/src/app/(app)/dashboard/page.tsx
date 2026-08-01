@@ -8,6 +8,7 @@ import {
   type Venture,
   STAGE_COLOUR,
   STAGE_LABEL,
+  SYSTEM_BLURB,
 } from "@/lib/types";
 import {
   toIso,
@@ -19,22 +20,24 @@ import {
   latestReading,
   currentStreak,
   dueWithin,
-  countsByPillar,
   pickThree,
   openCount,
   todayProgress,
   todayReason,
   type TodayReason,
-  sortVentures,
+  areasFor,
+  rankAreasByNeed,
+  averageScore,
+  scoreBarPercent,
+  inDevelopment,
   backlog,
+  sortVentures,
   isShelved,
-  isUntouched,
 } from "@/lib/logic";
 import SeedPillars from "@/components/SeedPillars";
-import AreaBars from "@/components/AreaBars";
 import TodayThree, { type TodayItem } from "@/components/TodayThree";
 import TrainToday from "@/components/TrainToday";
-import { Panel, Empty, Tag } from "@/components/ui";
+import { Panel, Empty, Tag, Bar } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -46,21 +49,23 @@ const REASON_TEXT: Record<TodayReason, string> = {
 };
 
 /* ------------------------------------------------------------------ *
- * The sidebar — the shape of the whole system, built or not.
- * Unbuilt routes resolve to the honest placeholder at (app)/[slug].
+ * THE BRAIN — the command centre.
+ *
+ * It reads over both systems and owns nothing except today's three.
+ * LIFE_OS (/life) and EMPIRE_OS (/empire) are where the detail lives;
+ * this page tells you which one needs you, then gets out of the way.
  * ------------------------------------------------------------------ */
 
 type NavItem = { label: string; href: string; badge?: number; note?: string };
 
-export default async function JayOs() {
+export default async function TheBrain() {
   const supabase = await createClient();
   const now = new Date();
   const today = toIso(now);
 
   const [
-    { data: pillars },
+    { data: pillars, error: pillarsError },
     { data: tasks },
-    { data: goals },
     { data: projects },
     { data: ventures },
     { data: metrics },
@@ -79,7 +84,6 @@ export default async function JayOs() {
     supabase
       .from("tasks")
       .select("id, title, pillar_id, project_id, do_date, due_date, priority, status"),
-    supabase.from("goals").select("pillar_id").eq("status", "active"),
     supabase.from("projects").select("pillar_id, due_date, status").eq("status", "active"),
     supabase
       .from("ventures")
@@ -92,12 +96,20 @@ export default async function JayOs() {
     supabase.from("inbox").select("id", { count: "exact", head: true }).eq("status", "open"),
   ]);
 
+  // A failed read must never masquerade as an empty account — the seed
+  // screen is for a genuinely fresh user, not for a dropped connection or an
+  // expired token. Throw and let the error boundary say something went wrong.
+  if (pillarsError) throw new Error(`pillars query failed: ${pillarsError.message}`);
+
   const allPillars = (pillars ?? []) as Pillar[];
   if (allPillars.length === 0) return <SeedPillars />;
 
   const allTasks = (tasks ?? []) as Task[];
   const allVentures = (ventures ?? []) as Venture[];
   const pillarById = new Map(allPillars.map((p) => [p.id, p]));
+
+  const lifeAreas = areasFor(allPillars, "life");
+  const empireAreas = areasFor(allPillars, "empire");
 
   /* -- the numbers ----------------------------------------------- */
 
@@ -149,27 +161,17 @@ export default async function JayOs() {
       t.do_date <= today
   ).length;
 
-  /* -- ventures ---------------------------------------------------- */
+  /* -- system summaries ------------------------------------------- */
 
-  const orderedVentures = sortVentures(allVentures);
+  const lifeAvg = averageScore(lifeAreas);
+  const empireAvg = averageScore(empireAreas);
+  const lifeTop = rankAreasByNeed(lifeAreas).slice(0, 3);
+  const empireTop = rankAreasByNeed(empireAreas).slice(0, 3);
+  const building = inDevelopment(allVentures);
   const parked = backlog(allVentures);
-  const liveVentures = orderedVentures.filter((v) => !isShelved(v));
-
-  /* -- area status ------------------------------------------------- */
-
-  const counts = countsByPillar(goals ?? [], projects ?? [], allTasks.filter((t) => t.status === "open"));
-  const statusFor = (p: Pillar): string => {
-    if (p.status_line) return p.status_line;
-    if (p.name === "Ventures" && allVentures.length > 0)
-      return `${liveVentures.length} active, ${parked.length} parked`;
-    if (p.name === "Training & Fitness" && streak > 0)
-      return `Training logged, ${streak}-day streak`;
-    if (p.name === "Money & Security" && debt)
-      return `Debt at ${formatGBP(debt.value)} — plan in motion`;
-    const c = counts[p.id];
-    if (isUntouched(c)) return "Untouched — nothing hung off it yet";
-    return `${c.goals} goals · ${c.projects} projects · ${c.tasks} open`;
-  };
+  const topVentures = sortVentures(allVentures)
+    .filter((v) => !isShelved(v))
+    .slice(0, 3);
 
   /* -- header strings ---------------------------------------------- */
 
@@ -214,14 +216,14 @@ export default async function JayOs() {
 
   return (
     <div className="grid gap-5">
-      {/* -- JAY_OS top bar ---------------------------------------- */}
+      {/* -- THE BRAIN top bar ------------------------------------- */}
       <div className="card px-4 py-3 flex items-center gap-3 flex-wrap">
         <div className="min-w-0">
-          <p className="mono text-[0.8rem] font-semibold leading-none">JAY_OS</p>
-          <p className="label mt-1">Personal Life OS</p>
+          <p className="mono text-[0.8rem] font-semibold leading-none">THE BRAIN</p>
+          <p className="label mt-1">Command centre</p>
         </div>
         <p className="mono text-[0.66rem] text-[var(--faint)] mx-auto hidden sm:block">
-          JAY_OS / DASHBOARD
+          THE BRAIN / DASHBOARD
         </p>
         <div className="flex items-center gap-2 ml-auto shrink-0">
           <Link href="/feed" className="chip no-underline">
@@ -245,6 +247,13 @@ export default async function JayOs() {
               ⌘K
             </span>
           </Link>
+          <NavGroup
+            title="Systems"
+            items={[
+              { label: "LIFE_OS", href: "/life" },
+              { label: "EMPIRE_OS", href: "/empire" },
+            ]}
+          />
           <NavGroup title="Workspace" items={workspace} />
           <NavGroup
             title="Mind Map · My Arms"
@@ -301,7 +310,7 @@ export default async function JayOs() {
             </div>
           </div>
 
-          {/* KPI strip */}
+          {/* KPI strip — cross-system */}
           <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
             <div className="card p-4">
               <p className="label">Debt</p>
@@ -332,7 +341,7 @@ export default async function JayOs() {
               <p className="mono text-[1.5rem] sm:text-[1.75rem] font-semibold leading-none mt-2">
                 {open}
               </p>
-              <p className="text-[0.7rem] text-[var(--faint)] mt-1.5">Open across the system</p>
+              <p className="text-[0.7rem] text-[var(--faint)] mt-1.5">Open across both systems</p>
             </Link>
             <div className="card p-4">
               <p className="label">Training</p>
@@ -351,83 +360,107 @@ export default async function JayOs() {
             </div>
           </div>
 
-          {/* life areas + status */}
-          <div className="grid gap-5 xl:grid-cols-[3fr_2fr] items-start">
-            <Panel title="Life areas · needs attention first" hint="worst first, on purpose">
-              <AreaBars areas={allPillars} today={today} />
-            </Panel>
-
-            <Panel title="Area status" hint="one honest line each">
-              <div className="grid gap-1.5">
-                {allPillars.map((p) => (
+          {/* -- the two systems ----------------------------------- */}
+          <div className="grid gap-5 lg:grid-cols-2 items-start">
+            {/* LIFE_OS */}
+            <div className="sys-life">
+              <Panel
+                title="LIFE_OS"
+                hint={SYSTEM_BLURB.life.toLowerCase()}
+                action={
                   <Link
-                    key={p.id}
-                    href={`/pillar/${p.id}`}
-                    className="rounded-[10px] border border-[var(--border)] px-3.5 py-2.5 no-underline text-[var(--text)] card-hover block"
+                    href="/life"
+                    className="text-[0.74rem] font-semibold no-underline"
+                    style={{ color: "var(--sys)" }}
                   >
-                    <p className="text-[0.8rem] font-medium">
-                      {p.emoji} {p.name}
-                    </p>
-                    <p
-                      className="text-[0.72rem] mt-0.5 leading-snug"
-                      style={{
-                        color: p.status_line ? "var(--muted)" : "var(--faint)",
-                      }}
-                    >
-                      {statusFor(p)}
-                    </p>
+                    OPEN →
                   </Link>
-                ))}
-              </div>
-            </Panel>
-          </div>
-
-          {/* ventures */}
-          <Panel
-            title="Ventures"
-            hint="the empire, at a glance"
-            action={
-              <Link
-                href="/empire"
-                className="text-[0.74rem] font-semibold no-underline"
-                style={{ color: "var(--empire)" }}
+                }
               >
-                VIEW ALL →
-              </Link>
-            }
-          >
-            {liveVentures.length === 0 ? (
-              <Empty cta={{ href: "/empire", label: "Open EMPIRE_OS" }}>
-                No live ventures. The CEO dashboard is where divisions get
-                created and moved along the path to revenue.
-              </Empty>
-            ) : (
-              <div className="sys-empire grid gap-1.5 sm:grid-cols-2">
-                {liveVentures.map((v) => (
-                  <div
-                    key={v.id}
-                    className="rounded-[10px] border border-[var(--border)] px-3.5 py-2.5 flex items-start gap-2.5"
-                  >
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[0.84rem] font-semibold leading-snug">{v.name}</p>
-                      {v.one_liner && (
-                        <p className="text-[0.72rem] text-[var(--muted)] mt-0.5 leading-snug">
-                          {v.one_liner}
-                        </p>
-                      )}
-                    </div>
-                    <Tag colour={STAGE_COLOUR[v.stage]}>{STAGE_LABEL[v.stage]}</Tag>
+                <p className="mono text-[0.78rem] font-semibold">
+                  AVG {lifeAvg == null ? "—" : lifeAvg.toFixed(1)} / 10
+                  <span className="text-[var(--faint)] font-normal">
+                    {" "}
+                    · {lifeAreas.length} areas
+                  </span>
+                </p>
+                {lifeAvg == null ? (
+                  <Empty cta={{ href: "/life", label: "Score the areas" }}>
+                    Nothing scored yet. LIFE_OS ranks your personal areas
+                    worst-first once you have — that ranking is what this panel
+                    summarises.
+                  </Empty>
+                ) : (
+                  <div className="grid gap-2">
+                    {lifeTop.map((a) => (
+                      <MiniArea key={a.id} area={a} />
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
-            {parked.length > 0 && (
-              <p className="text-[0.72rem] text-[var(--faint)] leading-relaxed">
-                Backlog: {parked.map((v) => v.name).join(" · ")} — parked, not
-                pretended into the pipeline.
-              </p>
-            )}
-          </Panel>
+                )}
+                <p className="text-[0.7rem] text-[var(--faint)] leading-relaxed">
+                  The three that need you most. The full list, the scores and
+                  this week&apos;s focus live in LIFE_OS.
+                </p>
+              </Panel>
+            </div>
+
+            {/* EMPIRE_OS */}
+            <div className="sys-empire">
+              <Panel
+                title="EMPIRE_OS"
+                hint={SYSTEM_BLURB.empire.toLowerCase()}
+                action={
+                  <Link
+                    href="/empire"
+                    className="text-[0.74rem] font-semibold no-underline"
+                    style={{ color: "var(--sys)" }}
+                  >
+                    OPEN →
+                  </Link>
+                }
+              >
+                <p className="mono text-[0.78rem] font-semibold">
+                  {building.length} in dev
+                  <span className="text-[var(--faint)] font-normal">
+                    {" "}
+                    · {parked.length} parked · AVG{" "}
+                    {empireAvg == null ? "—" : empireAvg.toFixed(1)} / 10
+                  </span>
+                </p>
+                {topVentures.length === 0 ? (
+                  <Empty cta={{ href: "/empire", label: "Open EMPIRE_OS" }}>
+                    No live ventures. The CEO dashboard is where divisions get
+                    created and moved along the path to revenue.
+                  </Empty>
+                ) : (
+                  <div className="grid gap-2">
+                    {topVentures.map((v) => (
+                      <div
+                        key={v.id}
+                        className="flex items-start gap-2.5 rounded-[10px] border border-[var(--border)] px-3.5 py-2.5"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[0.84rem] font-semibold leading-snug">
+                            {v.name}
+                          </p>
+                          {v.one_liner && (
+                            <p className="text-[0.72rem] text-[var(--muted)] mt-0.5 leading-snug">
+                              {v.one_liner}
+                            </p>
+                          )}
+                        </div>
+                        <Tag colour={STAGE_COLOUR[v.stage]}>{STAGE_LABEL[v.stage]}</Tag>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <p className="text-[0.7rem] text-[var(--faint)] leading-relaxed">
+                  Furthest along first. Stages, progress, priorities and the
+                  20-year objective live in EMPIRE_OS.
+                </p>
+              </Panel>
+            </div>
+          </div>
 
           {/* today */}
           <div className="grid gap-5 lg:grid-cols-[3fr_2fr] items-start">
@@ -445,6 +478,42 @@ export default async function JayOs() {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** One area, read-only — the full editor lives in its own system. */
+function MiniArea({ area }: { area: Pillar }) {
+  return (
+    <div className="rounded-[10px] border border-[var(--border)] px-3.5 py-2.5">
+      <div className="flex items-baseline gap-2">
+        <span className="text-[0.82rem] font-medium min-w-0 truncate">
+          {area.emoji} {area.name}
+        </span>
+        <span className="mono text-[0.72rem] ml-auto shrink-0">
+          {area.score == null ? "—" : area.score}/10
+        </span>
+      </div>
+      <div className="mt-2">
+        <Bar
+          percent={scoreBarPercent(area.score)}
+          height={6}
+          colour={
+            area.score == null
+              ? "transparent"
+              : area.score <= 3
+                ? "var(--bad)"
+                : area.score <= 6
+                  ? "var(--warn)"
+                  : "var(--good)"
+          }
+        />
+      </div>
+      {area.status_line && (
+        <p className="text-[0.7rem] text-[var(--muted)] mt-1.5 leading-snug">
+          {area.status_line}
+        </p>
+      )}
     </div>
   );
 }

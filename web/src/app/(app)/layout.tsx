@@ -6,10 +6,11 @@ import ThemeToggle from "@/components/ThemeToggle";
 
 /** `phone` marks the five that fit a thumb-width bottom bar. */
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: "◈", phone: true },
+  { href: "/dashboard", label: "Brain", icon: "◈", phone: true },
+  { href: "/life", label: "Life", icon: "☼", phone: true },
   { href: "/empire", label: "Empire", icon: "♛", phone: true },
   { href: "/goals", label: "Goals", icon: "◎", phone: false },
-  { href: "/planner", label: "Planner", icon: "▤", phone: true },
+  { href: "/planner", label: "Planner", icon: "▤", phone: false },
   { href: "/week", label: "Week", icon: "▦", phone: false },
   { href: "/capture", label: "Capture", icon: "＋", phone: true },
   { href: "/inbox", label: "Inbox", icon: "▣", phone: true },

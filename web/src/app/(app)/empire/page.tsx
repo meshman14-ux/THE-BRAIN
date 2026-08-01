@@ -33,8 +33,10 @@ import {
   HORIZON_LABEL,
   daysUntil,
   isShelved,
+  areasFor,
 } from "@/lib/logic";
 import { Panel, Empty, Kpi, Bar, Tag } from "@/components/ui";
+import AreaBars from "@/components/AreaBars";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +70,13 @@ export default async function EmpirePage() {
       .from("tasks")
       .select("id, title, notes, pillar_id, project_id, do_date, due_date, priority, status"),
     supabase.from("goals").select("id, title, target_date, progress, status, pillar_id"),
-    supabase.from("pillars").select("id, name, emoji, system").eq("active", true),
+    supabase
+      .from("pillars")
+      .select(
+        "id, system, name, emoji, standard, sort_order, active, score, status_line, focus_week"
+      )
+      .eq("active", true)
+      .order("sort_order"),
     supabase.from("metrics").select("id, name, unit, direction, pillar_id"),
     supabase.from("metric_readings").select("metric_id, taken_on, value"),
     supabase
@@ -82,12 +90,9 @@ export default async function EmpirePage() {
   const allProjects = (projects ?? []) as (Project & { venture_id: string | null })[];
   const allTasks = (tasks ?? []) as Task[];
   const allGoals = (goals ?? []) as Goal[];
-  const pillarById = new Map(
-    ((pillars ?? []) as Pick<Pillar, "id" | "name" | "emoji" | "system">[]).map((p) => [
-      p.id,
-      p,
-    ])
-  );
+  const allPillars = (pillars ?? []) as Pillar[];
+  const pillarById = new Map(allPillars.map((p) => [p.id, p]));
+  const empireAreas = areasFor(allPillars, "empire");
 
   /* -- the money ------------------------------------------------- */
 
@@ -145,6 +150,13 @@ export default async function EmpirePage() {
           <p className="mono text-[0.72rem] text-[var(--faint)]">
             {formatDayLong(today)}
           </p>
+          <Link
+            href="/dashboard"
+            className="ml-auto text-[0.74rem] font-semibold no-underline"
+            style={{ color: "var(--accent)" }}
+          >
+            ← THE BRAIN
+          </Link>
         </div>
         <h1 className="text-[1.7rem] sm:text-[2rem] font-semibold mt-1.5">
           CEO Dashboard
@@ -432,6 +444,14 @@ export default async function EmpirePage() {
           worth. A shelved venture reads at half that — same idea, nobody
           moving it. Set a figure by hand and it overrides the stage.
         </p>
+      </Panel>
+
+      {/* -- empire areas ------------------------------------------ */}
+      <Panel
+        title="Empire areas · needs attention first"
+        hint="the five business areas, worst first"
+      >
+        <AreaBars areas={empireAreas} today={today} />
       </Panel>
 
       {/* -- the long view ----------------------------------------- */}
