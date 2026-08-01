@@ -27,8 +27,47 @@ import {
   sortGoals,
   goalsByPillar,
   goalRollup,
+  addDays,
+  addYears,
+  mondayOf,
+  sameWeek,
+  isoWeekNumber,
+  quarterOf,
+  endOfQuarter,
+  endOfYear,
+  formatDayLong,
+  daysUntilWeeklyReview,
+  formatGBP,
+  formatCount,
+  latestReading,
+  metricChange,
+  currentStreak,
+  dueWithin,
+  isScored,
+  rankAreasByNeed,
+  averageScore,
+  focusArea,
+  scoreBarPercent,
+  isOpenWork,
+  todayReason,
+  pickThree,
+  openCount,
+  todayProgress,
+  weekPriorities,
+  slotLabel,
+  goalHorizon,
+  bucketGoalsByHorizon,
+  STAGE_BASELINE,
+  isShelved,
+  ventureBaseline,
+  ventureRollup,
+  inDevelopment,
+  backlog,
+  sortVentures,
+  countsByVenture,
+  TODAY_LIMIT,
 } from "../src/lib/logic";
-import type { Goal, Pillar, Project, Task } from "../src/lib/types";
+import type { Goal, Pillar, Project, Task, Venture } from "../src/lib/types";
 
 const task = (over: Partial<Task> = {}): Task => ({
   id: Math.random().toString(36).slice(2),
@@ -491,5 +530,467 @@ describe("goalRollup", () => {
     expect(r.stated).toBe(0);
     expect(r.drifts).toBe(false); // nothing to disagree with
     expect(r.overdue).toBe(false);
+  });
+});
+
+/* ==================================================================== *
+ * JAY_OS + EMPIRE_OS rules
+ *
+ * FRI is a Friday, which is what the design's header is drawn on:
+ * "Friday 31.07", "WK 31 · Q3", "WEEKLY REVIEW IN 2 DAYS". Those three
+ * strings should fall out of the rules rather than be typed into a
+ * component, so they are asserted here.
+ * ==================================================================== */
+
+const FRI = "2026-07-31";
+const MON = "2026-07-27";
+
+const venture = (over: Partial<Venture> = {}): Venture => ({
+  id: Math.random().toString(36).slice(2),
+  name: "V",
+  pillar_id: null,
+  stage: "idea",
+  progress: 0,
+  one_liner: null,
+  status: "active",
+  sort_order: 0,
+  external_system: null,
+  ...over,
+});
+
+describe("calendar maths", () => {
+  it("adds days across a month boundary", () => {
+    expect(addDays("2026-07-31", 1)).toBe("2026-08-01");
+    expect(addDays("2026-08-01", -1)).toBe("2026-07-31");
+    expect(addDays(FRI, 0)).toBe(FRI);
+  });
+
+  it("adds years, pulling 29 Feb back to 28 Feb rather than into March", () => {
+    expect(addYears("2026-07-31", 5)).toBe("2031-07-31");
+    expect(addYears("2024-02-29", 1)).toBe("2025-02-28");
+    expect(addYears("2024-02-29", 4)).toBe("2028-02-29");
+  });
+
+  it("finds the Monday of the week, and Monday is its own Monday", () => {
+    expect(mondayOf(FRI)).toBe(MON);
+    expect(mondayOf(MON)).toBe(MON);
+    expect(mondayOf("2026-08-02")).toBe(MON); // Sunday still belongs to it
+    expect(mondayOf("2026-08-03")).toBe("2026-08-03");
+  });
+
+  it("groups dates into the same Monday-first week", () => {
+    expect(sameWeek(FRI, MON)).toBe(true);
+    expect(sameWeek("2026-08-02", "2026-08-03")).toBe(false);
+  });
+
+  it("numbers ISO weeks by the first Thursday, not by day-of-year / 7", () => {
+    expect(isoWeekNumber(FRI)).toBe(31);
+    expect(isoWeekNumber(MON)).toBe(31);
+    // 2026 opens on a Thursday, so 1 Jan is already week 1 —
+    // and the Monday before it, in 2025, is the same ISO week.
+    expect(isoWeekNumber("2026-01-01")).toBe(1);
+    expect(isoWeekNumber("2025-12-29")).toBe(1);
+    // 2027 opens on a Friday, so 1 Jan belongs to the previous year's week 53.
+    expect(isoWeekNumber("2027-01-01")).toBe(53);
+  });
+
+  it("reports the quarter and its last day", () => {
+    expect(quarterOf(FRI)).toBe(3);
+    expect(quarterOf("2026-01-01")).toBe(1);
+    expect(quarterOf("2026-12-31")).toBe(4);
+    expect(endOfQuarter(FRI)).toBe("2026-09-30");
+    expect(endOfQuarter("2026-02-10")).toBe("2026-03-31");
+    expect(endOfYear(FRI)).toBe("2026-12-31");
+  });
+
+  it("formats the hero date the way the design shows it", () => {
+    expect(formatDayLong(FRI)).toBe("Friday 31.07");
+    expect(formatDayLong("2026-08-03")).toBe("Monday 03.08");
+  });
+
+  it("counts down to Sunday's weekly review, and says 0 on the day", () => {
+    expect(daysUntilWeeklyReview(FRI)).toBe(2);
+    expect(daysUntilWeeklyReview(MON)).toBe(6);
+    expect(daysUntilWeeklyReview("2026-08-02")).toBe(0);
+  });
+});
+
+describe("money", () => {
+  it("renders an em-dash for a figure that does not exist", () => {
+    expect(formatGBP(null)).toBe("£—");
+    expect(formatGBP(undefined)).toBe("£—");
+    expect(formatGBP(NaN)).toBe("£—");
+  });
+
+  it("renders a real zero as £0 — zero and 'not yet' are different facts", () => {
+    expect(formatGBP(0)).toBe("£0");
+  });
+
+  it("groups thousands and keeps GBP", () => {
+    expect(formatGBP(8317)).toBe("£8,317");
+    expect(formatGBP(999)).toBe("£999");
+    expect(formatGBP(1000)).toBe("£1,000");
+    expect(formatGBP(1234567)).toBe("£1,234,567");
+    expect(formatGBP(-450)).toBe("−£450");
+  });
+
+  it("does the same for plain counts", () => {
+    expect(formatCount(null)).toBe("—");
+    expect(formatCount(0)).toBe("0");
+    expect(formatCount(12)).toBe("12");
+  });
+});
+
+describe("metrics", () => {
+  const r = (taken_on: string, value: number) => ({ metric_id: "m", taken_on, value });
+
+  it("returns the most recent reading regardless of input order", () => {
+    expect(latestReading([r("2026-07-01", 9000), r(FRI, 8317)])?.value).toBe(8317);
+    expect(latestReading([r(FRI, 8317), r("2026-07-01", 9000)])?.value).toBe(8317);
+  });
+
+  it("is null when the metric has never been read", () => {
+    expect(latestReading([])).toBeNull();
+  });
+
+  it("will not draw a trend through a single point", () => {
+    expect(metricChange([r(FRI, 8317)], FRI, 30)).toBeNull();
+    expect(metricChange([], FRI, 30)).toBeNull();
+  });
+
+  it("measures the move across the window and ignores readings outside it", () => {
+    const readings = [r("2026-07-01", 9000), r("2026-07-15", 8600), r(FRI, 8317)];
+    expect(metricChange(readings, FRI, 30)).toBe(-683);
+    // A 10-day window cannot see 1 July, leaving 15 July → 31 July.
+    expect(metricChange(readings, FRI, 20)).toBe(-283);
+  });
+});
+
+describe("currentStreak", () => {
+  it("counts back from today", () => {
+    expect(currentStreak(["2026-07-29", "2026-07-30", FRI], FRI)).toBe(3);
+  });
+
+  it("survives a day that has not happened yet", () => {
+    // Last trained yesterday; today is simply undecided, not a break.
+    expect(currentStreak(["2026-07-29", "2026-07-30"], FRI)).toBe(2);
+  });
+
+  it("dies once a whole day passes with nothing logged", () => {
+    expect(currentStreak(["2026-07-28", "2026-07-29"], FRI)).toBe(0);
+  });
+
+  it("stops at the first gap and ignores older runs", () => {
+    expect(currentStreak(["2026-07-01", "2026-07-02", "2026-07-30", FRI], FRI)).toBe(2);
+  });
+
+  it("is 0 with no logs at all, and copes with duplicates", () => {
+    expect(currentStreak([], FRI)).toBe(0);
+    expect(currentStreak([FRI, FRI, "2026-07-30"], FRI)).toBe(2);
+  });
+});
+
+describe("dueWithin", () => {
+  const item = (due_date: string | null, status = "open") => ({ due_date, status });
+
+  it("includes the horizon day and excludes the day after", () => {
+    expect(dueWithin([item("2026-08-07")], FRI)).toHaveLength(1);
+    expect(dueWithin([item("2026-08-08")], FRI)).toHaveLength(0);
+  });
+
+  it("counts overdue deadlines — the dashboard does not flatter him", () => {
+    expect(dueWithin([item("2026-06-01")], FRI)).toHaveLength(1);
+  });
+
+  it("ignores finished work and anything with no date", () => {
+    expect(dueWithin([item("2026-08-01", "done")], FRI)).toHaveLength(0);
+    expect(dueWithin([item(null)], FRI)).toHaveLength(0);
+  });
+});
+
+describe("life areas", () => {
+  const area = (score: number | null, sort_order: number, over: Partial<Pillar> = {}) =>
+    pillar({ score, sort_order, ...over });
+
+  it("knows scored-zero from not-scored", () => {
+    expect(isScored(area(0, 1))).toBe(true);
+    expect(isScored(area(null, 1))).toBe(false);
+  });
+
+  it("ranks worst first", () => {
+    const ranked = rankAreasByNeed([area(8, 1), area(3, 2), area(6, 3)]);
+    expect(ranked.map((a) => a.score)).toEqual([3, 6, 8]);
+  });
+
+  it("sinks unscored areas below every scored one, rather than treating them as 0", () => {
+    const ranked = rankAreasByNeed([area(null, 1), area(4, 2), area(0, 3)]);
+    expect(ranked.map((a) => a.score)).toEqual([0, 4, null]);
+  });
+
+  it("breaks ties by configured order and does not mutate its input", () => {
+    const input = [area(5, 3), area(5, 1), area(5, 2)];
+    const before = input.map((a) => a.id);
+    expect(rankAreasByNeed(input).map((a) => a.sort_order)).toEqual([1, 2, 3]);
+    expect(input.map((a) => a.id)).toEqual(before);
+  });
+
+  it("averages only the scored areas, to one decimal", () => {
+    // 8 + 3 + 6 + 5 = 22 over 4 → 5.5, with the unscored one ignored.
+    expect(averageScore([area(8, 1), area(3, 2), area(6, 3), area(5, 4), area(null, 5)])).toBe(5.5);
+    expect(averageScore([area(7, 1), area(5, 2), area(6, 3)])).toBe(6);
+  });
+
+  it("returns null when nothing has been scored — not 0", () => {
+    expect(averageScore([area(null, 1), area(null, 2)])).toBeNull();
+    expect(averageScore([])).toBeNull();
+  });
+
+  it("takes this week's focus from focus_week, never from the worst score", () => {
+    const worst = area(1, 1);
+    const chosen = area(9, 2, { focus_week: MON });
+    expect(focusArea([worst, chosen], FRI)?.id).toBe(chosen.id);
+  });
+
+  it("accepts any day inside the week as this week's focus", () => {
+    const chosen = area(5, 1, { focus_week: FRI });
+    expect(focusArea([chosen], MON)?.id).toBe(chosen.id);
+  });
+
+  it("returns null when no focus is declared, or the focus is stale", () => {
+    expect(focusArea([area(1, 1), area(2, 2)], FRI)).toBeNull();
+    expect(focusArea([area(1, 1, { focus_week: "2026-07-20" })], FRI)).toBeNull();
+  });
+
+  it("turns a score out of 10 into a bar width", () => {
+    expect(scoreBarPercent(0)).toBe(0);
+    expect(scoreBarPercent(5.9)).toBe(59);
+    expect(scoreBarPercent(10)).toBe(100);
+    expect(scoreBarPercent(null)).toBe(0);
+  });
+});
+
+describe("pickThree", () => {
+  it("surfaces at most three, whatever the size of the list", () => {
+    const many = Array.from({ length: 12 }, (_, i) => task({ title: `t${i}` }));
+    expect(pickThree(many, FRI)).toHaveLength(TODAY_LIMIT);
+    expect(TODAY_LIMIT).toBe(3);
+  });
+
+  it("puts today's decided work first, then deadlines, then High", () => {
+    const later = task({ title: "someday" });
+    const high = task({ title: "high", priority: "High" });
+    const deadline = task({ title: "deadline", due_date: "2026-08-03" });
+    const doToday = task({ title: "today", do_date: FRI, priority: "Low" });
+    const picked = pickThree([later, high, deadline, doToday], FRI);
+    expect(picked.map((t) => t.title)).toEqual(["today", "deadline", "high"]);
+  });
+
+  it("treats a missed do_date as today's work, not as history", () => {
+    expect(todayReason(task({ do_date: "2026-07-20" }), FRI)).toBe("do-today");
+    expect(todayReason(task({ due_date: "2026-08-03" }), FRI)).toBe("deadline");
+    expect(todayReason(task({ priority: "High" }), FRI)).toBe("high");
+    expect(todayReason(task({ priority: "Low" }), FRI)).toBe("next");
+    // A deadline beyond the 7-day window is not yet a reason.
+    expect(todayReason(task({ due_date: "2026-09-01" }), FRI)).toBe("next");
+  });
+
+  it("leaves done, dropped and waiting work alone", () => {
+    const live = [task({ status: "open" }), task({ status: "doing" })];
+    const dead = [
+      task({ status: "done" }),
+      task({ status: "dropped" }),
+      task({ status: "waiting" }),
+    ];
+    expect(pickThree([...dead, ...live], FRI)).toHaveLength(2);
+    expect(dead.every((t) => isOpenWork(t))).toBe(false);
+    expect(openCount([...dead, ...live])).toBe(2);
+  });
+
+  it("is stable — same input, same three", () => {
+    const ts = [
+      task({ title: "b", priority: "High" }),
+      task({ title: "a", priority: "High" }),
+      task({ title: "c", priority: "High" }),
+    ];
+    expect(pickThree(ts, FRI).map((t) => t.title)).toEqual(["a", "b", "c"]);
+    expect(pickThree([...ts].reverse(), FRI).map((t) => t.title)).toEqual(["a", "b", "c"]);
+  });
+});
+
+describe("todayProgress", () => {
+  it("reads 0/3 on a day with nothing scheduled", () => {
+    expect(todayProgress([], FRI)).toEqual({ done: 0, of: 3 });
+  });
+
+  it("counts what is finished of what was set for today", () => {
+    const ts = [
+      task({ do_date: FRI, status: "done" }),
+      task({ do_date: FRI, status: "open" }),
+      task({ do_date: "2026-07-30", status: "done" }),
+    ];
+    expect(todayProgress(ts, FRI)).toEqual({ done: 1, of: 3 });
+  });
+
+  it("grows past three rather than hiding an over-full day", () => {
+    const ts = Array.from({ length: 5 }, () => task({ do_date: FRI, status: "done" }));
+    expect(todayProgress(ts, FRI)).toEqual({ done: 5, of: 5 });
+  });
+});
+
+describe("weekPriorities", () => {
+  const week = weekOf(new Date("2026-07-31T00:00:00"));
+
+  it("takes only High-priority work committed to a day this week", () => {
+    const ts = [
+      task({ title: "in", priority: "High", do_date: "2026-07-29" }),
+      task({ title: "no day", priority: "High" }),
+      task({ title: "next week", priority: "High", do_date: "2026-08-10" }),
+      task({ title: "not high", priority: "Med", do_date: FRI }),
+    ];
+    expect(weekPriorities(ts, week).map((t) => t.title)).toEqual(["in"]);
+  });
+
+  it("orders by day, then title, and caps at four slots", () => {
+    const ts = [
+      task({ title: "d", priority: "High", do_date: "2026-08-01" }),
+      task({ title: "b", priority: "High", do_date: "2026-07-28" }),
+      task({ title: "a", priority: "High", do_date: "2026-07-28" }),
+      task({ title: "c", priority: "High", do_date: "2026-07-30" }),
+      task({ title: "e", priority: "High", do_date: "2026-08-02" }),
+    ];
+    expect(weekPriorities(ts, week).map((t) => t.title)).toEqual(["a", "b", "c", "d"]);
+  });
+
+  it("numbers the slots 01–04", () => {
+    expect([0, 1, 2, 3].map(slotLabel)).toEqual(["01", "02", "03", "04"]);
+  });
+});
+
+describe("goal horizons", () => {
+  it("buckets by target date", () => {
+    expect(goalHorizon("2026-09-30", FRI)).toBe("quarter");
+    expect(goalHorizon("2026-10-01", FRI)).toBe("year");
+    expect(goalHorizon("2026-12-31", FRI)).toBe("year");
+    expect(goalHorizon("2027-01-01", FRI)).toBe("five");
+    expect(goalHorizon("2031-07-31", FRI)).toBe("five");
+    expect(goalHorizon("2031-08-01", FRI)).toBe("twenty");
+  });
+
+  it("pulls an overdue goal into this quarter rather than off the board", () => {
+    expect(goalHorizon("2020-01-01", FRI)).toBe("quarter");
+  });
+
+  it("keeps undated goals out of the columns entirely", () => {
+    expect(goalHorizon(null, FRI)).toBeNull();
+    const { buckets, undated } = bucketGoalsByHorizon(
+      [goal({ title: "someday", target_date: null }), goal({ target_date: "2026-08-15" })],
+      FRI
+    );
+    expect(undated.map((g) => g.title)).toEqual(["someday"]);
+    expect(buckets.quarter).toHaveLength(1);
+  });
+
+  it("drops finished and abandoned goals, and sorts inside each column", () => {
+    const { buckets } = bucketGoalsByHorizon(
+      [
+        goal({ title: "late", target_date: "2026-07-01" }),
+        goal({ title: "soon", target_date: "2026-08-20" }),
+        goal({ title: "done", target_date: "2026-08-01", status: "done" }),
+      ],
+      FRI
+    );
+    expect(buckets.quarter.map((g) => g.title)).toEqual(["late", "soon"]);
+  });
+});
+
+describe("venture progress", () => {
+  it("reads a live venture at its stage baseline", () => {
+    expect(ventureBaseline(venture({ stage: "idea" }))).toBe(10);
+    expect(ventureBaseline(venture({ stage: "research" }))).toBe(30);
+    expect(ventureBaseline(venture({ stage: "stabilise" }))).toBe(50);
+    expect(ventureBaseline(venture({ stage: "launch" }))).toBe(70);
+    expect(ventureBaseline(venture({ stage: "revenue" }))).toBe(100);
+    expect(STAGE_BASELINE.launch).toBe(70);
+  });
+
+  it("halves a shelved venture — which is where the backlog's 5% comes from", () => {
+    const parked = venture({ stage: "idea", status: "backlog" });
+    expect(isShelved(parked)).toBe(true);
+    expect(ventureBaseline(parked)).toBe(5);
+    expect(ventureBaseline(venture({ stage: "launch", status: "paused" }))).toBe(35);
+  });
+
+  it("treats a stored 0 as untouched and shows the baseline", () => {
+    const r = ventureRollup(venture({ stage: "launch", progress: 0 }));
+    expect(r.stated).toBeNull();
+    expect(r.derived).toBe(70);
+    expect(r.shown).toBe(70);
+    expect(r.drifts).toBe(false); // no claim was made, so nothing disagrees
+  });
+
+  it("lets a deliberate claim override the baseline", () => {
+    const r = ventureRollup(venture({ stage: "launch", progress: 80 }));
+    expect(r.stated).toBe(80);
+    expect(r.shown).toBe(80);
+    expect(r.drifts).toBe(false); // 10 apart, under the threshold
+  });
+
+  it("says so when the claim and the stage disagree by 15 or more", () => {
+    const optimistic = ventureRollup(venture({ stage: "idea", progress: 90 }));
+    expect(optimistic.drifts).toBe(true);
+    expect(optimistic.shown).toBe(90);
+    expect(optimistic.derived).toBe(10);
+
+    const modest = ventureRollup(venture({ stage: "revenue", progress: 40 }));
+    expect(modest.drifts).toBe(true);
+  });
+});
+
+describe("venture lists", () => {
+  const az = venture({ name: "A to Z Trailerz", stage: "launch", sort_order: 0 });
+  const fba = venture({ name: "Amazon FBA", stage: "research", sort_order: 1 });
+  const mainframe = venture({ name: "MAINFRAME", stage: "revenue", sort_order: 9 });
+  const coffee = venture({ name: "Coffee Shop", status: "backlog", sort_order: 4 });
+  const all = [coffee, mainframe, fba, az];
+
+  it("counts what is in development — live, and not yet earning", () => {
+    expect(inDevelopment(all).map((v) => v.name)).toEqual(["Amazon FBA", "A to Z Trailerz"]);
+  });
+
+  it("names the backlog rather than folding it into the pipeline", () => {
+    expect(backlog(all).map((v) => v.name)).toEqual(["Coffee Shop"]);
+  });
+
+  it("sorts live first, furthest along first, shelved last", () => {
+    expect(sortVentures(all).map((v) => v.name)).toEqual([
+      "MAINFRAME",
+      "A to Z Trailerz",
+      "Amazon FBA",
+      "Coffee Shop",
+    ]);
+  });
+});
+
+describe("countsByVenture", () => {
+  it("reaches tasks through their project, and counts only open work", () => {
+    const projects = [
+      { id: "p1", venture_id: "v1" },
+      { id: "p2", venture_id: "v1" },
+      { id: "p3", venture_id: null },
+    ];
+    const tasks = [
+      { project_id: "p1", status: "open" },
+      { project_id: "p1", status: "done" },
+      { project_id: "p2", status: "doing" },
+      { project_id: "p3", status: "open" },
+      { project_id: null, status: "open" },
+    ];
+    const counts = countsByVenture(projects, tasks);
+    expect(counts["v1"]).toEqual({ projects: 2, tasks: 2 });
+    expect(counts["v2"]).toBeUndefined();
+  });
+
+  it("is empty when nothing is wired up yet", () => {
+    expect(countsByVenture([], [])).toEqual({});
   });
 });

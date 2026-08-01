@@ -39,9 +39,9 @@ All paths in Part A are relative to `web/` unless prefixed with `/`.
 - **Ship the complete thing.** A feature isn't done at "renders". It's done when the empty state
   reads well, the error path is handled, it works one-handed on a phone, it works in both themes,
   it's covered by a test, and this file reflects it.
-- **No workarounds presented as answers.** When something is blocked (see `/DEPLOY-NOTES.md`
-  for the Vercel permission case), name the root cause and fix that. Say plainly what is broken
-  and what the real fix is. Don't dress a detour up as a destination.
+- **No workarounds presented as answers.** When something is blocked, name the root cause and
+  fix that. Say plainly what is broken and what the real fix is. Don't dress a detour up as a
+  destination.
 - **Finish the thread.** If a change leaves a stale comment, an unused import, a doc that now
   lies, or a name that no longer matches the concept — fix it in the same pass.
 
@@ -52,7 +52,7 @@ All paths in Part A are relative to `web/` unless prefixed with `/`.
 | What | Jay's personal operating system | Festival operations business system |
 | Stack | Next.js 15 + Supabase + Vercel | Vite + React + Supabase + Vercel |
 | Supabase ref | `qttroyuajpyelfrbxzzt` (eu-west-2) | `iuqmqpcasrqqmkkzqkfp` (eu-central-1) |
-| Live | the-brain-os-meshman14-uxs-projects.vercel.app | mainfram-4.vercel.app |
+| Live | the-brain-meshman14-uxs-projects.vercel.app | mainfram-4.vercel.app |
 
 **Hard rule:** THE BRAIN never reads, writes, or imports MAINFRAME data or logic.
 EMPIRE_OS may hold **one summary row** describing MAINFRAME as a venture (`ventures.external_system
@@ -117,6 +117,21 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 - **`people.cadence_days`** — lets the system say *"you haven't spoken to your brother in 47 days
   and you said 14."* Highest-value insight in the schema.
 - **`pillars.standard`** — the standard the area holds. A pillar never gets ticked off.
+- **`pillars.score` is `integer NULL` (0–10 check), not `NOT NULL default 0`.** Null means
+  "not yet scored"; zero means "scored, and it is that bad". The dashboard average ignores the
+  first and counts the second, and unscored areas rank *below* every scored one — an area you
+  have never looked at is unknown, not failing. `pillars.status_line` is the one honest line
+  beside the bar; `pillars.focus_week` holds the Monday of the week an area is the declared
+  focus for, because the area you decided to work on is not always the one scoring worst.
+- **`ventures.stage` implies a progress baseline** (idea 10 · research 30 · stabilise 50 ·
+  launch 70 · revenue 100), and a shelved venture (status ≠ `active`) reads at half its
+  baseline — that is where the backlog's 5% comes from. `ventures.progress` is `NOT NULL
+  default 0`, so 0 means "untouched, use the baseline" and any positive value is a deliberate
+  claim that overrides it. Stated and derived stay separate exactly as `/goals` keeps them,
+  and `/empire` says so on screen when they disagree by ≥15 points.
+- **Debt is a metric, not a table.** "Debt remaining" lives in `metrics`/`metric_readings`
+  (unit £, direction down, unique on `(metric_id, taken_on)`), which gives a trend for free.
+  The training streak is derived from `habits`/`habit_logs` at read time and never stored.
 - **`goals.progress` is `integer NOT NULL default 0`.** It can never mean "work it out
   for me", so the app keeps two separate signals: `statedProgress` (what you claim) and
   `derivedProgress` (the mean of the goal's projects). When they disagree by ≥15 points
@@ -154,23 +169,41 @@ create policy "own" on <t> for all
 for the calling user. Called from `/auth/confirm` on sign-in and from the first-run screen.
 
 Migrations applied to the live project: `the_brain_os_v1_full_schema`,
-`harden_seed_pillars_search_path`, `planner_kanban_and_richer_areas`.
+`harden_seed_pillars_search_path`, `planner_kanban_and_richer_areas`,
+`add_vehicles_pillar_thirteen_areas`, `empire_os_venture_stages`,
+`life_os_area_scores_and_debt_metric`. **Do not re-apply any of them.**
+
+**Seeded data (2026-07-31/08-01):** the 13 pillars; 10 ventures (A to Z Trailerz *launch*,
+Amazon FBA *research*, Kathleen St *stabilise*, AI Software *idea*, five backlog divisions,
+and MAINFRAME as a pointer row); the "Debt remaining" metric with £8,317 read on 2026-08-01
+plus a "Monthly income" metric with no readings; a daily "Training" habit with no logs; and
+the 20-year vision row. Tasks, goals, projects, notes and the inbox are empty — the first-run
+empty states are load-bearing.
 
 **Auth:** magic link only, no passwords. Signups **disabled** — Jay's user already exists
-(`meshman14@gmail.com`). Supabase Site URL and redirect allow-list must match the deployed URL.
+(`meshman14@gmail.com`). Supabase Site URL and redirect allow-list point at the live Vercel
+URL and a magic-link round trip has been completed against it.
 
-## A5. Build state (v1.2, unpacked into `web/` 2026-07-30)
+## A5. Build state (as of 2026-08-01)
 
-Verified in this repo: **57/57 tests pass** (`tests/logic.test.ts`, vitest) and
-**`npm run build` produces exactly 12 routes**.
+Verified in this repo: **116/116 tests pass** (`tests/logic.test.ts`, vitest) and
+**`npm run build` produces exactly 14 routes**.
 
 | Piece | State |
 |---|---|
 | Magic-link login, `/auth/confirm`, `/auth/signout`, middleware | ✅ |
-| Dashboard (13 areas), Capture, Inbox/Triage, Planner (Kanban), This Week | ✅ in `src/app/(app)/` |
-| Paper theme + dark toggle | ✅ |
-| `src/lib/logic.ts` + `tests/` + vitest | ✅ |
+| **JAY_OS** — the personal dashboard at `/dashboard` | ✅ sidebar, hero, KPI strip, worst-first areas + status, ventures, pick-three Today, AI-digest placeholder |
+| **EMPIRE_OS** — the CEO dashboard at `/empire` | ✅ KPIs, divisions, week priorities, four-horizon goals, build progress, vision footer |
+| Capture, Inbox/Triage, Planner (Kanban), This Week | ✅ in `src/app/(app)/` |
 | Goals + Projects UI (Phase 2) | ✅ `/goals` — the cascade, stated vs derived progress |
+| Honest placeholders for unbuilt sidebar views | ✅ `(app)/[slug]` + `src/lib/placeholders.ts` — delete a row there when its view gets built |
+| Paper theme + dark toggle | ✅ both dashboards checked in both, and at 390px |
+| `src/lib/logic.ts` + `tests/` + vitest | ✅ |
+
+The dashboard's governing idea, which must survive edits: **it sorts worst-first and surfaces
+only three things** (`pickThree`, `TODAY_LIMIT`). It exists to stop Jay doom-scrolling his own
+life — never turn it into a list of everything. Money that has not arrived renders `£—` via
+`formatGBP(null)`, never `£0`; zero and "not yet" are different facts.
 
 The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't build on it.
 
@@ -185,13 +218,16 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /login                 magic link
 /auth/confirm          verifies + redirects, calls seed_pillars()
 /auth/signout          POST
-/(app)/dashboard       the 13 Life Areas, split LIFE_OS / EMPIRE_OS
+/(app)/dashboard       JAY_OS — the personal dashboard (sidebar, KPIs, areas, today's three)
+/(app)/empire          EMPIRE_OS — the CEO dashboard
 /(app)/goals           goals → projects, with unattached projects listed separately
 /(app)/planner         Kanban
 /(app)/week            7-day scheduler
 /(app)/capture         one-box capture (PWA start_url)
 /(app)/inbox           triage
 /(app)/pillar/[id]     area detail
+/(app)/[slug]          honest "not built yet" pages for the sidebar's unbuilt views
+                       (registry: src/lib/placeholders.ts; unknown slugs 404)
 ```
 
 `src/middleware.ts` refreshes the session and redirects unauthenticated users to `/login`.
@@ -216,32 +252,29 @@ Public paths: `/login`, `/auth`, `/manifest.webmanifest`, `/sw.js`.
 ## A8. Build order & open items
 
 Phases: 0 auth/RLS/PWA/areas ✅ · 1 Inbox+Capture+Planner+Week ✅ · 2 Goals + Projects ✅
+· 2.5 the two dashboards (JAY_OS `/dashboard` + EMPIRE_OS `/empire`) ✅
 · **3 Notes + links + backlinks ← next** · 4 LIFE_OS (habits, journal, people, metrics) · 5 EMPIRE_OS
-(ventures, assets, investments, opportunities) · 6 Review rituals · 7 AI layer.
+(assets, investments, opportunities) · 6 Review rituals · 7 AI layer.
 
 Open items:
 
 1. **Capture the live schema into the repo.** The live project's 20-table schema has never been
    committed; pull it into `supabase/` so it stops being tribal knowledge.
-2. **Jay has never completed first sign-in.** Verify the magic-link round trip end to end, and
-   that the 13 areas appear.
-3. **Three missing area names.** Jay's Blueprint v2 defines **11** Life Areas ("7 from V1 · 4
-   new"). Known: Businesses, Finances, Vehicles, Property, Learning & Growth, Second Brain,
-   Life Admin & Documents, Reviews. The other three are in
-   `MAINFRAME-Festival-OS/Jays Blueprint - Life OS.dc.html` (private repo, 587 lines) — look for
-   `this.domains`. GitHub's web viewer times out on it; clone the repo instead. Once known,
-   remap the 12 seeded areas to Jay's own 11 names, split across LIFE_OS/EMPIRE_OS.
-4. Jay's blueprint also contains real data worth seeding: 8 ventures (incl. **A to Z Traderz**,
-   a coffee shop), 7 debts/bills, 3 vehicles (tax/MOT), property at **Kathleen St**.
+2. ~~Jay has never completed first sign-in.~~ **Resolved 2026-07-31** — magic-link round trip
+   completed against the live URL; the 13 areas render.
+3. ~~Three missing area names.~~ **Superseded 2026-07-31** — the 13 areas were settled and
+   seeded with Jay's sign-off; no remap is pending.
+4. Blueprint data still worth seeding: 7 debts/bills, and the 3 vehicles under the Vehicles
+   pillar — Van `DK05 LVL`, Zafira `WK57 XWO`, BMW `ME54 JAY`, each with tax and MOT dates.
+   (The 10 ventures and Kathleen St were seeded 2026-07-31.)
 5. His blueprint has **5** review cadences (daily, weekly, monthly, quarterly, annual); we
    deliberately build **3**. Confirm with him before adding monthly/annual.
-6. ~~Vehicles has no pillar.~~ **Resolved 2026-07-31** — added as the 13th area with Jay's
-   sign-off (migration `add_vehicles_pillar_thirteen_areas`). Seed it with the three vehicles
-   from the blueprint: Van `DK05 LVL`, Zafira `WK57 XWO`, BMW `ME54 JAY`, each with tax and
-   MOT dates.
-7. **No ESLint config.** v1.2 ships none, and `next lint` is deprecated and prompts
+6. **No ESLint config.** v1.2 ships none, and `next lint` is deprecated and prompts
    interactively. `npx tsc --noEmit` is the current gate and is clean. Add a flat
    `eslint.config.mjs` when convenient.
+7. **`/dashboard` sidebar views are placeholders.** Every route in `src/lib/placeholders.ts`
+   renders an honest "not built yet" page. When one gets built, delete its registry row in the
+   same commit.
 
 ## A9. Commands
 
@@ -249,17 +282,16 @@ Run from `web/`:
 
 ```bash
 npm install
-cp .env.production .env.local  # the two NEXT_PUBLIC_ values (both files gitignored)
+# .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 29 tests — must be green before build
-npm run build                  # 11 routes — green before you deploy
-npx vercel --prod              # deploy with Jay's own CLI login, from his machine
+npm test                       # 116 tests — must be green before build
+npm run build                  # 14 routes — green before you push
 ```
 
-Deploys happen **from Jay's machine** with his Vercel login — the MCP connector cannot see the
-`the-brain-os` project (`/DEPLOY-NOTES.md`), and a connector deploy would mint a third project
-and break the Supabase Site URL / redirect allow-list. After any URL change, update both in
-Supabase → Authentication → URL Configuration.
+**Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from
+`web/`.** See `/DEPLOY-NOTES.md`. Push only after tests, `npx tsc --noEmit` and the build are
+green, then confirm the deployment went READY and the pages render. If the URL ever changes,
+update Site URL and the redirect allow-list in Supabase → Authentication → URL Configuration.
 
 Never commit `.env.local` or `.env.production`. The Supabase **anon** key is safe in client
 code — RLS is what protects the data — but the service-role key must never appear in this repo.

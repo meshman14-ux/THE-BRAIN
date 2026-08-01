@@ -4,13 +4,15 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import ThemeToggle from "@/components/ThemeToggle";
 
+/** `phone` marks the five that fit a thumb-width bottom bar. */
 const NAV = [
-  { href: "/dashboard", label: "Areas", icon: "◈" },
-  { href: "/goals", label: "Goals", icon: "◎" },
-  { href: "/planner", label: "Planner", icon: "▤" },
-  { href: "/week", label: "Week", icon: "▦" },
-  { href: "/capture", label: "Capture", icon: "＋" },
-  { href: "/inbox", label: "Inbox", icon: "▣" },
+  { href: "/dashboard", label: "Dashboard", icon: "◈", phone: true },
+  { href: "/empire", label: "Empire", icon: "♛", phone: true },
+  { href: "/goals", label: "Goals", icon: "◎", phone: false },
+  { href: "/planner", label: "Planner", icon: "▤", phone: true },
+  { href: "/week", label: "Week", icon: "▦", phone: false },
+  { href: "/capture", label: "Capture", icon: "＋", phone: true },
+  { href: "/inbox", label: "Inbox", icon: "▣", phone: true },
 ];
 
 export default async function AppLayout({
@@ -97,7 +99,7 @@ export default async function AppLayout({
 
       <nav className="md:hidden fixed bottom-0 left-0 right-0 z-20 border-t border-[var(--border)] bg-[var(--bg)] pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-5">
-          {NAV.map((n) => (
+          {NAV.filter((n) => n.phone).map((n) => (
             <Link
               key={n.href}
               href={n.href}

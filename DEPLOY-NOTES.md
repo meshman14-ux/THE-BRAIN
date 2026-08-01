@@ -1,54 +1,65 @@
 # Deploy notes — THE BRAIN
 
-## The blocker (why this moved to Claude Code)
+*Rewritten 2026-08-01 against the live Vercel account. The earlier version of this file
+described a connector permission blocker and a `the-brain-os` project as live; both are
+history, kept only in git.*
 
-The Vercel connector used in the Claude desktop session has **project-scoped access**. Observed:
+## How deploys work now
 
-1. It created project `the-brain-os` and deployed once — worked. Site is live.
-2. Every deploy after that: `403 forbidden — "You don't have permission to create a Production
-   Deployment for this project."`
-3. `list_projects` doesn't even return `the-brain-os`, though its URL responds.
-4. `get_deployment` on its own successful deployment → 404.
+**Push to GitHub `main` and Vercel deploys automatically.** That is the whole process.
 
-**Conclusion:** creating a project grants a one-time write; the new project never joins the
-connector's allow-list, so later deploys are refused.
+| | |
+|---|---|
+| Vercel project | **`the-brain`** (`prj_A6nCLIAMGIa3yfeXXACdQf4TVUgD`) |
+| Root Directory | `web` · framework Next.js |
+| Live URL | https://the-brain-meshman14-uxs-projects.vercel.app |
+| Deploys from | GitHub `main`, every push |
+| Deployment protection | off |
+| Env vars | both `NEXT_PUBLIC_SUPABASE_*` set in the project |
 
-**Two fixes:**
-- In Vercel → Settings → Integrations → the Claude integration, set project access to
-  **All Projects**. Then the connector works again.
-- Or just deploy from Claude Code with `npx vercel --prod`, which uses your own login and has no
-  such restriction. **This is the recommended path.**
+After pushing, confirm the deployment went **READY** and the pages actually render —
+a green build is not a rendered page.
 
-## Current deployments
+## The old project
+
+`the-brain-os` still exists in the account, is failing, and is scheduled for deletion.
+**Never deploy to it and never point anything at it.** Its URL
+(`the-brain-os-meshman14-uxs-projects.vercel.app`) is not the app. The 2026-07-30
+connector permission saga that created it is preserved in this file's git history if it
+is ever needed again.
 
 | What | URL | State |
 |---|---|---|
-| THE BRAIN v1.0 | https://the-brain-os-meshman14-uxs-projects.vercel.app | live, dark theme |
-| THE BRAIN v1.1 | — | built, not deployed |
-| Old prototype | https://the-brain-pi.vercel.app | orphaned — its DB tables were dropped, safe to delete |
+| **THE BRAIN** | https://the-brain-meshman14-uxs-projects.vercel.app | **live — the real one** |
+| the-brain-os | the-brain-os-…vercel.app | failing, delete it |
+| Old prototype | https://the-brain-pi.vercel.app | domain now attached to `the-brain` |
 | **MAINFRAME** | https://mainfram-4.vercel.app | **live, do not touch** |
 
-## After deploying v1.1
+## Auth and the URL
 
-If the URL changes, update **both** in Supabase → Authentication → URL Configuration:
+Supabase Site URL and the redirect allow-list point at the live URL above, and a
+magic-link round trip has been completed against it. If the URL ever changes, update
+**both** in Supabase → Authentication → URL Configuration:
+
 - **Site URL** → the new origin
 - **Redirect URLs** → add `<new-origin>/**`
 
-Otherwise magic links will bounce to the old address.
+Otherwise magic links bounce to the old address.
 
 ## Environment variables
 
 ```
 NEXT_PUBLIC_SUPABASE_URL=https://qttroyuajpyelfrbxzzt.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<the anon key, in .env.production in the zip>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<the anon key — set in Vercel; for local dev put both in web/.env.local>
 ```
 
-The anon key is safe in client code — RLS is what protects the data. The **service-role** key
-must never appear in this repo or in any client bundle.
+The anon key is safe in client code — RLS is what protects the data. The **service-role**
+key must never appear in this repo or in any client bundle.
 
-## Database migrations already applied
+## Database migrations applied to the live project
 
-`the_brain_os_v1_full_schema` · `harden_seed_pillars_search_path` · `planner_kanban_and_richer_areas`
+`the_brain_os_v1_full_schema` · `harden_seed_pillars_search_path` ·
+`planner_kanban_and_richer_areas` · `add_vehicles_pillar_thirteen_areas` ·
+`empire_os_venture_stages` · `life_os_area_scores_and_debt_metric`
 
-v1.0 still runs correctly against the migrated schema — it doesn't reference the changed columns —
-so there's no rush, but v1.1 is what the schema is now shaped for.
+Never re-apply one, and never apply an old schema file over the live project.

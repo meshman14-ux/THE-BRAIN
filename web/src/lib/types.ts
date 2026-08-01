@@ -11,6 +11,20 @@ export type Pillar = {
   current?: string | null;
   sort_order: number;
   active: boolean;
+  /**
+   * How the area is doing, 0–10. Null is not zero: null means "not scored
+   * yet", zero means "scored, and it is that bad". The dashboard average
+   * ignores the first and counts the second.
+   */
+  score?: number | null;
+  /** One line of plain English beside the bar. */
+  status_line?: string | null;
+  /**
+   * Monday of the week this area is the declared focus for. Stored rather
+   * than inferred — the area you have decided to work on is not always the
+   * one scoring worst, and the dashboard shows the decision.
+   */
+  focus_week?: string | null;
 };
 
 export type InboxItem = {
@@ -77,6 +91,92 @@ export type Task = {
   due_date: string | null;
   priority: Priority;
   status: TaskStatus;
+  /** The one-line why, shown under a task on the priorities panel. */
+  notes?: string | null;
+  project_id?: string | null;
+};
+
+/* ------------------------------------------------------------------ *
+ * EMPIRE_OS
+ * ------------------------------------------------------------------ */
+
+/** The path to revenue, in order. Position is what "further along" means. */
+export type VentureStage =
+  | "idea"
+  | "research"
+  | "stabilise"
+  | "launch"
+  | "revenue";
+
+export const VENTURE_STAGES: VentureStage[] = [
+  "idea",
+  "research",
+  "stabilise",
+  "launch",
+  "revenue",
+];
+
+export const STAGE_LABEL: Record<VentureStage, string> = {
+  idea: "Idea",
+  research: "Research",
+  stabilise: "Stabilise",
+  launch: "Launch",
+  revenue: "Revenue",
+};
+
+/**
+ * Stage colour as a CSS variable, never a literal — both themes resolve it
+ * themselves. The ramp reads as temperature: cold and quiet at the idea end,
+ * the accent once it is being built, green only once money arrives.
+ */
+export const STAGE_COLOUR: Record<VentureStage, string> = {
+  idea: "var(--faint)",
+  research: "var(--muted)",
+  stabilise: "var(--warn)",
+  launch: "var(--accent)",
+  revenue: "var(--good)",
+};
+
+export type Venture = {
+  id: string;
+  name: string;
+  pillar_id: string | null;
+  stage: VentureStage;
+  /**
+   * NOT NULL default 0 in the database, so 0 cannot mean "work it out for
+   * me" — it means untouched, and the stage baseline is used instead. Any
+   * positive value is a deliberate claim that overrides the baseline.
+   */
+  progress: number;
+  one_liner: string | null;
+  /** 'active' is live; anything else (e.g. 'backlog') is shelved. */
+  status: string;
+  sort_order: number;
+  external_system: string | null;
+  external_url?: string | null;
+};
+
+export type Metric = {
+  id: string;
+  name: string;
+  unit: string | null;
+  direction: string;
+  pillar_id: string | null;
+};
+
+export type MetricReading = {
+  metric_id: string;
+  taken_on: string;
+  value: number;
+};
+
+export type Vision = {
+  id: string;
+  title: string;
+  statement: string | null;
+  horizon_years: number | null;
+  system: string;
+  meta?: Record<string, unknown> | null;
 };
 
 export const SYSTEM_LABEL: Record<SystemKey, string> = {
