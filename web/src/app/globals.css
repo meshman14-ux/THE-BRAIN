@@ -36,6 +36,14 @@
   --doing: #4b57c9;
   --done: #2f8f4e;
 
+  /* The five hour purposes Jay circled. Five distinguishable hues, none of
+     them the alarm colours — an hour spent resting is not a warning. */
+  --p-work: #4b57c9;
+  --p-rest: #2f8f4e;
+  --p-learning: #b3801d;
+  --p-cleaning: #7a6a9c;
+  --p-connecting: #bf5580;
+
   --radius: 13px;
   --shadow: 0 6px 24px rgba(32, 36, 43, 0.08);
 }
@@ -67,6 +75,12 @@
   --todo: #c49a6c;
   --doing: #6ea8fe;
   --done: #4ec98f;
+
+  --p-work: #6ea8fe;
+  --p-rest: #4ec98f;
+  --p-learning: #f0b357;
+  --p-cleaning: #b3a3dd;
+  --p-connecting: #f08fb0;
 
   --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
 }

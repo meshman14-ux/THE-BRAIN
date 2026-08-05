@@ -12,6 +12,7 @@ const NAV = [
   { href: "/goals", label: "Goals", icon: "◎", phone: false },
   { href: "/planner", label: "Planner", icon: "▤", phone: false },
   { href: "/week", label: "Week", icon: "▦", phone: false },
+  { href: "/reviews", label: "Review", icon: "◇", phone: false },
   { href: "/capture", label: "Capture", icon: "＋", phone: true },
   { href: "/inbox", label: "Inbox", icon: "▣", phone: true },
 ];

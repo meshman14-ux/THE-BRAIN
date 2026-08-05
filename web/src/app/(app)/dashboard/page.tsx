@@ -44,6 +44,7 @@ import {
   daysUntil,
 } from "@/lib/logic";
 import { verseOfDay } from "@/lib/gita";
+import { creedFrom, creedLineOfDay } from "@/lib/creed";
 import { branchForVenture } from "@/lib/references";
 import SeedPillars from "@/components/SeedPillars";
 import TodayThree, { type TodayItem } from "@/components/TodayThree";
@@ -87,6 +88,7 @@ export default async function TheBrain() {
     { data: people },
     { data: assets },
     { count: inboxCount },
+    { data: creed },
   ] = await Promise.all([
     supabase
       .from("pillars")
@@ -110,6 +112,10 @@ export default async function TheBrain() {
     supabase.from("people").select("id, name, last_contact, cadence_days, birthday"),
     supabase.from("assets").select("id, name, kind, income_monthly, cost_monthly, status"),
     supabase.from("inbox").select("id", { count: "exact", head: true }).eq("status", "open"),
+    // The creed only. The principle notes are deliberately NOT read here:
+    // they are a place he goes, never something that arrives (§A3, and
+    // PRINCIPLES_NEVER_PUSH in types.ts).
+    supabase.from("notes").select("body").eq("kind", "creed").limit(1).maybeSingle(),
   ]);
 
   // A failed read must never masquerade as an empty account — the seed
@@ -221,6 +227,10 @@ export default async function TheBrain() {
 
   const greet = greetingFor(now.getHours());
   const verse = verseOfDay(today);
+  // Borrowed wisdom and his own, side by side. Both rotate by date, both
+  // deterministic, so the hero reads the same on the server and after
+  // hydration. The offset keeps them from ever landing on the same rhythm.
+  const creedLine = creedLineOfDay(creedFrom(creed?.body), today, 1);
   const wk = isoWeekNumber(today);
   const q = quarterOf(today);
   const reviewIn = daysUntilWeeklyReview(today);
@@ -259,6 +269,7 @@ export default async function TheBrain() {
     { label: "Mind Map", href: "/map" },
     { label: "Motivation", href: "/motivation" },
     { label: "Library", href: "/library" },
+    { label: "Principles", href: "/library/principles" },
     { label: "Documents", href: "/documents" },
     { label: "Reviews", href: "/reviews" },
     { label: "Me", href: "/me" },
@@ -409,6 +420,19 @@ export default async function TheBrain() {
                   {verse.ref}
                 </span>
               </blockquote>
+              {creedLine && (
+                <blockquote
+                  className="mt-2 pl-3 max-w-[62ch] flex items-baseline gap-2.5 flex-wrap"
+                  style={{ borderLeft: "2px solid var(--warn)" }}
+                >
+                  <span className="serif text-[0.88rem] leading-relaxed">
+                    {creedLine}
+                  </span>
+                  <span className="mono text-[0.62rem] text-[var(--faint)] shrink-0">
+                    YOUR OWN HAND
+                  </span>
+                </blockquote>
+              )}
             </div>
             <div className="flex items-center gap-2.5 shrink-0">
               <span
@@ -440,7 +464,7 @@ export default async function TheBrain() {
 
           {/* -- weekly review pointer ------------------------------- */}
           <Link
-            href="/week"
+            href="/reviews"
             className="mono text-[0.68rem] font-bold no-underline text-center py-1"
             style={{ color: "var(--accent)" }}
           >

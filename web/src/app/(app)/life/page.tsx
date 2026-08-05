@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
+  type Habit,
+  type HabitLog,
   type Metric,
   type MetricReading,
   type Pillar,
@@ -18,9 +20,10 @@ import {
   areasFor,
   openCount,
   isUntouched,
+  habitsDoneToday,
 } from "@/lib/logic";
 import AreaBars from "@/components/AreaBars";
-import TrainToday from "@/components/TrainToday";
+import Habits from "@/components/Habits";
 import { Panel, Kpi } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -62,7 +65,11 @@ export default async function LifeOs() {
     supabase.from("projects").select("pillar_id, due_date, status").eq("status", "active"),
     supabase.from("metrics").select("id, name, unit, direction, pillar_id"),
     supabase.from("metric_readings").select("metric_id, taken_on, value"),
-    supabase.from("habits").select("id, name").eq("active", true),
+    supabase
+      .from("habits")
+      .select("id, name, cadence, pillar_id, active, meta")
+      .eq("active", true)
+      .order("name"),
     supabase.from("habit_logs").select("habit_id, done_on"),
   ]);
 
@@ -89,16 +96,17 @@ export default async function LifeOs() {
   const debt = latestReading(debtReadings);
   const debtMove = metricChange(debtReadings, today, 30);
 
-  const training = ((habits ?? []) as { id: string; name: string }[]).find(
-    (h) => h.name === "Training"
-  );
+  const allHabits = (habits ?? []) as Habit[];
+  const allLogs = (habitLogs ?? []) as HabitLog[];
+
+  // Training keeps its own headline tile: the streak is the one habit number
+  // that belongs beside the money, not buried in a list of six.
+  const training = allHabits.find((h) => h.name === "Training");
   const trainingDays = training
-    ? ((habitLogs ?? []) as { habit_id: string; done_on: string }[])
-        .filter((l) => l.habit_id === training.id)
-        .map((l) => l.done_on)
+    ? allLogs.filter((l) => l.habit_id === training.id).map((l) => l.done_on)
     : [];
   const streak = currentStreak(trainingDays, today);
-  const trainedToday = trainingDays.includes(today);
+  const habitsToday = habitsDoneToday(allHabits, allLogs, today);
 
   const open = openCount(lifeTasks);
   const dueSoon = dueWithin([...lifeTasks, ...lifeProjects], today).length;
@@ -197,13 +205,30 @@ export default async function LifeOs() {
             {streak}
             <span className="text-[0.9rem]"> day{streak === 1 ? "" : "s"}</span>
           </p>
-          {training ? (
-            <TrainToday habitId={training.id} today={today} loggedToday={trainedToday} />
-          ) : (
-            <p className="text-[0.7rem] text-[var(--faint)] mt-1.5">No habit set up</p>
-          )}
+          <p className="text-[0.7rem] text-[var(--faint)] mt-1.5 leading-snug">
+            {training
+              ? `Tick it below · ${habitsToday.done}/${habitsToday.of} habits today`
+              : "No training habit set up"}
+          </p>
         </div>
       </div>
+
+      {/* -- daily habits -------------------------------------------- */}
+      <Panel
+        title="Daily habits"
+        hint="one tap · the streak is the point"
+        action={
+          <Link
+            href="/reviews"
+            className="text-[0.74rem] font-semibold no-underline"
+            style={{ color: "var(--accent)" }}
+          >
+            WEEKLY REVIEW →
+          </Link>
+        }
+      >
+        <Habits habits={allHabits} logs={allLogs} today={today} />
+      </Panel>
 
       {/* -- areas + status ----------------------------------------- */}
       <div className="grid gap-5 xl:grid-cols-[3fr_2fr] items-start">

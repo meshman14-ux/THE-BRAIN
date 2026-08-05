@@ -1015,7 +1015,11 @@ import {
   refsForPillar,
   refsForBranch,
 } from "../src/lib/references";
-import { PLACEHOLDERS, placeholderFor } from "../src/lib/placeholders";
+import {
+  PLACEHOLDERS,
+  placeholderFor,
+  BUILT_BRANCHES,
+} from "../src/lib/placeholders";
 
 const SEEDED_PILLARS = [
   "Training & Fitness",
@@ -1067,6 +1071,8 @@ const REAL_ROUTES = [
   "/capture",
   "/inbox",
   "/library",
+  "/library/principles",
+  "/reviews",
 ];
 
 describe("reference library integrity", () => {
@@ -1130,12 +1136,29 @@ describe("reference library integrity", () => {
   });
 
   it("keys every branch shelf and every related-map entry to a real slug", () => {
-    const slugs = new Set(PLACEHOLDERS.map((p) => p.slug));
+    // A branch is real if it is still a placeholder OR its view has been
+    // built at the same address. It keeps its shelf either way — what it
+    // must never be is a key nobody can reach.
+    const slugs = new Set([
+      ...PLACEHOLDERS.map((p) => p.slug),
+      ...Object.keys(BUILT_BRANCHES),
+    ]);
     for (const key of Object.keys(BRANCH_REFS)) {
       expect(slugs.has(key), `orphan branch shelf: ${key}`).toBe(true);
     }
     for (const key of Object.keys(BRANCH_RELATED)) {
       expect(slugs.has(key), `orphan related entry: ${key}`).toBe(true);
+    }
+  });
+
+  it("never leaves a built branch listed as a placeholder as well", () => {
+    // Two homes for one slug is how a registry starts lying about what is
+    // finished — /reviews is built, so it is not also "not built yet".
+    for (const slug of Object.keys(BUILT_BRANCHES)) {
+      expect(placeholderFor(slug), `${slug} is built AND a placeholder`).toBeUndefined();
+      expect(REAL_ROUTES, `${slug} must point at a real route`).toContain(
+        BUILT_BRANCHES[slug].href
+      );
     }
   });
 
@@ -1153,7 +1176,10 @@ describe("reference library integrity", () => {
   });
 
   it("points every internal string at a route that exists", () => {
-    const slugs = new Set(PLACEHOLDERS.map((p) => p.slug));
+    const slugs = new Set([
+      ...PLACEHOLDERS.map((p) => p.slug),
+      ...Object.keys(BUILT_BRANCHES),
+    ]);
     for (const [slug, rel] of Object.entries(BRANCH_RELATED)) {
       for (const r of rel.routes ?? []) {
         const ok =

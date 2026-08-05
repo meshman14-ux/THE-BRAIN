@@ -25,10 +25,19 @@ import {
   type DeadlineState,
   type Debt,
   type DebtPayment,
+  type Note,
+  type Habit,
+  type HabitLog,
+  type HourPurpose,
+  type Obstacle,
+  type Review,
   VENTURE_STAGES,
   VEHICLE_DATE_KEYS,
   DUE_SOON_DAYS,
   PAYMENTS_PER_YEAR,
+  HOUR_PURPOSES,
+  OBSTACLES,
+  OBSTACLE_LABEL,
 } from "./types";
 
 /* ------------------------------------------------------------------ *
@@ -474,6 +483,22 @@ export const REVIEW_WEEKDAY = 0; // Sunday, matching Date#getDay
 export function daysUntilWeeklyReview(todayIso: string): number {
   const dow = at(todayIso).getDay();
   return (REVIEW_WEEKDAY - dow + 7) % 7;
+}
+
+/**
+ * Which week the weekly review is *for*.
+ *
+ * Weeks run Monday-first, so Sunday is the last day of the current one:
+ * reviewing on the day it lands means reviewing the week you are finishing.
+ * On any other day you are reviewing late, and the week you just finished is
+ * the previous one — which is what the form should open on, rather than
+ * asking you to sum up a week that is still happening.
+ */
+export function reviewPeriod(todayIso: string): { start: string; end: string } {
+  const thisMonday = mondayOf(todayIso);
+  const isSunday = at(todayIso).getDay() === REVIEW_WEEKDAY;
+  const start = isSunday ? thisMonday : addDays(thisMonday, -7);
+  return { start, end: addDays(start, 6) };
 }
 
 /* ------------------------------------------------------------------ *
@@ -1429,4 +1454,611 @@ export function sortDebts<
     if (diff !== 0) return diff;
     return a.creditor.localeCompare(b.creditor);
   });
+}
+
+/* ================================================================== *
+ * THE PRINCIPLE LIBRARY
+ *
+ * Ten checklists Jay collected, roughly ninety bullet points in total.
+ * Nine of those lines are his — the ones he underlined, circled or wrote
+ * "Yes" beside. Everything below exists to keep that distinction visible,
+ * because a marked line inside ninety generic ones is the only part of
+ * this that is actually about him.
+ *
+ * None of it is ever pushed. See `PRINCIPLES_NEVER_PUSH` in types.ts.
+ * ================================================================== */
+
+/** Notes of one kind, newest-first ties broken by title so order is stable. */
+export function notesOfKind<T extends Pick<Note, "kind" | "title">>(
+  notes: T[],
+  kind: string
+): T[] {
+  return notes
+    .filter((n) => n.kind === kind)
+    .sort((a, b) => (a.title ?? "").localeCompare(b.title ?? ""));
+}
+
+/** The single creed note, or null. More than one is a data error, not a list. */
+export function creedNote<T extends Pick<Note, "kind">>(notes: T[]): T | null {
+  return notes.find((n) => n.kind === "creed") ?? null;
+}
+
+/**
+ * Jay's own marks on a principle, pulled out of `meta`.
+ *
+ * `meta` is jsonb and therefore free-form, so every field is validated
+ * rather than trusted: a string where an array was expected must not throw
+ * on a page he opened to read.
+ */
+export type JayMarks = {
+  /** Lines he wrote "Yes" beside — the strongest signal in the file. */
+  marked: string[];
+  /** Words and phrases he ringed. */
+  circled: string[];
+  /** Lines he wrote himself, in the margin. */
+  handwritten: string[];
+  /** He ran a highlighter down the whole page. */
+  highlightedAll: boolean;
+  /** True when there is anything of his to show at all. */
+  any: boolean;
+};
+
+function stringArray(v: unknown): string[] {
+  if (!Array.isArray(v)) return [];
+  return v.filter((x): x is string => typeof x === "string" && x.trim() !== "");
+}
+
+export function jayMarks(note: Pick<Note, "meta">): JayMarks {
+  const m = (note.meta ?? {}) as Record<string, unknown>;
+  const marked = stringArray(m.jay_marked);
+  const circled = stringArray(m.jay_circled);
+  const handwritten = stringArray(m.jay_handwritten);
+  const highlightedAll = m.jay_highlighted_all === true;
+  return {
+    marked,
+    circled,
+    handwritten,
+    highlightedAll,
+    any:
+      marked.length + circled.length + handwritten.length > 0 || highlightedAll,
+  };
+}
+
+/** Where a principle came from, as one line: "Harvard-Fiction KH · p.26". */
+export function principleSource(note: Pick<Note, "meta">): string | null {
+  const m = (note.meta ?? {}) as Record<string, unknown>;
+  const source = typeof m.source === "string" ? m.source.trim() : "";
+  const page =
+    typeof m.page === "number"
+      ? `p.${m.page}`
+      : typeof m.page === "string" && m.page.trim() !== ""
+        ? m.page.trim()
+        : "";
+  const parts = [source, page].filter((s) => s !== "");
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
+export type PrincipleBody = {
+  /** The epigraph, when the checklist opens with one. */
+  quote: string | null;
+  /** The numbered lines, numbers stripped — the list renders its own. */
+  bullets: string[];
+  /** Anything after the list: margin notes, a closing thought. */
+  tail: string[];
+};
+
+/**
+ * Parse a principle body into its parts.
+ *
+ * The shape is consistent because the notes were entered consistently: an
+ * optional quote, then `1.` `2.` `3.` lines, then occasionally a tail. A
+ * body that does not match still renders — everything unrecognised falls to
+ * `tail`, so nothing Jay stored can be silently dropped by a parser.
+ */
+export function parsePrincipleBody(
+  body: string | null | undefined
+): PrincipleBody {
+  const out: PrincipleBody = { quote: null, bullets: [], tail: [] };
+  if (!body) return out;
+
+  const lines = body
+    .split(/\r?\n/)
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  let seenBullet = false;
+  for (const line of lines) {
+    const bullet = /^(\d+)\.\s+(.*)$/.exec(line);
+    if (bullet) {
+      seenBullet = true;
+      out.bullets.push(bullet[2].trim());
+      continue;
+    }
+    // A leading quotation before the list is the epigraph; the same shape
+    // after the list is a margin note and belongs in the tail.
+    if (!seenBullet && out.quote == null && /^[""']/.test(line)) {
+      out.quote = line;
+      continue;
+    }
+    out.tail.push(line);
+  }
+  return out;
+}
+
+/**
+ * Which numbered points he wrote "Yes" beside.
+ *
+ * `jay_marked` entries read "4 — Track your progress visually": the number
+ * is the point in the checklist. Pulling it out lets the list flag the line
+ * itself rather than only repeating it in a box above, which is the
+ * difference between showing his mark and describing it.
+ */
+export function markedBulletNumbers(marked: string[]): Set<number> {
+  const out = new Set<number>();
+  for (const m of marked) {
+    const n = /^\s*(\d+)\b/.exec(m);
+    if (n) out.add(Number(n[1]));
+  }
+  return out;
+}
+
+export type Segment = { text: string; hit: boolean };
+
+/**
+ * Split text so the phrases he circled can be drawn as circled.
+ *
+ * Case-insensitive, longest phrase first so "make your bed" wins over
+ * "bed", and non-overlapping. Returns the whole string as one plain segment
+ * when nothing matches, so a caller renders the same way either way.
+ */
+export function highlightSegments(text: string, phrases: string[]): Segment[] {
+  const wanted = phrases
+    .map((p) => p.trim())
+    .filter((p) => p.length > 1)
+    .sort((a, b) => b.length - a.length);
+  if (wanted.length === 0) return [{ text, hit: false }];
+
+  const lower = text.toLowerCase();
+  const hits: { start: number; end: number }[] = [];
+
+  for (const phrase of wanted) {
+    const needle = phrase.toLowerCase();
+    let from = 0;
+    for (;;) {
+      const i = lower.indexOf(needle, from);
+      if (i === -1) break;
+      const end = i + needle.length;
+      // Skip anything that overlaps a phrase already claimed.
+      if (!hits.some((h) => i < h.end && end > h.start)) {
+        hits.push({ start: i, end });
+      }
+      from = i + 1;
+    }
+  }
+  if (hits.length === 0) return [{ text, hit: false }];
+
+  hits.sort((a, b) => a.start - b.start);
+  const out: Segment[] = [];
+  let cursor = 0;
+  for (const h of hits) {
+    if (h.start > cursor) out.push({ text: text.slice(cursor, h.start), hit: false });
+    out.push({ text: text.slice(h.start, h.end), hit: true });
+    cursor = h.end;
+  }
+  if (cursor < text.length) out.push({ text: text.slice(cursor), hit: false });
+  return out;
+}
+
+/**
+ * Every tag across a set of notes with how many carry it, commonest first.
+ * `principle` itself is dropped: a filter that matches everything is not a
+ * filter, it is a wasted tap.
+ */
+export function noteTags<T extends Pick<Note, "tags">>(
+  notes: T[]
+): { tag: string; count: number }[] {
+  const counts = new Map<string, number>();
+  for (const n of notes) {
+    for (const t of n.tags ?? []) {
+      const tag = t.trim().toLowerCase();
+      if (tag === "" || tag === "principle") continue;
+      counts.set(tag, (counts.get(tag) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .map(([tag, count]) => ({ tag, count }))
+    .sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag));
+}
+
+/**
+ * Search and tag filter, combined with AND.
+ *
+ * The query matches title, body and tags together, so typing "hour" finds
+ * the intentional-time checklist by its content rather than only by its
+ * name. An empty query matches everything — searching for nothing is not
+ * the same as finding nothing.
+ */
+export function filterNotes<
+  T extends Pick<Note, "title" | "body" | "tags">
+>(notes: T[], opts: { query?: string; tag?: string | null } = {}): T[] {
+  const q = (opts.query ?? "").trim().toLowerCase();
+  const tag = (opts.tag ?? "").trim().toLowerCase();
+  return notes.filter((n) => {
+    if (tag !== "" && !(n.tags ?? []).some((t) => t.toLowerCase() === tag)) {
+      return false;
+    }
+    if (q === "") return true;
+    const hay = [n.title ?? "", n.body ?? "", ...(n.tags ?? [])]
+      .join(" ")
+      .toLowerCase();
+    return hay.includes(q);
+  });
+}
+
+/**
+ * Notes grouped under the area they were filed against, in the areas' own
+ * order, with unfiled notes last under a null pillar. Empty groups are
+ * dropped — an area with no principles is not a heading worth printing.
+ */
+export function notesByPillar<
+  T extends Pick<Note, "pillar_id">,
+  P extends Pick<Pillar, "id" | "sort_order">
+>(notes: T[], pillars: P[]): { pillar: P | null; notes: T[] }[] {
+  const order = [...pillars].sort((a, b) => a.sort_order - b.sort_order);
+  const groups: { pillar: P | null; notes: T[] }[] = [];
+  for (const p of order) {
+    const mine = notes.filter((n) => n.pillar_id === p.id);
+    if (mine.length > 0) groups.push({ pillar: p, notes: mine });
+  }
+  const known = new Set(pillars.map((p) => p.id));
+  const orphans = notes.filter(
+    (n) => n.pillar_id == null || !known.has(n.pillar_id)
+  );
+  if (orphans.length > 0) groups.push({ pillar: null, notes: orphans });
+  return groups;
+}
+
+/* ================================================================== *
+ * HOURS — give every hour a purpose
+ *
+ * Jay marked "Give every hour a purpose" with a Yes. Labels live in
+ * `journal.meta.hours` as `{"09": "work"}` — per-day annotation on a row
+ * that already exists per day, which is what `meta` is for (decision 5).
+ *
+ * The insight is one line: unassigned hours invite distraction. State it,
+ * do not nag about it.
+ * ================================================================== */
+
+/** The waking day the diary covers, 06:00–22:00, as the old app's did. */
+export const DAY_START_HOUR = 6;
+export const DAY_END_HOUR = 22;
+
+/** Every hour of that day, as numbers. 06 … 21 — sixteen of them. */
+export const DAY_HOURS: number[] = Array.from(
+  { length: DAY_END_HOUR - DAY_START_HOUR },
+  (_, i) => DAY_START_HOUR + i
+);
+
+/** Zero-padded key, which is also how it is stored: 9 → "09". */
+export function hourKey(hour: number): string {
+  return String(hour).padStart(2, "0");
+}
+
+/** "09" → "09:00", for a label a human reads. */
+export function hourLabel(hour: number): string {
+  return `${hourKey(hour)}:00`;
+}
+
+export type HourMap = Record<string, HourPurpose>;
+
+function isPurpose(v: unknown): v is HourPurpose {
+  return typeof v === "string" && (HOUR_PURPOSES as string[]).includes(v);
+}
+
+/**
+ * Read the hour map out of a journal row's `meta`.
+ *
+ * `meta` is free-form jsonb: it may hold anything, including keys from a
+ * future version of this feature. Anything that is not an in-range hour
+ * mapped to one of the five labels is ignored rather than rendered, so a
+ * malformed row degrades to an unlabelled day instead of a crash.
+ */
+export function readHours(meta: unknown): HourMap {
+  const raw = (meta as { hours?: unknown } | null | undefined)?.hours;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: HourMap = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const n = Number(k);
+    if (!Number.isInteger(n) || n < DAY_START_HOUR || n >= DAY_END_HOUR) continue;
+    if (!isPurpose(v)) continue;
+    out[hourKey(n)] = v;
+  }
+  return out;
+}
+
+/**
+ * Assign a purpose to an hour, or clear it by passing null.
+ *
+ * Returns a new map — the caller writes the result back, so an optimistic
+ * UI and the row it came from never share an object.
+ */
+export function assignHour(
+  hours: HourMap,
+  hour: number,
+  purpose: HourPurpose | null
+): HourMap {
+  const next: HourMap = { ...hours };
+  const key = hourKey(hour);
+  if (purpose == null) delete next[key];
+  else next[key] = purpose;
+  return next;
+}
+
+/** Clear one hour. The same thing as assigning null, said out loud. */
+export function clearHour(hours: HourMap, hour: number): HourMap {
+  return assignHour(hours, hour, null);
+}
+
+/**
+ * The tap cycle: unassigned → work → rest → learning → cleaning →
+ * connecting → unassigned. One control, no menu, thumb-sized.
+ */
+export function nextPurpose(current: HourPurpose | null): HourPurpose | null {
+  if (current == null) return HOUR_PURPOSES[0];
+  const i = HOUR_PURPOSES.indexOf(current);
+  if (i === -1) return HOUR_PURPOSES[0];
+  return i === HOUR_PURPOSES.length - 1 ? null : HOUR_PURPOSES[i + 1];
+}
+
+export type HourStats = {
+  assigned: number;
+  unassigned: number;
+  total: number;
+  /** 0–100. Zero on an empty day, because zero of sixteen is a real zero. */
+  percent: number;
+};
+
+/**
+ * How much of the day has a purpose. An empty day is 0 of 16, not a
+ * missing figure: he has sixteen waking hours whether or not he has said
+ * anything about them.
+ */
+export function hourStats(hours: HourMap): HourStats {
+  const total = DAY_HOURS.length;
+  const assigned = DAY_HOURS.filter((h) => hours[hourKey(h)] != null).length;
+  return {
+    assigned,
+    unassigned: total - assigned,
+    total,
+    percent: total === 0 ? 0 : clampPercent((assigned / total) * 100),
+  };
+}
+
+export type PurposeSplit = {
+  counts: Record<HourPurpose, number>;
+  assigned: number;
+  unassigned: number;
+  total: number;
+  /** The label with the most hours, or null on a tie or an empty week. */
+  leader: HourPurpose | null;
+};
+
+/**
+ * The split by label across a set of days — the week, usually.
+ *
+ * `total` counts every waking hour of every day passed in, so a week of
+ * seven days is 112 hours whether or not any of them were labelled. A tie
+ * has no leader: naming one of two equal labels the winner would be the
+ * page inventing an emphasis he never placed.
+ */
+export function purposeSplit(days: HourMap[]): PurposeSplit {
+  const counts = Object.fromEntries(
+    HOUR_PURPOSES.map((p) => [p, 0])
+  ) as Record<HourPurpose, number>;
+
+  let assigned = 0;
+  for (const day of days) {
+    for (const h of DAY_HOURS) {
+      const p = day[hourKey(h)];
+      if (p == null) continue;
+      counts[p] += 1;
+      assigned += 1;
+    }
+  }
+  const total = days.length * DAY_HOURS.length;
+
+  let leader: HourPurpose | null = null;
+  let best = 0;
+  let tied = false;
+  for (const p of HOUR_PURPOSES) {
+    if (counts[p] > best) {
+      best = counts[p];
+      leader = p;
+      tied = false;
+    } else if (counts[p] === best && best > 0) {
+      tied = true;
+    }
+  }
+  return {
+    counts,
+    assigned,
+    unassigned: total - assigned,
+    total,
+    leader: best === 0 || tied ? null : leader,
+  };
+}
+
+/* ================================================================== *
+ * OBSTACLES — what got in the way
+ *
+ * Jay circled fatigue, distractions and unexpected demands, and asked the
+ * system to act on them. One review is an anecdote; the tally only speaks
+ * once there are three, and says so plainly until then.
+ * ================================================================== */
+
+/** Below this, a tally is one bad week talking, not a pattern. */
+export const MIN_REVIEWS_FOR_TALLY = 3;
+
+/** A free-typed obstacle stored the same way the circled three are. */
+export function obstacleKey(text: string): string {
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/** Title-case an unknown key back into something readable. */
+export function obstacleLabel(key: string): string {
+  if ((OBSTACLES as readonly string[]).includes(key)) {
+    return OBSTACLE_LABEL[key as Obstacle];
+  }
+  const words = key.split("-").filter(Boolean);
+  if (words.length === 0) return key;
+  return words.join(" ").replace(/^./, (c) => c.toUpperCase());
+}
+
+/**
+ * Read the obstacle list out of a review's `meta`, discarding anything that
+ * is not a usable key. Same defensive reasoning as `readHours`.
+ */
+export function readObstacles(meta: unknown): string[] {
+  const raw = (meta as { obstacles?: unknown } | null | undefined)?.obstacles;
+  if (!Array.isArray(raw)) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const v of raw) {
+    if (typeof v !== "string") continue;
+    const key = obstacleKey(v);
+    if (key === "" || seen.has(key)) continue;
+    seen.add(key);
+    out.push(key);
+  }
+  return out;
+}
+
+export type ObstacleTally = {
+  /** False until MIN_REVIEWS_FOR_TALLY reviews exist. */
+  enough: boolean;
+  /** How many completed reviews the tally is drawn from. */
+  reviews: number;
+  /** Commonest first; empty while `enough` is false. */
+  counts: { key: string; label: string; count: number }[];
+  /** The single worst, or null on a tie, no data, or too few reviews. */
+  top: { key: string; label: string; count: number } | null;
+};
+
+/**
+ * Which obstacle recurs most across the reviews.
+ *
+ * Below three reviews it returns nothing at all — no counts, no top, no
+ * "so far it looks like". A circled line in a book only earns its place by
+ * becoming evidence, and one week is not evidence. A tie has no top for
+ * the same reason `purposeSplit` has no leader.
+ */
+export function obstacleTally(
+  reviews: Pick<Review, "meta">[],
+  minReviews: number = MIN_REVIEWS_FOR_TALLY
+): ObstacleTally {
+  const n = reviews.length;
+  if (n < minReviews) {
+    return { enough: false, reviews: n, counts: [], top: null };
+  }
+
+  const counts = new Map<string, number>();
+  for (const r of reviews) {
+    for (const key of readObstacles(r.meta)) {
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  const rows = [...counts.entries()]
+    .map(([key, count]) => ({ key, label: obstacleLabel(key), count }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label));
+
+  const top =
+    rows.length === 0 || (rows.length > 1 && rows[1].count === rows[0].count)
+      ? null
+      : rows[0];
+
+  return { enough: true, reviews: n, counts: rows, top };
+}
+
+/**
+ * The tally as the sentence Jay actually wants: "Fatigue has cost you 4 of
+ * your last 6 weeks." Null whenever there is nothing honest to say, so a
+ * caller can render it or render nothing without deciding anything itself.
+ */
+export function obstacleHeadline(tally: ObstacleTally): string | null {
+  if (!tally.enough || !tally.top) return null;
+  const { label, count } = tally.top;
+  const weeks = tally.reviews;
+  return `${label} has cost you ${count} of your last ${weeks} week${
+    weeks === 1 ? "" : "s"
+  }.`;
+}
+
+/* ================================================================== *
+ * HABITS — one tap, and the streak where he can see it
+ * ================================================================== */
+
+/** Every day a habit was logged, ascending. */
+export function logDaysFor(logs: HabitLog[], habitId: string): string[] {
+  return logs
+    .filter((l) => l.habit_id === habitId)
+    .map((l) => l.done_on)
+    .sort((a, b) => a.localeCompare(b));
+}
+
+export type HabitRow<T> = {
+  habit: T;
+  streak: number;
+  doneToday: boolean;
+  /** The last `days` days, oldest first — the dots under the name. */
+  history: boolean[];
+  /** How many of the last `days` days landed. */
+  hits: number;
+};
+
+/**
+ * Everything one habit row needs to render, in one pass.
+ *
+ * The streak is `currentStreak` rather than a second implementation: a
+ * habit and the training streak on the same page disagreeing about what a
+ * streak is would be worse than either being wrong.
+ */
+export function habitRows<T extends Pick<Habit, "id" | "name">>(
+  habits: T[],
+  logs: HabitLog[],
+  todayIso: string,
+  days: number = 7
+): HabitRow<T>[] {
+  return habits.map((h) => {
+    const doneOn = logDaysFor(logs, h.id);
+    const history = streakHistory(doneOn, todayIso, days);
+    return {
+      habit: h,
+      streak: currentStreak(doneOn, todayIso),
+      doneToday: doneOn.includes(todayIso),
+      history,
+      hits: history.filter(Boolean).length,
+    };
+  });
+}
+
+/**
+ * How many of today's habits are ticked. Rendered as "3/6" — a fraction,
+ * never a percentage, because six habits is a list you can see the whole of.
+ */
+export function habitsDoneToday<T extends Pick<Habit, "id">>(
+  habits: T[],
+  logs: HabitLog[],
+  todayIso: string
+): { done: number; of: number } {
+  const today = new Set(
+    logs.filter((l) => l.done_on === todayIso).map((l) => l.habit_id)
+  );
+  return {
+    done: habits.filter((h) => today.has(h.id)).length,
+    of: habits.length,
+  };
 }

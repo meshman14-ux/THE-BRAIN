@@ -8,7 +8,7 @@ import {
   branchForVenture,
   type RefLink,
 } from "@/lib/references";
-import { placeholderFor } from "@/lib/placeholders";
+import { branchName, branchHref } from "@/lib/placeholders";
 
 export const dynamic = "force-dynamic";
 
@@ -19,14 +19,19 @@ export const dynamic = "force-dynamic";
  */
 export default async function Library() {
   const supabase = await createClient();
-  const [{ data: pillars }, { data: ventures }] = await Promise.all([
-    supabase
-      .from("pillars")
-      .select("id, system, name, emoji, standard, sort_order, active")
-      .eq("active", true)
-      .order("sort_order"),
-    supabase.from("ventures").select("name, sort_order").order("sort_order"),
-  ]);
+  const [{ data: pillars }, { data: ventures }, { count: principleCount }] =
+    await Promise.all([
+      supabase
+        .from("pillars")
+        .select("id, system, name, emoji, standard, sort_order, active")
+        .eq("active", true)
+        .order("sort_order"),
+      supabase.from("ventures").select("name, sort_order").order("sort_order"),
+      supabase
+        .from("notes")
+        .select("id", { count: "exact", head: true })
+        .eq("kind", "principle"),
+    ]);
 
   const all = (pillars ?? []) as Pillar[];
   const life = areasFor(all, "life");
@@ -56,6 +61,33 @@ export default async function Library() {
           everywhere, no beef, Gita welcome.
         </p>
       </header>
+
+      {/* -- your own shelf, first ---------------------------------- */}
+      <Link
+        href="/library/principles"
+        className="card card-hover p-4 sm:p-5 no-underline text-[var(--text)] block"
+        style={{ borderLeft: "4px solid var(--accent)" }}
+      >
+        <div className="flex items-baseline gap-3 flex-wrap">
+          <h2 className="text-[1.05rem] font-semibold">Principles</h2>
+          {principleCount != null && (
+            <span className="mono text-[0.7rem] text-[var(--faint)]">
+              {principleCount} checklists
+            </span>
+          )}
+          <span
+            className="ml-auto text-[0.74rem] font-semibold"
+            style={{ color: "var(--accent)" }}
+          >
+            OPEN →
+          </span>
+        </div>
+        <p className="text-[0.82rem] text-[var(--muted)] mt-2 leading-relaxed max-w-[68ch]">
+          The checklists you collected, plus the creed in your own hand. The
+          lines you underlined and circled are shown first inside each one.
+          Nothing here ever appears on your dashboard — you come to it.
+        </p>
+      </Link>
 
       {/* -- LIFE_OS ------------------------------------------------ */}
       <section className="sys-life grid gap-4">
@@ -87,8 +119,8 @@ export default async function Library() {
         {lifeBranches.map((slug) => (
           <Shelf
             key={slug}
-            title={placeholderFor(slug)?.name ?? slug}
-            href={`/${slug}`}
+            title={branchName(slug)}
+            href={branchHref(slug)}
             hrefLabel="branch"
             refs={BRANCH_REFS[slug] ?? []}
           />
@@ -126,8 +158,8 @@ export default async function Library() {
         {divisionSlugs.map((slug) => (
           <Shelf
             key={slug}
-            title={placeholderFor(slug)?.name ?? slug}
-            href={`/${slug}`}
+            title={branchName(slug)}
+            href={branchHref(slug)}
             hrefLabel="branch"
             refs={BRANCH_REFS[slug] ?? []}
           />
@@ -147,8 +179,8 @@ export default async function Library() {
         {planBranches.map((slug) => (
           <Shelf
             key={slug}
-            title={placeholderFor(slug)?.name ?? slug}
-            href={`/${slug}`}
+            title={branchName(slug)}
+            href={branchHref(slug)}
             hrefLabel="branch"
             refs={BRANCH_REFS[slug] ?? []}
           />

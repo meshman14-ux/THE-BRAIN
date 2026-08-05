@@ -164,6 +164,137 @@ export type Metric = {
   pillar_id: string | null;
 };
 
+/* ------------------------------------------------------------------ *
+ * The vault — notes, and the two kinds that are not ordinary notes
+ * ------------------------------------------------------------------ */
+
+/**
+ * `notes.kind` is free text in the database. These are the values the app
+ * gives meaning to:
+ *
+ * - `note`      an ordinary note.
+ * - `principle` a checklist Jay collected from a book. Reference material —
+ *               it is somewhere he goes, never something that arrives. See
+ *               `PRINCIPLES_NEVER_PUSH` for why that rule is in the code.
+ * - `creed`     the lines he wrote himself, in red pen. Not from a book.
+ */
+export type NoteKind = "note" | "principle" | "creed";
+
+export type Note = {
+  id: string;
+  title: string | null;
+  body: string | null;
+  kind: string;
+  tags: string[];
+  starred: boolean;
+  pillar_id: string | null;
+  meta?: Record<string, unknown> | null;
+  created_at?: string;
+};
+
+/**
+ * The rule, written down where a future change has to read it: a principle
+ * never appears unasked. Ninety bullet points of general advice pushed at a
+ * dashboard is exactly the clutter the worst-first, surface-three design
+ * exists to prevent. Nothing here belongs in the watchtower.
+ */
+export const PRINCIPLES_NEVER_PUSH = true;
+
+/* ------------------------------------------------------------------ *
+ * Hours — giving every hour a purpose
+ * ------------------------------------------------------------------ */
+
+/**
+ * The five labels Jay circled, and only those five. An hour is one of them
+ * or it is unassigned; there is no "other", because a sixth bucket called
+ * "other" is how a labelling scheme stops meaning anything.
+ */
+export type HourPurpose =
+  | "work"
+  | "rest"
+  | "learning"
+  | "cleaning"
+  | "connecting";
+
+export const HOUR_PURPOSES: HourPurpose[] = [
+  "work",
+  "rest",
+  "learning",
+  "cleaning",
+  "connecting",
+];
+
+export const PURPOSE_LABEL: Record<HourPurpose, string> = {
+  work: "Work",
+  rest: "Rest",
+  learning: "Learning",
+  cleaning: "Cleaning",
+  connecting: "Connecting",
+};
+
+/** One-letter form, for the hour strip on a phone. */
+export const PURPOSE_INITIAL: Record<HourPurpose, string> = {
+  work: "W",
+  rest: "R",
+  learning: "L",
+  cleaning: "C",
+  connecting: "N",
+};
+
+/** CSS variables, never literals — both themes resolve them themselves. */
+export const PURPOSE_COLOUR: Record<HourPurpose, string> = {
+  work: "var(--p-work)",
+  rest: "var(--p-rest)",
+  learning: "var(--p-learning)",
+  cleaning: "var(--p-cleaning)",
+  connecting: "var(--p-connecting)",
+};
+
+/* ------------------------------------------------------------------ *
+ * Reviews — the rituals, and what got in the way
+ * ------------------------------------------------------------------ */
+
+export type ReviewKind = "daily" | "weekly" | "quarterly";
+
+export type Review = {
+  id: string;
+  kind: string;
+  period_start: string;
+  period_end: string;
+  wins: string | null;
+  friction: string | null;
+  next_focus: string | null;
+  completed_at: string | null;
+  meta?: Record<string, unknown> | null;
+};
+
+/**
+ * The three obstacles Jay circled. They are offered as defaults because he
+ * named them; anything else he types is stored beside them as free text, so
+ * the list can grow past the book without a migration.
+ */
+export const OBSTACLES = ["fatigue", "distractions", "unexpected-demands"] as const;
+
+export type Obstacle = (typeof OBSTACLES)[number];
+
+export const OBSTACLE_LABEL: Record<Obstacle, string> = {
+  fatigue: "Fatigue",
+  distractions: "Distractions",
+  "unexpected-demands": "Unexpected demands",
+};
+
+export type Habit = {
+  id: string;
+  name: string;
+  cadence: string;
+  pillar_id: string | null;
+  active: boolean;
+  target_count?: number;
+  meta?: Record<string, unknown> | null;
+};
+
+export type HabitLog = { habit_id: string; done_on: string };
+
 export type MetricReading = {
   metric_id: string;
   taken_on: string;

@@ -141,6 +141,23 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
   not something the database enforces. Treat values read back as possibly outside the union.
 - **The cascade columns exist and are nullable**: `projects.goal_id`, `tasks.project_id`.
   Nullable is the point — decision 2 makes every level above a task optional.
+- **`notes.kind` carries two special values.** `principle` is a checklist Jay collected from
+  a book; `creed` is the three lines he wrote himself. Both are free text in the column —
+  the meaning is a convention the app upholds. A principle's `meta` holds `source`, `page`
+  and, on five of them, `jay_marked` / `jay_circled` / `jay_handwritten` —
+  **his marks, and the whole reason the library is worth having.** `meta` is jsonb, so
+  `jayMarks()` validates every field rather than trusting it.
+- **`journal.meta.hours` labels the day**, e.g. `{"hours":{"09":"work","10":"rest"}}`.
+  Five labels only — work · rest · learning · cleaning · connecting, the exact five Jay
+  circled — over the waking day 06:00–22:00 (16 hours). Per-day annotation on a row that
+  already exists per day, which is what decision 5 keeps `meta` for. `readHours()` discards
+  any hour outside the window and any label outside the five, so a malformed row degrades
+  to an unlabelled day instead of a crash. An empty day is **0 of 16**, not a missing figure.
+- **`reviews.meta.obstacles` is a list of keys**, e.g. `{"obstacles":["fatigue"]}`. The
+  three defaults are Jay's circled `fatigue · distractions · unexpected-demands`; anything
+  he types is slugged the same way and stored beside them, so the list grows without a
+  migration. **`obstacleTally()` returns nothing at all below three reviews** — one bad
+  week is not a pattern, and there is a test that proves it stays silent.
 
 ## A4. Database (live project)
 
@@ -179,20 +196,28 @@ is captured at `supabase/migrations/20260801_debts_and_vehicles.sql`).
 *launch*, Building + Maintenance *launch*, Amazon FBA *research*, Kathleen St / Bedlinog
 House / Treharris House *stabilise*, AI Software *idea*, nine backlog divisions, and
 MAINFRAME as a pointer row); **8 creditors** in `debts` (balances NULL until Jay supplies
-them); **4 vehicles** in `vehicles` (dates NULL); the "Debt remaining" metric with £8,317
-read on 2026-08-01 (a PARTIAL figure — see open item 4) plus a "Monthly income" metric with
-no readings; a daily "Training" habit with no logs; and the 20-year vision row. Tasks,
-goals, projects, notes and the inbox start empty — the first-run empty states are
-load-bearing.
+them); **4 vehicles** in `vehicles` (dates NULL); **10 notes with `kind = 'principle'`**
+(five `starred`, carrying his own marks in `meta`) and **1 with `kind = 'creed'`**;
+**6 daily habits** — Training, Make the bed, Drink water, Read a page, Nightly reflection,
+One hard thing on purpose — with no logs yet; a "Debt remaining" and a "Monthly income"
+metric, **both with zero readings**; and the 20-year vision row. Tasks, goals, projects,
+reviews and the inbox start empty — the first-run empty states are load-bearing.
+
+> ⚠️ **`metric_readings` for debt is deliberately empty. Do not seed it.** An earlier
+> session recorded £8,317 there and the dashboard presented it as a total; Jay confirmed
+> on 2026-08-01 that it covers only *some* of his creditors. The reading was deleted and
+> `metrics.meta` now carries a note saying why. The debt figure comes from summing
+> `public.debts`, and it is incomplete while any active debt has a null balance. A screen
+> with no debt figure renders `£—` via `formatGBP(null)` — never a zero.
 
 **Auth:** magic link only, no passwords. Signups **disabled** — Jay's user already exists
 (`meshman14@gmail.com`). Supabase Site URL and redirect allow-list point at the live Vercel
 URL and a magic-link round trip has been completed against it.
 
-## A5. Build state (as of 2026-08-01)
+## A5. Build state (as of 2026-08-05)
 
-Verified in this repo: **191/191 tests pass** (`tests/logic.test.ts`, vitest) and
-**`npm run build` produces exactly 18 routes**. `npx tsc --noEmit` is clean.
+Verified in this repo: **245/245 tests pass** (`tests/logic.test.ts` + `tests/stage3.test.ts`,
+vitest) and **`npm run build` produces exactly 20 routes**. `npx tsc --noEmit` is clean.
 
 **`/dashboard` is built to Jay's own prototype** (`THE BRAIN.dc.html` in his claude.ai/design
 project "THE BRAIN", implemented 2026-08-01): watchtower ("needs attention", assembled from
@@ -215,7 +240,7 @@ the command centre summarises and links, exactly as §A2 always described. Don't
 |---|---|
 | Magic-link login, `/auth/confirm`, `/auth/signout`, middleware | ✅ |
 | **THE BRAIN** — the command centre at `/dashboard` | ✅ sidebar (Systems / Workspace / Arms / Plan / Pinned), hero, cross-system KPI strip, LIFE_OS + EMPIRE_OS summary panels, pick-three Today, AI-digest placeholder |
-| **LIFE_OS** — the personal dashboard at `/life` | ✅ the 8 life areas worst-first with the score/status/focus editor, area status, life-scoped KPIs, training streak |
+| **LIFE_OS** — the personal dashboard at `/life` | ✅ the 8 life areas worst-first with the score/status/focus editor, area status, life-scoped KPIs, training streak, **the six daily habits with one-tap ticks** |
 | **EMPIRE_OS** — the CEO dashboard at `/empire` | ✅ KPIs, divisions, week priorities, four-horizon goals, build progress, the 5 empire areas with the same editor, vision footer |
 | Capture, Inbox/Triage, Planner (Kanban), This Week | ✅ in `src/app/(app)/` |
 | Goals + Projects UI (Phase 2) | ✅ `/goals` — the cascade, stated vs derived progress |
@@ -223,8 +248,13 @@ the command centre summarises and links, exactly as §A2 always described. Don't
 | **The reference library** at `/library` | ✅ `src/lib/references.ts` — curated UK-focused shelves per pillar and per branch (researched 2026-08-01), surfaced on pillar pages, branch pages and `/library`. Integrity-tested: every seeded pillar has a shelf, every venture maps to a branch, https-only, no orphan keys |
 | Debts + payment plans | ✅ `/life/debts` — creditors, plans, honest partial total |
 | Vehicles | ✅ `/life/vehicles` — tax/MOT/insurance/service, worst-first |
+| **The principle library** at `/library/principles` | ✅ the 10 collected checklists grouped by area, searchable by tag and full text. His own marks — `jay_marked` / `jay_circled` / `jay_handwritten` — render as a block above the book's text, the points he flagged are flagged in the list, and the words he circled are drawn circled where they appear. **Never surfaced unasked** |
+| **The creed** | ✅ `src/lib/creed.ts` — his three lines, one per day, deterministic by date exactly as `gita.ts` is, shown beside the verse on `/dashboard` and in full at the head of `/library/principles`. Supabase is the source; the constant is the fallback |
+| **Hour purpose** | ✅ on `/week` — the five labels he circled over 06:00–22:00, stored in `journal.meta.hours`. States assigned vs unassigned and splits the week by label. Does not nag |
+| **Weekly review + obstacles** | ✅ `/reviews` — four questions, the fourth being what got in the way (his three circled defaults + free text) in `reviews.meta.obstacles`. The recurring-obstacle tally **stays silent below three reviews** |
+| Daily habits | ✅ `Habits.tsx` on `/life` — one tap, idempotent, untickable, 7-day dots and streak on the row |
 | Paper theme + dark toggle | ✅ both dashboards checked in both, and at 390px |
-| `src/lib/logic.ts` + `tests/` + vitest | ✅ |
+| `src/lib/logic.ts` + `tests/` + vitest | ✅ `tests/logic.test.ts` + `tests/stage3.test.ts` |
 
 The dashboard's governing idea, which must survive edits: **it sorts worst-first and surfaces
 only three things** (`pickThree`, `TODAY_LIMIT`). It exists to stop Jay doom-scrolling his own
@@ -249,13 +279,17 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /(app)/empire          EMPIRE_OS — the CEO dashboard + the 5 business areas
 /(app)/goals           goals → projects, with unattached projects listed separately
 /(app)/planner         Kanban
-/(app)/week            7-day scheduler
+/(app)/week            7-day scheduler + hour purpose (journal.meta.hours)
+/(app)/reviews         the weekly review + "what got in the way" + the obstacle tally
 /(app)/capture         one-box capture (PWA start_url)
 /(app)/inbox           triage
 /(app)/life/debts      creditors, balances, payment plans, payoff projection
 /(app)/life/vehicles   tax · MOT · insurance · service, worst-first
 /(app)/pillar/[id]     area detail + its reference shelf, back-links to its system
 /(app)/library         the reference library — every curated shelf in one place
+/(app)/library/principles
+                       the principle library + the creed. A destination, never a
+                       notification — nothing here appears on the dashboard
 /(app)/[slug]          branch pages: what the view will be, its strings into the
                        system, and its reference shelf (src/lib/placeholders.ts +
                        src/lib/references.ts; unknown slugs 404). Every venture on
@@ -280,13 +314,28 @@ Public paths: `/login`, `/auth`, `/manifest.webmanifest`, `/sw.js`.
   rule, put it there and write a test for it in the same commit.
 - Copy tone: plain, direct, a little dry. No exclamation marks. Empty states say something
   useful rather than "Nothing here!".
+- **`meta` is jsonb, so never trust what comes out of it.** `readHours`, `readObstacles` and
+  `jayMarks` each validate every field and discard what they do not recognise. A page Jay
+  opened to read must not throw because a row holds a string where an array was expected.
+- **Reference material is pulled, never pushed.** The principle library is somewhere he
+  goes; nothing with `kind = 'principle'` may be read by the dashboard, enter the watchtower,
+  or arrive uninvited anywhere. `PRINCIPLES_NEVER_PUSH` in `types.ts` is where that rule is
+  written down. The creed is the one exception, and only because he wrote it himself.
+- **A branch that gets built leaves `PLACEHOLDERS` in the same commit.** If its view lives
+  at the same address it moves to `BUILT_BRANCHES` (which keeps its name and its reference
+  shelf); if it lives elsewhere it gets a `BRANCH_ALIASES` redirect, as `vehicles` did. Both
+  are integrity-tested, so a slug can never be "built" and "not built yet" at once.
 
 ## A8. Build order & open items
 
 Phases: 0 auth/RLS/PWA/areas ✅ · 1 Inbox+Capture+Planner+Week ✅ · 2 Goals + Projects ✅
 · 2.5 the two dashboards (JAY_OS `/dashboard` + EMPIRE_OS `/empire`) ✅
-· **3 Notes + links + backlinks ← next** · 4 LIFE_OS (habits, journal, people, metrics) · 5 EMPIRE_OS
-(assets, investments, opportunities) · 6 Review rituals · 7 AI layer.
+· **3 Notes + links + backlinks ← next** (the read side landed early with the principle
+library; what remains is writing notes, the `links` table and backlinks)
+· 4 LIFE_OS — habits ✅, journal partly (hour purpose writes `journal.meta`), people and
+metrics still to build · 5 EMPIRE_OS (assets, investments, opportunities)
+· 6 Review rituals — the weekly one ✅ at `/reviews`; daily and quarterly still to build
+· 7 AI layer.
 
 Open items:
 
@@ -301,20 +350,30 @@ Open items:
    Photo Booth, Stencil Art, Stump Pump, Find My Stash). The venture is **A to Z Traderz**,
    not "Trailerz" — the design PDF was wrong. Debts have their own tables with 8 named
    creditors seeded, all balances NULL. **Jay confirmed the £8,317 headline is PARTIAL, not
-   a total** — `debtTotal()` therefore derives `complete` from whether every active debt has
-   a balance, and the UI says "known across 5 of 8 creditors" rather than showing a figure
-   that flatters him. Vehicles: **FOUR, not three** — BMW `ME54 JAY`, Zafira `WF57 XWD`
+   a total** — the metric reading has since been deleted and must not be re-seeded (§A4).
+   `debtTotal()` derives `complete` from whether every active debt has a balance, and the
+   UI says "known across 5 of 8 creditors" rather than showing a figure that flatters him.
+   Vehicles: **FOUR, not three** — BMW `ME54 JAY`, Zafira `WF57 XWD`
    (the earlier `WK57 XWO` in this file was wrong), Canter `DK05 LVL`, TT `FN03 DFP`. All
    four rows exist with every date NULL — he has not supplied them. A null date renders as
    "not recorded", never as overdue and never as fine; there is a test that proves it.
 5. His blueprint has **5** review cadences (daily, weekly, monthly, quarterly, annual); we
-   deliberately build **3**. Confirm with him before adding monthly/annual.
+   deliberately build **3**. Confirm with him before adding monthly/annual. The **weekly**
+   one is built at `/reviews`; the daily 2-minute and quarterly hour are still to come, and
+   `/reviews` says so on screen rather than pretending they exist.
 6. **No ESLint config.** v1.2 ships none, and `next lint` is deprecated and prompts
    interactively. `npx tsc --noEmit` is the current gate and is clean. Add a flat
    `eslint.config.mjs` when convenient.
 7. **`/dashboard` sidebar views are placeholders.** Every route in `src/lib/placeholders.ts`
    renders an honest "not built yet" page. When one gets built, delete its registry row in the
-   same commit.
+   same commit — `reviews` left the registry this way on 2026-08-05.
+8. **The obstacle tally has no data yet.** `reviews` is empty, so `/reviews` shows its
+   "stays quiet until three" state. It starts saying something after Jay's third weekly
+   review — worth checking then that the sentence reads the way he wanted.
+9. **Nine of the ten principles are filed under Mind & Growth**, so the library groups
+   nearly all of them under one heading (Home & Admin and Money & Security have one each).
+   That is honest to how they were filed rather than a bug, but refiling some of them
+   would make the grouping earn its place.
 
 ## A9. Commands
 
@@ -324,8 +383,8 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 116 tests — must be green before build
-npm run build                  # 14 routes — green before you push
+npm test                       # 245 tests — must be green before build
+npm run build                  # 20 routes — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from

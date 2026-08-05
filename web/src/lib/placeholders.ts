@@ -116,12 +116,9 @@ export const PLACEHOLDERS: Placeholder[] = [
     what: "The vault: filed papers, photographed bills, anything that must not rot in a drawer.",
     phase: "Phase 3 · Notes + links",
   },
-  {
-    slug: "reviews",
-    name: "Reviews",
-    what: "The rituals: daily 2 minutes, weekly 20, quarterly an hour. Monthly deliberately omitted.",
-    phase: "Phase 6 · Review rituals",
-  },
+  // "reviews" was retired 2026-08-05: the weekly review is built and lives
+  // at the same address, /reviews, so the real route simply wins over the
+  // catch-all. Its shelf and its name now come from BUILT_BRANCHES below.
   {
     slug: "me",
     name: "Me",
@@ -242,4 +239,29 @@ export const PLACEHOLDERS: Placeholder[] = [
 
 export function placeholderFor(slug: string): Placeholder | undefined {
   return PLACEHOLDERS.find((p) => p.slug === slug);
+}
+
+/**
+ * Branches whose view is built and answers at the same address.
+ *
+ * A slug leaves PLACEHOLDERS the moment its page is real — otherwise the
+ * registry starts lying about what is finished. But the branch itself does
+ * not stop existing: it keeps its name and its reference shelf, and the
+ * library still needs something to call it. That is what this holds.
+ *
+ * (A view built at a *different* address is an alias instead — see
+ * BRANCH_ALIASES, which is how `vehicles` reaches `/life/vehicles`.)
+ */
+export const BUILT_BRANCHES: Record<string, { name: string; href: string }> = {
+  reviews: { name: "Reviews", href: "/reviews" },
+};
+
+/** What to call a branch, built or not. Falls back to the slug itself. */
+export function branchName(slug: string): string {
+  return placeholderFor(slug)?.name ?? BUILT_BRANCHES[slug]?.name ?? slug;
+}
+
+/** Where a branch actually lives. */
+export function branchHref(slug: string): string {
+  return BUILT_BRANCHES[slug]?.href ?? `/${slug}`;
 }
