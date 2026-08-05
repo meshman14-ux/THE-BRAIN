@@ -25,6 +25,7 @@ import {
   habitsDoneToday,
   bucketGoalsByHorizon,
   horizonsFor,
+  lifeGoalsFor,
   HORIZON_LABEL,
   daysUntil,
   isOverdue,
@@ -92,14 +93,7 @@ export default async function LifeOs() {
   const lifeIds = new Set(life.map((p) => p.id));
 
   const allGoals = (goals ?? []) as Goal[];
-  // Goals filed against a life area, plus every bucket-list item. A someday
-  // item rarely has an area yet — that is the nature of "someday" — so
-  // requiring one would hide the whole list.
-  const lifeGoals = allGoals.filter(
-    (g) =>
-      g.status === "someday" ||
-      (g.pillar_id != null && lifeIds.has(g.pillar_id))
-  );
+  const lifeGoals = lifeGoalsFor(allGoals, lifeIds);
   const horizons = bucketGoalsByHorizon(lifeGoals, today, "life");
   const lifeScale = horizonsFor("life").filter((h) => h !== "someday");
 

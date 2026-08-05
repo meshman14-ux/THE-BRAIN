@@ -32,6 +32,7 @@ import {
   SOMEDAY_STATUS,
   isSomeday,
   somedayGoals,
+  lifeGoalsFor,
   isLive,
   // dates
   addMonths,
@@ -416,6 +417,42 @@ describe("the bucket list", () => {
     const empire = bucketGoalsByHorizon(gs, TODAY, "empire");
     expect(empire.excluded.map((g) => g.title)).toEqual(["sail the Atlantic"]);
     expect(empire.buckets.quarter).toHaveLength(1);
+  });
+
+  it("KEEPS A PROMOTED WISH VISIBLE — the bug the live page caught", () => {
+    // Promotion is a single status change, so the promoted goal has no
+    // area. Requiring one made it vanish from /life at the exact moment the
+    // promotion succeeded — the one moment the feature exists for.
+    const lifeIds = new Set(["training", "money"]);
+    const promoted = goal({
+      title: "walk the Camino",
+      status: "active",
+      pillar_id: null,
+      target_date: "2026-10-15",
+    });
+
+    expect(lifeGoalsFor([promoted], lifeIds)).toHaveLength(1);
+    const { buckets } = bucketGoalsByHorizon(
+      lifeGoalsFor([promoted], lifeIds),
+      TODAY,
+      "life"
+    );
+    expect(buckets.six.map((g) => g.title)).toEqual(["walk the Camino"]);
+  });
+
+  it("shows life-area goals, unfiled goals and wishes; hides business ones", () => {
+    const lifeIds = new Set(["training"]);
+    const gs = [
+      goal({ title: "mine", pillar_id: "training" }),
+      goal({ title: "unfiled", pillar_id: null }),
+      wish("a wish"),
+      goal({ title: "business", pillar_id: "ventures" }),
+    ];
+    expect(lifeGoalsFor(gs, lifeIds).map((g) => g.title)).toEqual([
+      "mine",
+      "unfiled",
+      "a wish",
+    ]);
   });
 
   it("keeps someday out of the undated list, which means something else", () => {

@@ -940,6 +940,29 @@ export function isSomeday<T extends { status: string }>(goal: T): boolean {
   return goal.status === SOMEDAY_STATUS;
 }
 
+/**
+ * The goals LIFE_OS shows.
+ *
+ * Three kinds, and the third is the one that matters: goals filed against a
+ * life area, every bucket-list item, and every goal with **no area at all**.
+ *
+ * That last rule exists because of a bug caught on the live page. Promoting
+ * a bucket-list item is a single status change, so the promoted goal has no
+ * area — and requiring one made it vanish from `/life` at the exact moment
+ * the promotion succeeded. A goal nobody has filed is personal until it is
+ * told otherwise; EMPIRE goals are the ones deliberately filed to a business
+ * area.
+ */
+export function lifeGoalsFor<T extends Pick<Goal, "pillar_id" | "status">>(
+  goals: T[],
+  lifeAreaIds: Set<string>
+): T[] {
+  return goals.filter(
+    (g) =>
+      isSomeday(g) || g.pillar_id == null || lifeAreaIds.has(g.pillar_id)
+  );
+}
+
 /** Bucket-list items, newest intent first by title for a stable order. */
 export function somedayGoals<T extends Pick<Goal, "status" | "title">>(
   goals: T[]
