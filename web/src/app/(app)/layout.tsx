@@ -63,7 +63,11 @@ export default async function AppLayout({
             </span>
           </Link>
 
-          <nav className="ml-auto hidden md:flex items-center gap-1">
+          {/* The full nav needs 1024px to sit beside the mode switch without
+              pushing it off the edge; below that the five-column bottom bar
+              carries navigation instead. Both breakpoints must stay in step
+              or a width exists with no nav at all. */}
+          <nav className="ml-auto hidden lg:flex items-center gap-0.5">
             {NAV.map((n) => {
               const c = badge(n.key);
               return (
@@ -71,7 +75,7 @@ export default async function AppLayout({
                   key={n.key}
                   href={n.href}
                   data-nav-modes={n.modes.join(" ")}
-                  className="px-3 py-2 rounded-[9px] text-[0.84rem] font-semibold text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--bg-2)] no-underline transition-colors"
+                  className="px-2.5 py-2 rounded-[9px] text-[0.8rem] font-semibold text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--bg-2)] no-underline transition-colors whitespace-nowrap"
                 >
                   {n.label}
                   {!!c && (
@@ -86,14 +90,14 @@ export default async function AppLayout({
 
           {/* The two buttons from Jay's sheet. In the bar at every width —
               on a phone this is the only way to change system. */}
-          <span className="ml-auto md:ml-1.5 shrink-0">
+          <span className="ml-auto lg:ml-1.5 shrink-0">
             <ModeSwitch />
           </span>
           <span className="shrink-0">
             <ThemeToggle />
           </span>
 
-          <form action="/auth/signout" method="post" className="hidden md:block">
+          <form action="/auth/signout" method="post" className="hidden lg:block">
             <button className="btn btn-ghost text-[0.82rem] py-2 px-3" type="submit">
               Sign out
             </button>
@@ -101,11 +105,11 @@ export default async function AppLayout({
         </div>
       </header>
 
-      <main className="flex-1 mx-auto w-full max-w-[1200px] px-5 py-7 pb-24 md:pb-8">
+      <main className="flex-1 mx-auto w-full max-w-[1200px] px-5 py-7 pb-24 lg:pb-8">
         {children}
       </main>
 
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-20 border-t border-[var(--border)] bg-[var(--bg)] pb-[env(safe-area-inset-bottom)]">
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 border-t border-[var(--border)] bg-[var(--bg)] pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-5">
           {NAV.filter((n) => n.phoneModes.length > 0).map((n) => (
             <Link
