@@ -1604,12 +1604,21 @@ export function markedBulletNumbers(marked: string[]): Set<number> {
 
 export type Segment = { text: string; hit: boolean };
 
+/** Letters and digits are "inside a word"; everything else is a boundary. */
+function isWordChar(c: string | undefined): boolean {
+  return c != null && /[a-z0-9]/i.test(c);
+}
+
 /**
  * Split text so the phrases he circled can be drawn as circled.
  *
  * Case-insensitive, longest phrase first so "make your bed" wins over
  * "bed", and non-overlapping. Returns the whole string as one plain segment
  * when nothing matches, so a caller renders the same way either way.
+ *
+ * Matches only on whole words. He circled "work", not the "work" inside
+ * "worked" — ringing that would put a mark on the page he never made, and
+ * the entire point of this is to show his marks accurately.
  */
 export function highlightSegments(text: string, phrases: string[]): Segment[] {
   const wanted = phrases
@@ -1628,8 +1637,14 @@ export function highlightSegments(text: string, phrases: string[]): Segment[] {
       const i = lower.indexOf(needle, from);
       if (i === -1) break;
       const end = i + needle.length;
-      // Skip anything that overlaps a phrase already claimed.
-      if (!hits.some((h) => i < h.end && end > h.start)) {
+      const boundedStart = !isWordChar(text[i - 1]) || !isWordChar(text[i]);
+      const boundedEnd = !isWordChar(text[end]) || !isWordChar(text[end - 1]);
+      // Skip a partial word, and anything overlapping a phrase already claimed.
+      if (
+        boundedStart &&
+        boundedEnd &&
+        !hits.some((h) => i < h.end && end > h.start)
+      ) {
         hits.push({ start: i, end });
       }
       from = i + 1;

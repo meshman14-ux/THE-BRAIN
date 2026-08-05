@@ -239,6 +239,26 @@ describe("the principle library", () => {
     expect(segs.filter((s) => s.hit).map((s) => s.text)).toEqual(["Fatigue"]);
   });
 
+  it("rings a whole word only, never a word that merely contains it", () => {
+    // Caught on the live page: point 7 of the time checklist reads "shows
+    // what worked", and "work" was being ringed inside "worked" — a mark on
+    // the page he never made, in the one place whose job is his marks.
+    const segs = highlightSegments(
+      "A nightly review shows what worked. Label each hour: work.",
+      ["work"]
+    );
+    expect(segs.filter((s) => s.hit)).toHaveLength(1);
+    expect(segs.filter((s) => s.hit)[0].text).toBe("work");
+
+    expect(highlightSegments("homework and coursework", ["work"])).toEqual([
+      { text: "homework and coursework", hit: false },
+    ]);
+    // Punctuation and quotes are boundaries, so a real word still matches.
+    expect(
+      highlightSegments('"rest", then work; then rest.', ["rest"]).filter((s) => s.hit)
+    ).toHaveLength(2);
+  });
+
   it("counts tags, commonest first, and drops the one that matches everything", () => {
     const tags = noteTags([TIME_NOTE, QUOTED_NOTE]);
     expect(tags.some((t) => t.tag === "principle")).toBe(false);

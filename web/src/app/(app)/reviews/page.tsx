@@ -136,8 +136,12 @@ export default async function Reviews() {
             Once there are {MIN_REVIEWS_FOR_TALLY}, this panel will tell you
             which obstacle keeps costing you weeks. It stays quiet until then —
             a pattern drawn from{" "}
-            {weekly.length === 1 ? "one week" : `${weekly.length} weeks`} would
-            be a guess wearing a number.
+            {weekly.length === 0
+              ? "no weeks at all"
+              : weekly.length === 1
+                ? "a single week"
+                : `${weekly.length} weeks`}{" "}
+            would be a guess wearing a number.
           </p>
         </section>
       )}
