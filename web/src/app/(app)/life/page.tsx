@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
+  type Goal,
   type Habit,
   type HabitLog,
   type Metric,
@@ -20,11 +21,18 @@ import {
   areasFor,
   openCount,
   isUntouched,
+  isLive,
   habitsDoneToday,
+  bucketGoalsByHorizon,
+  horizonsFor,
+  HORIZON_LABEL,
+  daysUntil,
+  isOverdue,
 } from "@/lib/logic";
 import AreaBars from "@/components/AreaBars";
 import Habits from "@/components/Habits";
-import { Panel, Kpi } from "@/components/ui";
+import BucketList from "@/components/BucketList";
+import { Panel, Kpi, Empty } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -61,7 +69,13 @@ export default async function LifeOs() {
     supabase
       .from("tasks")
       .select("id, title, pillar_id, do_date, due_date, priority, status"),
-    supabase.from("goals").select("pillar_id").eq("status", "active"),
+    // Every goal, not just the active ones: the bucket list is
+    // status = 'someday', and filtering it out here would hide it.
+    supabase
+      .from("goals")
+      .select(
+        "id, title, description, pillar_id, vision_id, target_date, progress, status"
+      ),
     supabase.from("projects").select("pillar_id, due_date, status").eq("status", "active"),
     supabase.from("metrics").select("id, name, unit, direction, pillar_id"),
     supabase.from("metric_readings").select("metric_id, taken_on, value"),
@@ -76,6 +90,18 @@ export default async function LifeOs() {
   const allPillars = (pillars ?? []) as Pillar[];
   const life = areasFor(allPillars, "life");
   const lifeIds = new Set(life.map((p) => p.id));
+
+  const allGoals = (goals ?? []) as Goal[];
+  // Goals filed against a life area, plus every bucket-list item. A someday
+  // item rarely has an area yet — that is the nature of "someday" — so
+  // requiring one would hide the whole list.
+  const lifeGoals = allGoals.filter(
+    (g) =>
+      g.status === "someday" ||
+      (g.pillar_id != null && lifeIds.has(g.pillar_id))
+  );
+  const horizons = bucketGoalsByHorizon(lifeGoals, today, "life");
+  const lifeScale = horizonsFor("life").filter((h) => h !== "someday");
 
   const allTasks = (tasks ?? []) as Task[];
   const lifeTasks = allTasks.filter((t) => t.pillar_id != null && lifeIds.has(t.pillar_id));
@@ -113,8 +139,10 @@ export default async function LifeOs() {
 
   /* -- area status ------------------------------------------------- */
 
+  // Active goals only. The query now returns every status so the bucket
+  // list is visible, but an area's count means live work, not wishes.
   const counts = countsByPillar(
-    goals ?? [],
+    allGoals.filter(isLive),
     lifeProjects,
     lifeTasks.filter((t) => t.status === "open")
   );
@@ -214,6 +242,7 @@ export default async function LifeOs() {
       </div>
 
       {/* -- daily habits -------------------------------------------- */}
+      <div id="habits" className="scroll-mt-20" />
       <Panel
         title="Daily habits"
         hint="one tap · the streak is the point"
@@ -229,6 +258,95 @@ export default async function LifeOs() {
       >
         <Habits habits={allHabits} logs={allLogs} today={today} />
       </Panel>
+
+      {/* -- horizons + the bucket list ------------------------------ */}
+      <div className="grid gap-5 xl:grid-cols-[3fr_2fr] items-start">
+        <Panel
+          title="Horizons"
+          hint="month · six months · annual · 5 year · 10 year"
+        >
+          {lifeScale.every((h) => horizons.buckets[h].length === 0) &&
+          horizons.undated.length === 0 ? (
+            <Empty cta={{ href: "/goals", label: "Set a goal" }}>
+              No life goals with a date on them. LIFE_OS runs on a different
+              scale to the business — months and decades, not quarters and
+              reporting years — and a goal files itself under the right one as
+              soon as it has a date.
+            </Empty>
+          ) : (
+            <div className="grid gap-3">
+              {lifeScale.map((h) => {
+                const gs = horizons.buckets[h];
+                if (gs.length === 0) return null;
+                return (
+                  <div key={h}>
+                    <div className="flex items-baseline gap-2.5">
+                      <p className="label">{HORIZON_LABEL[h]}</p>
+                      <span className="mono text-[0.66rem] text-[var(--faint)]">
+                        {gs.length}
+                      </span>
+                    </div>
+                    <div className="grid gap-1.5 mt-1.5">
+                      {gs.map((g) => {
+                        const late = isOverdue(g, today);
+                        const days = daysUntil(g.target_date, today);
+                        return (
+                          <Link
+                            key={g.id}
+                            href="/goals"
+                            className="rounded-[10px] border border-[var(--border)] px-3.5 py-2.5 no-underline text-[var(--text)] card-hover flex items-center gap-2.5"
+                          >
+                            <span className="text-[0.82rem] font-medium min-w-0 flex-1">
+                              {g.title}
+                            </span>
+                            <span
+                              className="mono text-[0.66rem] shrink-0"
+                              style={{
+                                color: late ? "var(--bad)" : "var(--faint)",
+                              }}
+                            >
+                              {g.target_date == null
+                                ? "no date"
+                                : late
+                                  ? `${Math.abs(days ?? 0)}d late`
+                                  : `${days}d`}
+                            </span>
+                          </Link>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+              {horizons.undated.length > 0 && (
+                <div>
+                  <div className="flex items-baseline gap-2.5">
+                    <p className="label">No date yet</p>
+                    <span className="mono text-[0.66rem] text-[var(--faint)]">
+                      {horizons.undated.length}
+                    </span>
+                  </div>
+                  <p className="text-[0.74rem] text-[var(--faint)] mt-1 leading-relaxed">
+                    {horizons.undated.map((g) => g.title).join(" · ")}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </Panel>
+
+        <Panel
+          title="The bucket list"
+          hint="no date, no plan — yet"
+          action={
+            <span className="mono text-[0.68rem] text-[var(--faint)]">
+              {horizons.buckets.someday.length}
+            </span>
+          }
+        >
+          <BucketList goals={allGoals} />
+        </Panel>
+      </div>
 
       {/* -- areas + status ----------------------------------------- */}
       <div className="grid gap-5 xl:grid-cols-[3fr_2fr] items-start">

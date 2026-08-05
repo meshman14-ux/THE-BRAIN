@@ -57,6 +57,7 @@ import {
   slotLabel,
   goalHorizon,
   bucketGoalsByHorizon,
+  EMPIRE_HORIZONS,
   STAGE_BASELINE,
   isShelved,
   ventureBaseline,
@@ -866,25 +867,31 @@ describe("weekPriorities", () => {
   });
 });
 
-describe("goal horizons", () => {
+describe("goal horizons — EMPIRE_OS scale", () => {
+  // These assertions are unchanged from the single-scale version on purpose.
+  // EMPIRE keeps calendar quarters and the 20-year horizon; the £100M
+  // objective anchors the CEO dashboard and must survive the split.
+  const dated = (target_date: string | null) => goal({ target_date });
+
   it("buckets by target date", () => {
-    expect(goalHorizon("2026-09-30", FRI)).toBe("quarter");
-    expect(goalHorizon("2026-10-01", FRI)).toBe("year");
-    expect(goalHorizon("2026-12-31", FRI)).toBe("year");
-    expect(goalHorizon("2027-01-01", FRI)).toBe("five");
-    expect(goalHorizon("2031-07-31", FRI)).toBe("five");
-    expect(goalHorizon("2031-08-01", FRI)).toBe("twenty");
+    expect(goalHorizon(dated("2026-09-30"), FRI, "empire")).toBe("quarter");
+    expect(goalHorizon(dated("2026-10-01"), FRI, "empire")).toBe("year");
+    expect(goalHorizon(dated("2026-12-31"), FRI, "empire")).toBe("year");
+    expect(goalHorizon(dated("2027-01-01"), FRI, "empire")).toBe("five");
+    expect(goalHorizon(dated("2031-07-31"), FRI, "empire")).toBe("five");
+    expect(goalHorizon(dated("2031-08-01"), FRI, "empire")).toBe("twenty");
   });
 
   it("pulls an overdue goal into this quarter rather than off the board", () => {
-    expect(goalHorizon("2020-01-01", FRI)).toBe("quarter");
+    expect(goalHorizon(dated("2020-01-01"), FRI, "empire")).toBe("quarter");
   });
 
   it("keeps undated goals out of the columns entirely", () => {
-    expect(goalHorizon(null, FRI)).toBeNull();
+    expect(goalHorizon(dated(null), FRI, "empire")).toBeNull();
     const { buckets, undated } = bucketGoalsByHorizon(
       [goal({ title: "someday", target_date: null }), goal({ target_date: "2026-08-15" })],
-      FRI
+      FRI,
+      "empire"
     );
     expect(undated.map((g) => g.title)).toEqual(["someday"]);
     expect(buckets.quarter).toHaveLength(1);
@@ -897,9 +904,16 @@ describe("goal horizons", () => {
         goal({ title: "soon", target_date: "2026-08-20" }),
         goal({ title: "done", target_date: "2026-08-01", status: "done" }),
       ],
-      FRI
+      FRI,
+      "empire"
     );
     expect(buckets.quarter.map((g) => g.title)).toEqual(["late", "soon"]);
+  });
+
+  it("still carries the twenty-year horizon", () => {
+    // The £100M objective lives here. If this fails, the CEO dashboard has
+    // lost its anchor.
+    expect(EMPIRE_HORIZONS).toEqual(["quarter", "year", "five", "twenty"]);
   });
 });
 

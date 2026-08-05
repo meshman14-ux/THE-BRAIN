@@ -1,5 +1,55 @@
 export type SystemKey = "life" | "empire";
 
+/**
+ * Which of the two systems the app is currently wearing.
+ *
+ * From Jay's sheet: "add 2 buttons to switch between LIFE_OS and EMPIRE_OS.
+ * Each has its own operating system." So this is a *mode*, not a filter —
+ * `brain` is the neutral position that shows both, and the two buttons
+ * select a system. The mode changes the accent colour, the nav contents and
+ * which dashboard you are looking at.
+ *
+ * It is a superset of SystemKey on purpose: every system is a mode, but the
+ * command centre is a mode that is no system.
+ */
+export type Mode = "brain" | "life" | "empire";
+
+export const MODES: Mode[] = ["brain", "life", "empire"];
+
+/** Persisted beside `brain-theme`, and applied before first paint. */
+export const MODE_KEY = "brain-mode";
+
+export const MODE_LABEL: Record<Mode, string> = {
+  brain: "Brain",
+  life: "LIFE_OS",
+  empire: "EMPIRE_OS",
+};
+
+/** The short form that fits a phone's top bar. */
+export const MODE_SHORT: Record<Mode, string> = {
+  brain: "Brain",
+  life: "Life",
+  empire: "Empire",
+};
+
+export const MODE_ICON: Record<Mode, string> = {
+  brain: "◈",
+  life: "☼",
+  empire: "♛",
+};
+
+/**
+ * Where selecting a mode takes you. This is how "dashboard scope follows the
+ * mode" is honoured: the mode lives in localStorage, which a Server Component
+ * cannot read, so selecting a system navigates to that system's dashboard
+ * rather than trying to re-scope the page underneath you.
+ */
+export const MODE_HOME: Record<Mode, string> = {
+  brain: "/dashboard",
+  life: "/life",
+  empire: "/empire",
+};
+
 export type Pillar = {
   id: string;
   system: SystemKey;
@@ -45,7 +95,18 @@ export type TaskStatus = "open" | "doing" | "done" | "dropped" | "waiting";
  * upholds, not a guarantee the database enforces, so treat anything read back
  * as possibly outside it.
  */
-export type ItemStatus = "active" | "paused" | "done" | "dropped";
+export type ItemStatus =
+  | "active"
+  | "paused"
+  | "done"
+  | "dropped"
+  /**
+   * The bucket list. A bucket-list item is not a new kind of thing and does
+   * not get a table — it is a goal with no date and no plan. Keeping it in
+   * `goals` is what makes promoting one a single field change rather than a
+   * migration between two homes.
+   */
+  | "someday";
 
 export type Goal = {
   id: string;
@@ -81,6 +142,7 @@ export const ITEM_STATUS_LABEL: Record<ItemStatus, string> = {
   paused: "Paused",
   done: "Done",
   dropped: "Dropped",
+  someday: "Someday",
 };
 
 export type Task = {

@@ -87,6 +87,12 @@ export const PLACEHOLDERS: Placeholder[] = [
     phase: "Phase 4 · LIFE_OS",
   },
   {
+    slug: "opportunities",
+    name: "Opportunities",
+    what: "The deal board: what is on the table, what it would cost, and what it would return. EMPIRE_OS carries the table already — this becomes the view over it.",
+    phase: "Phase 5 · EMPIRE_OS",
+  },
+  {
     slug: "personal",
     name: "Personal",
     what: "Profile, principles, and the standards you hold yourself to.",

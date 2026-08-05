@@ -25,8 +25,10 @@
 
   --life: #4b57c9;
   --life-dim: #c4c9f2;
+  --life-soft: #eceefb;
   --empire: #c07a1e;
   --empire-dim: #e8d5b4;
+  --empire-soft: #faf1e3;
 
   --good: #2f8f4e;
   --warn: #c07a1e;
@@ -65,8 +67,10 @@
 
   --life: #6ea8fe;
   --life-dim: #2a3b57;
+  --life-soft: #1c2740;
   --empire: #f0b357;
   --empire-dim: #4a3a1e;
+  --empire-soft: #3a2c14;
 
   --good: #4ec98f;
   --warn: #f0b357;
@@ -214,6 +218,49 @@ h2.serif,
 .sys-empire {
   --sys: var(--empire);
   --sys-dim: var(--empire-dim);
+}
+
+/* ------------------------------------------------------------------ *
+ * Modes — the app wears one system at a time
+ *
+ * `data-mode` is set on <html> before first paint by ModeScript, so the
+ * accent and the nav are already right on the first frame. Everything here
+ * keys off that one attribute: no JavaScript runs to colour the page, and
+ * nothing rearranges on hydration.
+ *
+ * `brain` is the neutral position and deliberately overrides nothing — it
+ * keeps the indigo accent and shows the command centre's nav.
+ * ------------------------------------------------------------------ */
+:root[data-mode="life"] {
+  --accent: var(--life);
+  --accent-soft: var(--life-soft);
+  --sys: var(--life);
+  --sys-dim: var(--life-dim);
+}
+:root[data-mode="empire"] {
+  --accent: var(--empire);
+  --accent-soft: var(--empire-soft);
+  --sys: var(--empire);
+  --sys-dim: var(--empire-dim);
+}
+
+/* Nav items declare the modes they belong to; the rest are hidden. Written
+   as a negation so each item keeps its own display type (flex, block …)
+   rather than being forced to one. */
+:root[data-mode="brain"] [data-nav-modes]:not([data-nav-modes~="brain"]),
+:root[data-mode="life"] [data-nav-modes]:not([data-nav-modes~="life"]),
+:root[data-mode="empire"] [data-nav-modes]:not([data-nav-modes~="empire"]),
+:root[data-mode="brain"] [data-phone-modes]:not([data-phone-modes~="brain"]),
+:root[data-mode="life"] [data-phone-modes]:not([data-phone-modes~="life"]),
+:root[data-mode="empire"] [data-phone-modes]:not([data-phone-modes~="empire"]) {
+  display: none;
+}
+
+/* Panels that belong to one system only, shown when that system is worn or
+   when the command centre is showing both. */
+:root[data-mode="life"] [data-mode-only="empire"],
+:root[data-mode="empire"] [data-mode-only="life"] {
+  display: none;
 }
 
 @keyframes pop {

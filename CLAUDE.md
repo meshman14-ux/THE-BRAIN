@@ -87,6 +87,31 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 2. **Hierarchy: Vision → Pillars → Goals → Projects → Tasks.** Everything above Projects is
    **optional per item** — a task never requires a goal to exist. This is non-negotiable: it's
    what stops the system feeling bureaucratic.
+
+   **2a. The two systems use different time scales. Settled with Jay 2026-08-05; deliberate,
+   not an inconsistency — do not "fix" it into one list.**
+
+   | | scale | why |
+   |---|---|---|
+   | **LIFE_OS** | month · 6 month · annual · 5 year · 10 year | a life runs on personal rhythms, so the windows *roll from today* — "six months from now", not "the end of H2" |
+   | **EMPIRE_OS** | quarter · year · 5 year · 20 year | a business runs on reporting periods, so quarters and years are *calendar* ones |
+
+   The **20-year horizon is EMPIRE-only and load-bearing**: the £100M objective anchors the
+   CEO dashboard and must survive any edit to `logic.ts`. There is a test asserting
+   `EMPIRE_HORIZONS` is exactly `["quarter","year","five","twenty"]` for that reason.
+   `goalHorizon(goal, todayIso, system)` takes the system; `horizonsFor(system)` returns the
+   scale. Boundary discipline holds on both: every dated goal lands in exactly one bucket,
+   an overdue goal reads as the *nearest* horizon rather than one that has passed, and an
+   undated goal returns `null` rather than being given an invented deadline.
+
+   **2b. The bucket list is not a table.** A bucket-list item is a goal with no date and no
+   plan, carried as `goals.status = 'someday'`, and it is a horizon of its own in LIFE_OS.
+   That is the whole design: **promoting one into a real goal is a single field change**, so
+   the thing written down years ago becomes the thing being done without being retyped — same
+   row, same id, same area, same anything already hung off it. A `someday` goal returns
+   `someday` even if a date got attached, because the status is the promotion, not the date.
+   EMPIRE has no such bucket, so a wish viewed there comes back in `excluded` rather than
+   silently vanishing.
 3. **13 areas** (called "pillars" in the DB, "Life Areas" in the UI): 8 LIFE_OS, 5 EMPIRE_OS.
    *Amended 2026-07-31 with Jay's sign-off — was 12/7/5. Vehicles was added because his
    blueprint tracks three vehicles whose tax and MOT dates are hard deadlines with no home
@@ -216,7 +241,7 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-05)
 
-Verified in this repo: **245/245 tests pass** (`tests/logic.test.ts` + `tests/stage3.test.ts`,
+Verified in this repo: **287/287 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`,
 vitest) and **`npm run build` produces exactly 20 routes**. `npx tsc --noEmit` is clean.
 
 **`/dashboard` is built to Jay's own prototype** (`THE BRAIN.dc.html` in his claude.ai/design
@@ -236,6 +261,29 @@ at `/dashboard` is the main dashboard and reads over both systems; LIFE_OS at `/
 personal; EMPIRE_OS at `/empire` is business. Each system owns its own areas and their editor;
 the command centre summarises and links, exactly as §A2 always described. Don't merge them back.
 
+**The mode switch makes that split something you wear** (Jay's sheet, built 2026-08-05):
+*"add 2 buttons to switch between LIFE_OS and EMPIRE_OS. Each has its own operating system."*
+Three modes — `brain · life · empire` — with **brain as the neutral position** showing both.
+
+- It is a **mode, not a filter**. The accent colour, the nav contents and which dashboard you
+  are on all follow it. `Mode` in `types.ts` is a superset of `SystemKey`: every system is a
+  mode, but the command centre is a mode that is no system.
+- Persisted at `brain-mode` in localStorage and applied by `ModeScript` as a blocking inline
+  script in `<head>`, **exactly as `ThemeScript` does** — `data-mode` is on `<html>` before
+  first paint, so nothing flashes or rearranges on hydration.
+- **The nav is filtered in CSS, not in JavaScript.** Every item for every mode is rendered
+  once carrying `data-nav-modes`; `globals.css` hides the rest off `:root[data-mode]`. That
+  is why the top bar is correct on the first frame with no JS at all. `src/lib/nav.ts` is the
+  registry; `navForMode` / `phoneNavForMode` in `logic.ts` decide membership and are tested.
+- Selecting a system **navigates to its dashboard** (`MODE_HOME`). A Server Component cannot
+  read localStorage, so that is how "dashboard scope follows the mode" is honoured honestly
+  rather than by guessing on the server.
+- **Capture and Inbox appear in every mode**, and there is a test that holds them there.
+  Hiding the entry points behind a mode would break phone-first capture (locked decision 4) —
+  a thought had in the wrong mode would be a thought lost.
+- The phone bar is a five-column grid, so **every mode must yield exactly five phone items**.
+  A test asserts that; a sixth would silently wrap onto a second row.
+
 | Piece | State |
 |---|---|
 | Magic-link login, `/auth/confirm`, `/auth/signout`, middleware | ✅ |
@@ -253,6 +301,9 @@ the command centre summarises and links, exactly as §A2 always described. Don't
 | **Hour purpose** | ✅ on `/week` — the five labels he circled over 06:00–22:00, stored in `journal.meta.hours`. States assigned vs unassigned and splits the week by label. Does not nag |
 | **Weekly review + obstacles** | ✅ `/reviews` — four questions, the fourth being what got in the way (his three circled defaults + free text) in `reviews.meta.obstacles`. The recurring-obstacle tally **stays silent below three reviews** |
 | Daily habits | ✅ `Habits.tsx` on `/life` — one tap, idempotent, untickable, 7-day dots and streak on the row |
+| **The mode switch** | ✅ `ModeScript` + `ModeSwitch` + `src/lib/nav.ts` — two buttons in the top bar, `brain` neutral, accent + nav + dashboard all follow. Flash-free; nav filtered in CSS |
+| **Two horizon scales** | ✅ LIFE month/6mo/annual/5yr/10yr on `/life`, EMPIRE quarter/year/5yr/20yr unchanged on `/empire` (§A3 2a) |
+| **The bucket list** | ✅ `BucketList.tsx` on `/life` — `goals.status = 'someday'`, add in one box, promote in one field (§A3 2b) |
 | Paper theme + dark toggle | ✅ both dashboards checked in both, and at 390px |
 | `src/lib/logic.ts` + `tests/` + vitest | ✅ `tests/logic.test.ts` + `tests/stage3.test.ts` |
 
@@ -275,7 +326,8 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /auth/confirm          verifies + redirects, calls seed_pillars()
 /auth/signout          POST
 /(app)/dashboard       THE BRAIN — the command centre (sidebar, cross-system KPIs, today's three)
-/(app)/life            LIFE_OS — the 8 personal areas, scores, streak
+/(app)/life            LIFE_OS — the 8 personal areas, scores, habits (#habits),
+                       the life horizon scale, and the bucket list
 /(app)/empire          EMPIRE_OS — the CEO dashboard + the 5 business areas
 /(app)/goals           goals → projects, with unattached projects listed separately
 /(app)/planner         Kanban
@@ -383,7 +435,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 245 tests — must be green before build
+npm test                       # 287 tests — must be green before build
 npm run build                  # 20 routes — green before you push
 ```
 

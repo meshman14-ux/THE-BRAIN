@@ -31,6 +31,7 @@ import {
   type HourPurpose,
   type Obstacle,
   type Review,
+  type Mode,
   VENTURE_STAGES,
   VEHICLE_DATE_KEYS,
   DUE_SOON_DAYS,
@@ -169,6 +170,57 @@ export function isUntouched(c: AreaCounts | undefined): boolean {
 }
 
 /** Areas belonging to one subsystem, in their configured order. */
+/* ------------------------------------------------------------------ *
+ * Modes — LIFE_OS and EMPIRE_OS as two systems
+ *
+ * Jay asked for a switch, not a filter: "Each has its own operating
+ * system. Separate them into 2 separate systems within THE BRAIN."
+ * `brain` is the neutral position that shows both.
+ * ------------------------------------------------------------------ */
+
+/** The system a mode scopes to. `brain` scopes to neither — it reads both. */
+export function systemForMode(mode: Mode): SystemKey | null {
+  return mode === "brain" ? null : mode;
+}
+
+/** Anything not one of the three falls back to the neutral position. */
+export function normaliseMode(raw: string | null | undefined): Mode {
+  return raw === "life" || raw === "empire" || raw === "brain" ? raw : "brain";
+}
+
+/**
+ * Selecting the mode you are already in returns you to the command centre.
+ * One control, two directions — the button is a toggle, not a radio.
+ */
+export function toggleMode(current: Mode, pressed: SystemKey): Mode {
+  return current === pressed ? "brain" : pressed;
+}
+
+/** The top-bar items for a mode, in registry order. */
+export function navForMode<T extends { modes: Mode[] }>(
+  items: T[],
+  mode: Mode
+): T[] {
+  return items.filter((i) => i.modes.includes(mode));
+}
+
+/** The five-column phone bar for a mode, in registry order. */
+export function phoneNavForMode<T extends { phoneModes: Mode[] }>(
+  items: T[],
+  mode: Mode
+): T[] {
+  return items.filter((i) => i.phoneModes.includes(mode));
+}
+
+/**
+ * The areas a mode shows: its own system's, or all thirteen in `brain`.
+ * The command centre reads over both systems (§A2), so it does not filter.
+ */
+export function pillarsForMode(pillars: Pillar[], mode: Mode): Pillar[] {
+  const system = systemForMode(mode);
+  return system == null ? pillars : areasFor(pillars, system);
+}
+
 export function areasFor(pillars: Pillar[], system: SystemKey): Pillar[] {
   return pillars
     .filter((p) => p.system === system && p.active)
@@ -404,6 +456,21 @@ export const DAY_NAMES = [
 export function addDays(iso: string, n: number): string {
   const d = at(iso);
   d.setDate(d.getDate() + n);
+  return toIso(d);
+}
+
+/**
+ * ISO date `n` months from `iso`, clamped by the calendar.
+ *
+ * 31 January + 1 month is 28 February, not 3 March. JavaScript rolls the
+ * overflow forward by default, which would push a goal due at the end of a
+ * short month into the next bucket entirely.
+ */
+export function addMonths(iso: string, n: number): string {
+  const d = at(iso);
+  const day = d.getDate();
+  d.setMonth(d.getMonth() + n);
+  if (d.getDate() !== day) d.setDate(0); // rolled over — pull back to month end
   return toIso(d);
 }
 
@@ -791,58 +858,178 @@ export function slotLabel(i: number): string {
  * Goals across horizons
  * ------------------------------------------------------------------ */
 
-export type Horizon = "quarter" | "year" | "five" | "twenty";
+/**
+ * THE TWO SYSTEMS USE DIFFERENT SCALES. This is deliberate, settled with
+ * Jay, and must not be "fixed" into one list.
+ *
+ *   LIFE_OS    month · 6 month · annual · 5 year · 10 year
+ *   EMPIRE_OS  quarter · year · 5 year · 20 year
+ *
+ * A life runs on personal rhythms, so its scale is a rolling window from
+ * today — "six months from now", not "the end of H2". A business runs on
+ * reporting periods, so EMPIRE keeps calendar quarters and calendar years.
+ * That is why `month`/`six` measure forward from today while `quarter`
+ * closes at the quarter end.
+ *
+ * The 20-year horizon is EMPIRE-only and load-bearing: the £100M objective
+ * anchors the CEO dashboard and must survive any edit here.
+ */
+export type Horizon =
+  | "month"
+  | "six"
+  | "quarter"
+  | "year"
+  | "five"
+  | "ten"
+  | "twenty"
+  | "someday";
 
-export const HORIZONS: Horizon[] = ["quarter", "year", "five", "twenty"];
+/** LIFE_OS, nearest first. `someday` is the bucket list — see `isSomeday`. */
+export const LIFE_HORIZONS: Horizon[] = [
+  "month",
+  "six",
+  "year",
+  "five",
+  "ten",
+  "someday",
+];
+
+/** EMPIRE_OS, nearest first. Unchanged, and deliberately so. */
+export const EMPIRE_HORIZONS: Horizon[] = ["quarter", "year", "five", "twenty"];
+
+/** Every horizon either scale uses, for exhaustive record keys. */
+export const ALL_HORIZONS: Horizon[] = [
+  "month",
+  "six",
+  "quarter",
+  "year",
+  "five",
+  "ten",
+  "twenty",
+  "someday",
+];
+
+export function horizonsFor(system: SystemKey): Horizon[] {
+  return system === "life" ? LIFE_HORIZONS : EMPIRE_HORIZONS;
+}
 
 export const HORIZON_LABEL: Record<Horizon, string> = {
+  month: "This month",
+  six: "Six months",
   quarter: "This quarter",
   year: "This year",
   five: "5 years",
+  ten: "10 years",
   twenty: "20 years",
+  someday: "Someday",
 };
 
-/**
- * Which column a goal belongs in, by its target date.
+/* ------------------------------------------------------------------ *
+ * The bucket list
  *
- * An overdue goal buckets into "this quarter" rather than falling off the
- * board — a date you have already missed is the most immediate horizon
- * there is. Undated goals return null and are listed separately, because a
- * goal with no date is not a twenty-year goal, it is an undecided one.
+ * Not a table. A bucket-list item is a goal with no date and no plan,
+ * carried as `goals.status = 'someday'`. Keeping it in `goals` is the whole
+ * point: promoting one into a real goal is a single field change, and that
+ * promotion moment is why a bucket list belongs in a life OS rather than in
+ * a notes app.
+ * ------------------------------------------------------------------ */
+
+export const SOMEDAY_STATUS = "someday";
+
+export function isSomeday<T extends { status: string }>(goal: T): boolean {
+  return goal.status === SOMEDAY_STATUS;
+}
+
+/** Bucket-list items, newest intent first by title for a stable order. */
+export function somedayGoals<T extends Pick<Goal, "status" | "title">>(
+  goals: T[]
+): T[] {
+  return goals.filter(isSomeday).sort((a, b) => a.title.localeCompare(b.title));
+}
+
+/**
+ * Which column a goal belongs in, on its system's scale.
+ *
+ * The boundary discipline, unchanged from the single-scale version and now
+ * enforced on both:
+ *
+ * - Every dated goal lands in exactly one bucket. The comparisons are
+ *   ordered nearest-first and each is `<=`, so no date can match two.
+ * - An overdue goal reads as the *nearest* horizon, never one that has
+ *   already passed. A date you have missed is the most immediate thing
+ *   there is, so it buckets into `month` / `quarter` rather than falling off
+ *   the board or being filed under twenty years.
+ * - An undated goal returns null. A goal with no date is not a ten-year
+ *   goal, it is an undecided one, and inventing a deadline for it would be
+ *   the system putting words in his mouth.
+ * - A `someday` goal is the bucket list and returns `someday` whatever its
+ *   date, because a bucket-list item that has acquired a date has not been
+ *   promoted yet — the status is the promotion, not the date.
  */
 export function goalHorizon(
-  targetDate: string | null | undefined,
-  todayIso: string
+  goal: Pick<Goal, "target_date" | "status">,
+  todayIso: string,
+  system: SystemKey
 ): Horizon | null {
-  if (!targetDate) return null;
-  if (targetDate <= endOfQuarter(todayIso)) return "quarter";
-  if (targetDate <= endOfYear(todayIso)) return "year";
-  if (targetDate <= addYears(todayIso, 5)) return "five";
+  if (isSomeday(goal)) return "someday";
+  const target = goal.target_date;
+  if (!target) return null;
+
+  if (system === "life") {
+    if (target <= addMonths(todayIso, 1)) return "month";
+    if (target <= addMonths(todayIso, 6)) return "six";
+    if (target <= addYears(todayIso, 1)) return "year";
+    if (target <= addYears(todayIso, 5)) return "five";
+    return "ten";
+  }
+
+  if (target <= endOfQuarter(todayIso)) return "quarter";
+  if (target <= endOfYear(todayIso)) return "year";
+  if (target <= addYears(todayIso, 5)) return "five";
   return "twenty";
 }
 
+/**
+ * Goals bucketed onto their system's scale.
+ *
+ * `someday` items are included on the LIFE scale and excluded from EMPIRE's,
+ * which has no such bucket — so on EMPIRE they are returned in `excluded`
+ * rather than silently dropped. Nothing Jay has written should vanish
+ * because of which mode he happens to be in.
+ */
 export function bucketGoalsByHorizon<
   T extends Pick<Goal, "target_date" | "status">
 >(
   goals: T[],
-  todayIso: string
-): { buckets: Record<Horizon, T[]>; undated: T[] } {
-  const buckets: Record<Horizon, T[]> = {
-    quarter: [],
-    year: [],
-    five: [],
-    twenty: [],
-  };
+  todayIso: string,
+  system: SystemKey
+): { buckets: Record<Horizon, T[]>; undated: T[]; excluded: T[] } {
+  const scale = horizonsFor(system);
+  // Every horizon gets a key, not just this system's, so the returned
+  // Record is honest: indexing an off-scale bucket gives an empty list
+  // rather than undefined behind a type that promised an array.
+  const buckets = Object.fromEntries(
+    ALL_HORIZONS.map((h) => [h, [] as T[]])
+  ) as Record<Horizon, T[]>;
+
   const undated: T[] = [];
-  for (const g of goals.filter(isLive)) {
-    const h = goalHorizon(g.target_date, todayIso);
+  const excluded: T[] = [];
+
+  for (const g of goals) {
+    const someday = isSomeday(g);
+    // Paused, done and dropped goals stay out of the way; someday is not
+    // "not live", it is a different kind of live.
+    if (!someday && !isLive(g)) continue;
+
+    const h = goalHorizon(g, todayIso, system);
     if (h == null) undated.push(g);
+    else if (!scale.includes(h)) excluded.push(g);
     else buckets[h].push(g);
   }
-  for (const h of HORIZONS) {
+  for (const h of scale) {
     buckets[h] = sortGoals(buckets[h], todayIso);
   }
-  return { buckets, undated };
+  return { buckets, undated, excluded };
 }
 
 /* ------------------------------------------------------------------ *

@@ -29,7 +29,8 @@ import {
   weekPriorities,
   slotLabel,
   bucketGoalsByHorizon,
-  HORIZONS,
+  EMPIRE_HORIZONS,
+
   HORIZON_LABEL,
   daysUntil,
   isShelved,
@@ -135,7 +136,7 @@ export default async function EmpirePage() {
   );
 
   const priorities = weekPriorities(allTasks, week);
-  const { buckets, undated } = bucketGoalsByHorizon(allGoals, today);
+  const { buckets, undated } = bucketGoalsByHorizon(allGoals, today, "empire");
 
   return (
     <div className="sys-empire grid gap-7">
@@ -343,7 +344,7 @@ export default async function EmpirePage() {
         }
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          {HORIZONS.map((h) => (
+          {EMPIRE_HORIZONS.map((h) => (
             <div key={h} className="grid gap-1.5 content-start">
               <p className="label" style={{ color: "var(--sys)" }}>
                 {HORIZON_LABEL[h]}

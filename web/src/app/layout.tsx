@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import ServiceWorker from "@/components/ServiceWorker";
 import ThemeScript from "@/components/ThemeScript";
+import ModeScript from "@/components/ModeScript";
 
 export const metadata: Metadata = {
   title: "THE BRAIN",
@@ -30,6 +31,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <ThemeScript />
+        <ModeScript />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
           rel="preconnect"
