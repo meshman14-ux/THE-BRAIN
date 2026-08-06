@@ -9,10 +9,13 @@
  * placeholder routes). If a pillar is ever renamed its shelf follows the
  * name, not the row — update the key here in the same change.
  *
- * Pure data, no imports from the app — tests assert its integrity: every
- * seeded pillar has a shelf, every URL is https and unique within its
- * shelf, and every internal route points somewhere that exists.
+ * Pure data but for the slug rule it borrows from logic.ts — tests assert
+ * its integrity: every seeded pillar has a shelf, every URL is https and
+ * unique within its shelf, and every internal route points somewhere that
+ * exists.
  */
+
+import { slugifyName } from "./logic";
 
 export type RefLink = {
   title: string;
@@ -887,13 +890,18 @@ export const BRANCH_RELATED: Record<
  * the row just quietly stopped being clickable. Deriving the slug means a
  * rename moves the page with it, and a venture added tomorrow gets a branch
  * without anyone editing this file.
+ *
+ * The rule itself lives in logic.ts with the rest of the tested logic; this
+ * is the name the empire calls it by. One implementation, so a shelf and a
+ * division page can never disagree about a URL.
  */
 export function ventureSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/&/g, " and ")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "");
+  return slugifyName(name);
+}
+
+/** Where a division's own dashboard lives. */
+export function divisionHref(name: string): string {
+  return `/empire/${ventureSlug(name)}`;
 }
 
 /**

@@ -1,15 +1,19 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { placeholderFor, type Placeholder } from "@/lib/placeholders";
+import {
+  placeholderFor,
+  BUILT_BRANCHES,
+  type Placeholder,
+} from "@/lib/placeholders";
 import {
   refsForBranch,
   BRANCH_RELATED,
   BRANCH_ALIASES,
+  divisionHref,
   ventureSlug,
   EXTERNAL_VENTURES,
 } from "@/lib/references";
-import { STAGE_LABEL, type VentureStage } from "@/lib/types";
 import { Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -20,9 +24,10 @@ export const dynamic = "force-dynamic";
  * system, and carries its reference shelf — so the page is useful today,
  * not an apology.
  *
- * Resolution order: a hand-written registry row, then a retired-slug alias,
- * then the ventures table itself. That last step is what stops a renamed or
- * newly added division from 404ing while somebody remembers to edit a file.
+ * Resolution order: a retired-slug alias, then a branch whose view is built
+ * elsewhere, then a hand-written registry row, then the ventures table
+ * itself. That last step is what stops a renamed or newly added division
+ * from 404ing while somebody remembers to edit a file.
  */
 export default async function BranchPage({
   params,
@@ -35,35 +40,25 @@ export default async function BranchPage({
   const alias = BRANCH_ALIASES[slug];
   if (alias) redirect(`/${alias}`);
 
-  let p: Placeholder | undefined = placeholderFor(slug);
+  // A branch whose view has been built lives at its own address now. Every
+  // division is one of these: /a-to-z-traderz forwards to its cockpit.
+  const built = BUILT_BRANCHES[slug];
+  if (built) redirect(built.href);
+
+  const p: Placeholder | undefined = placeholderFor(slug);
 
   if (!p) {
+    // Not in any registry — but a division added after this file was last
+    // edited is still a real division, and its cockpit already exists.
     const supabase = await createClient();
-    const { data: ventures } = await supabase
-      .from("ventures")
-      .select("name, stage, status, one_liner");
+    const { data: ventures } = await supabase.from("ventures").select("name");
     const match = (ventures ?? []).find(
       (v: { name: string }) =>
         ventureSlug(v.name) === slug && !EXTERNAL_VENTURES.has(v.name)
-    ) as
-      | { name: string; stage: VentureStage; status: string; one_liner: string | null }
-      | undefined;
-    if (match) {
-      const shelved = match.status !== "active";
-      p = {
-        slug,
-        name: match.name,
-        what:
-          (match.one_liner ? `${match.one_liner}. ` : "") +
-          (shelved
-            ? "Parked in the backlog. When it wakes, this page becomes its cockpit."
-            : "A live division. This page becomes its cockpit: the projects, the numbers and the next move."),
-        phase: `${shelved ? "Backlog" : `${STAGE_LABEL[match.stage]} stage`} · EMPIRE_OS`,
-      };
-    }
+    ) as { name: string } | undefined;
+    if (match) redirect(divisionHref(match.name));
+    notFound();
   }
-
-  if (!p) notFound();
 
   const refs = refsForBranch(slug);
   const related = BRANCH_RELATED[slug] ?? {};

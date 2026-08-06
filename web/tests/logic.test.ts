@@ -1130,23 +1130,41 @@ describe("reference library integrity", () => {
     // A placeholder graduates to a real route when its view ships.
     expect(BRANCH_ALIASES["vehicles"]).toBe("life/vehicles");
     for (const [from, to] of Object.entries(BRANCH_ALIASES)) {
+      // A retired slug has to land on something that answers: a branch still
+      // waiting to be built, a branch whose view has shipped, or a real
+      // route. Anything else is a link that 404s on a bookmark.
       const lands =
-        placeholderFor(to) != null || REAL_ROUTES.includes(`/${to}`);
+        placeholderFor(to) != null ||
+        BUILT_BRANCHES[to] != null ||
+        REAL_ROUTES.includes(`/${to}`);
       expect(lands, `alias ${from} → ${to} must land somewhere`).toBe(true);
       expect(placeholderFor(from), `${from} should be retired, not duplicated`).toBeUndefined();
     }
   });
 
-  it("gives every seeded venture a shelf, and leaves MAINFRAME a pointer", () => {
+  /**
+   * Every division's cockpit shipped in Stage 4 · Phase C, so none of them
+   * is a placeholder any more — but each one still keeps its name and its
+   * researched shelf. What must never happen is a division falling out of
+   * both registries: that is a shelf nobody can reach and a page nobody can
+   * name.
+   */
+  it("gives every seeded venture a shelf and a built cockpit", () => {
     for (const name of SEEDED_VENTURES) {
       const slug = branchForVenture(name);
       expect(slug, `branch for ${name}`).toBeTruthy();
-      expect(placeholderFor(slug!), `placeholder for ${slug}`).toBeTruthy();
+      expect(placeholderFor(slug!), `${slug} is built, not pending`).toBeUndefined();
+      expect(BUILT_BRANCHES[slug!], `built branch for ${slug}`).toBeTruthy();
+      expect(BUILT_BRANCHES[slug!].name, `name for ${slug}`).toBe(name);
+      expect(BUILT_BRANCHES[slug!].href, `href for ${slug}`).toBe(
+        `/empire/${slug}`
+      );
       expect(refsForBranch(slug!).length, `shelf for ${slug}`).toBeGreaterThan(0);
     }
     // The pointer row stays a pointer: linking it would pretend to contain it.
     expect(branchForVenture("MAINFRAME")).toBeNull();
     expect(EXTERNAL_VENTURES.has("MAINFRAME")).toBe(true);
+    expect(BUILT_BRANCHES["mainframe"]).toBeUndefined();
   });
 
   it("keys every branch shelf and every related-map entry to a real slug", () => {
@@ -1170,9 +1188,12 @@ describe("reference library integrity", () => {
     // finished — /reviews is built, so it is not also "not built yet".
     for (const slug of Object.keys(BUILT_BRANCHES)) {
       expect(placeholderFor(slug), `${slug} is built AND a placeholder`).toBeUndefined();
-      expect(REAL_ROUTES, `${slug} must point at a real route`).toContain(
-        BUILT_BRANCHES[slug].href
-      );
+      // A built branch points either at a fixed route or at its own
+      // division cockpit under the one dynamic route, /empire/[id].
+      const href = BUILT_BRANCHES[slug].href;
+      const real =
+        REAL_ROUTES.includes(href) || href === `/empire/${slug}`;
+      expect(real, `${slug} must point at a real route, got ${href}`).toBe(true);
     }
   });
 

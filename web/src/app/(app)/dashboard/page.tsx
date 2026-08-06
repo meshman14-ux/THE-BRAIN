@@ -42,10 +42,11 @@ import {
   debtCleared,
   cashThisMonth,
   daysUntil,
+  isExternal,
 } from "@/lib/logic";
 import { verseOfDay } from "@/lib/gita";
 import { creedFrom, creedLineOfDay } from "@/lib/creed";
-import { branchForVenture } from "@/lib/references";
+import { divisionHref } from "@/lib/references";
 import SeedPillars from "@/components/SeedPillars";
 import TodayThree, { type TodayItem } from "@/components/TodayThree";
 import { Panel, Empty, Bar } from "@/components/ui";
@@ -646,7 +647,8 @@ export default async function TheBrain() {
                     </p>
                   ) : (
                     liveVentures.map((v) => {
-                      const branch = branchForVenture(v.name);
+                      // Its own dashboard, unless it is a pointer row.
+                      const href = isExternal(v) ? null : divisionHref(v.name);
                       const inner = (
                         <>
                           <span
@@ -667,10 +669,10 @@ export default async function TheBrain() {
                       );
                       const cls =
                         "flex items-center gap-2.5 rounded-[8px] border border-[var(--border)] px-3 py-2";
-                      return branch ? (
+                      return href ? (
                         <Link
                           key={v.id}
-                          href={`/${branch}`}
+                          href={href}
                           className={`${cls} card-hover no-underline text-[var(--text)]`}
                         >
                           {inner}

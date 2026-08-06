@@ -8,6 +8,8 @@
  * placeholder route stops claiming it.
  */
 
+import { divisionHref, ventureSlug } from "./references";
+
 export type Placeholder = {
   slug: string;
   name: string;
@@ -72,12 +74,8 @@ export const PLACEHOLDERS: Placeholder[] = [
     what: "Meal planning and the shopping that follows from it. House rule: no beef, ever.",
     phase: "Phase 4 · LIFE_OS",
   },
-  {
-    slug: "kathleen-st",
-    name: "Kathleen St",
-    what: "The property: arrears, renovation, tenancy. Tracked today as a venture on the CEO dashboard.",
-    phase: "Phase 5 · EMPIRE_OS",
-  },
+  // "kathleen-st" left with the other divisions: it is a venture, and its
+  // cockpit is built at /empire/kathleen-st.
   // "vehicles" was retired 2026-08-01: the view it promised is built at
   // /life/vehicles. BRANCH_ALIASES redirects the old slug there.
   {
@@ -138,109 +136,15 @@ export const PLACEHOLDERS: Placeholder[] = [
     phase: "Phase 4 · LIFE_OS",
   },
 
-  /* -- EMPIRE_OS divisions — one branch page per venture -----------
+  /* -- EMPIRE_OS divisions are no longer placeholders ---------------
    *
-   * A row here only adds hand-written copy. Any venture without one still
-   * gets a branch page: (app)/[slug] resolves unknown slugs against the
-   * ventures table by slugified name, so a division added tomorrow is
-   * clickable today. See `ventureSlug` in references.ts for why.
+   * Every division had a branch page here saying "this page becomes its
+   * cockpit". Stage 4 · Phase C built the cockpit, so all seventeen left
+   * the registry in the same commit — a branch that is built must never
+   * also be listed as not built yet. They live at /empire/[slug] now, keep
+   * their names and reference shelves in DIVISION_BRANCHES below, and
+   * (app)/[slug] forwards the old address to the new one.
    */
-  {
-    slug: "a-to-z-traderz",
-    name: "A to Z Traderz",
-    what: "The first income engine, at launch. This page becomes the division cockpit: stock, sales, and the projects that get it to revenue.",
-    phase: "Phase 5 · EMPIRE_OS",
-  },
-  {
-    slug: "building-maintenance",
-    name: "Building + Maintenance",
-    what: "Paid work, and the labour that keeps your own properties standing. At launch — the shelf below covers CIS, TrustMark and the certifications the work legally needs.",
-    phase: "Phase 5 · EMPIRE_OS",
-  },
-  {
-    slug: "bedlinog-house",
-    name: "Bedlinog House",
-    what: "Property under tenancy. Becomes the cockpit for rent, certificates and repairs.",
-    phase: "Phase 5 · EMPIRE_OS",
-  },
-  {
-    slug: "treharris-house",
-    name: "Treharris House",
-    what: "Property under tenancy. Wales licenses landlords separately — the shelf below starts with Rent Smart Wales.",
-    phase: "Phase 5 · EMPIRE_OS",
-  },
-  {
-    slug: "amazon-fba",
-    name: "Amazon FBA",
-    what: "Product research stage. Becomes the division cockpit: shortlisted products, margin maths, supplier threads.",
-    phase: "Phase 5 · EMPIRE_OS",
-  },
-  {
-    slug: "ai-software",
-    name: "AI Software",
-    what: "The idea with the highest ceiling. Becomes the division cockpit when it moves past idea — this very system is the proof of capability.",
-    phase: "Phase 5 · EMPIRE_OS",
-  },
-  {
-    slug: "coffee-shop",
-    name: "Coffee Shop",
-    what: "Parked future division. When it wakes, this page holds the site search, the licences and the numbers.",
-    phase: "Backlog · EMPIRE_OS",
-  },
-  {
-    slug: "microgreens",
-    name: "Microgreens",
-    what: "Parked future division. Low setup cost, two-week crop cycles, chefs on standing orders — when it wakes, the trial grow gets tracked here.",
-    phase: "Backlog · EMPIRE_OS",
-  },
-  {
-    slug: "resin-and-epoxy",
-    name: "Resin & Epoxy",
-    what: "Parked future division. Craft products with real safety and labelling rules — the shelf below covers them before the first pour.",
-    phase: "Backlog · EMPIRE_OS",
-  },
-  {
-    slug: "festivals",
-    name: "Festivals",
-    what: "Parked as a THE BRAIN division — the live festival operation runs in MAINFRAME, a separate system this one only points at.",
-    phase: "Backlog · EMPIRE_OS",
-  },
-  {
-    slug: "charity-india",
-    name: "Charity (India)",
-    what: "Parked future division. UK charity setup plus India's FCRA rules make the paperwork the actual project — the shelf below maps it.",
-    phase: "Backlog · EMPIRE_OS",
-  },
-  {
-    slug: "storage-solutions",
-    name: "Storage Solutions",
-    what: "Parked future division, costed at £1,000. Planning permission for containers is the first question, not the last.",
-    phase: "Backlog · EMPIRE_OS",
-  },
-  {
-    slug: "photo-booth",
-    name: "Photo Booth",
-    what: "Parked future division, costed at £1,500. It photographs people, so data protection and public liability come before the kit.",
-    phase: "Backlog · EMPIRE_OS",
-  },
-  {
-    slug: "stencil-art",
-    name: "Stencil Art",
-    what: "Parked future division, costed at £500. The cheapest thing on the board to actually test.",
-    phase: "Backlog · EMPIRE_OS",
-  },
-  {
-    slug: "stump-pump",
-    name: "Stump Pump",
-    what: "Prototype costing. If it is genuinely novel, file before you show anyone — publishing first makes it unpatentable.",
-    phase: "Backlog · EMPIRE_OS",
-  },
-  {
-    slug: "find-my-stash",
-    name: "Find My Stash",
-    what: "Concept — needs research. Test whether anyone wants it before a line of code gets written.",
-    phase: "Backlog · EMPIRE_OS",
-  },
 ];
 
 export function placeholderFor(slug: string): Placeholder | undefined {
@@ -248,18 +152,53 @@ export function placeholderFor(slug: string): Placeholder | undefined {
 }
 
 /**
- * Branches whose view is built and answers at the same address.
+ * The seventeen divisions, by name.
+ *
+ * Their slugs and hrefs are *derived* from these names, never typed out —
+ * the hand-written map broke once already when "A to Z Trailerz" became
+ * "A to Z Traderz" and its link silently stopped resolving. MAINFRAME is
+ * absent on purpose: it is a pointer to a separate system and has no page
+ * here (locked decision A1).
+ */
+export const DIVISION_NAMES = [
+  "A to Z Traderz",
+  "Building + Maintenance",
+  "Bedlinog House",
+  "Treharris House",
+  "Kathleen St",
+  "Amazon FBA",
+  "AI Software",
+  "Coffee Shop",
+  "Microgreens",
+  "Resin & Epoxy",
+  "Festivals",
+  "Charity (India)",
+  "Storage Solutions",
+  "Photo Booth",
+  "Stencil Art",
+  "Stump Pump",
+  "Find My Stash",
+];
+
+/**
+ * Branches whose view is built, and where it answers.
  *
  * A slug leaves PLACEHOLDERS the moment its page is real — otherwise the
  * registry starts lying about what is finished. But the branch itself does
  * not stop existing: it keeps its name and its reference shelf, and the
  * library still needs something to call it. That is what this holds.
  *
- * (A view built at a *different* address is an alias instead — see
- * BRANCH_ALIASES, which is how `vehicles` reaches `/life/vehicles`.)
+ * (BRANCH_ALIASES is a different job: it retires a *slug*, so an old link
+ * still lands somewhere. This says where a live branch's view is.)
  */
 export const BUILT_BRANCHES: Record<string, { name: string; href: string }> = {
   reviews: { name: "Reviews", href: "/reviews" },
+  ...Object.fromEntries(
+    DIVISION_NAMES.map((name) => [
+      ventureSlug(name),
+      { name, href: divisionHref(name) },
+    ])
+  ),
 };
 
 /** What to call a branch, built or not. Falls back to the slug itself. */

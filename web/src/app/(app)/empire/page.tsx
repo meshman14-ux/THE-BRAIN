@@ -35,8 +35,14 @@ import {
   daysUntil,
   isShelved,
   areasFor,
+  isExternal,
+  onboardingProgress,
+  nextToOnboard,
+  ventureOnboarding,
+  venturesWithNextStep,
+  runningCostTotal,
 } from "@/lib/logic";
-import { branchForVenture } from "@/lib/references";
+import { divisionHref } from "@/lib/references";
 import { Panel, Empty, Kpi, Bar, Tag } from "@/components/ui";
 import AreaBars from "@/components/AreaBars";
 
@@ -64,7 +70,7 @@ export default async function EmpirePage() {
     supabase
       .from("ventures")
       .select(
-        "id, name, pillar_id, stage, progress, one_liner, status, sort_order, external_system, external_url"
+        "id, name, pillar_id, stage, progress, one_liner, status, sort_order, external_system, external_url, plan, budget, monthly_cost, funding_route, meta"
       )
       .order("sort_order"),
     supabase.from("projects").select("id, venture_id, pillar_id, status"),
@@ -122,6 +128,13 @@ export default async function EmpirePage() {
   const ordered = sortVentures(allVentures);
   const building = inDevelopment(allVentures);
   const parked = backlog(allVentures);
+
+  /* -- how much the empire actually knows about itself ------------ */
+
+  const withNextStep = venturesWithNextStep(allProjects, allTasks);
+  const onboarded = onboardingProgress(allVentures, withNextStep);
+  const askNext = nextToOnboard(allVentures, withNextStep).slice(0, 3);
+  const running = runningCostTotal(allVentures);
 
   /* -- the vision ------------------------------------------------ */
 
@@ -212,6 +225,56 @@ export default async function EmpirePage() {
         />
       </div>
 
+      {/* -- what the empire knows about itself -------------------- */}
+      <section className="card p-4 sm:p-5 grid gap-3">
+        <div className="flex items-baseline gap-3 flex-wrap">
+          <h2 className="label">Division onboarding</h2>
+          <span className="mono text-[0.72rem]" style={{ color: "var(--sys)" }}>
+            {onboarded.done} of {onboarded.total} onboarded
+          </span>
+          {onboarded.started > 0 && (
+            <span className="text-[0.7rem] text-[var(--faint)]">
+              {onboarded.started} part-answered
+            </span>
+          )}
+          <span className="text-[0.7rem] text-[var(--faint)] ml-auto">
+            MAINFRAME excluded — it is a pointer, not a division
+          </span>
+        </div>
+        <Bar percent={onboarded.percent} colour="var(--sys)" />
+        {askNext.length === 0 ? (
+          <p className="text-[0.78rem] text-[var(--muted)] leading-relaxed">
+            Every division has answered all seven questions. The dashboards
+            below are drawn from real answers rather than from defaults.
+          </p>
+        ) : (
+          <>
+            <p className="text-[0.78rem] text-[var(--muted)] leading-relaxed">
+              Seven questions each, none of them required, and they save as you
+              answer. A division that has answered nothing has nothing honest
+              to put on a dashboard — this is what fills them.
+            </p>
+            <div className="flex gap-1.5 flex-wrap">
+              {askNext.map((v) => (
+                <Link
+                  key={v.id}
+                  href={`${divisionHref(v.name)}/onboard`}
+                  className="chip no-underline"
+                >
+                  {v.name} →
+                </Link>
+              ))}
+            </div>
+          </>
+        )}
+        <p className="text-[0.7rem] text-[var(--faint)] leading-relaxed">
+          Running cost across the divisions that have answered:{" "}
+          <b className="mono">{formatGBP(running.known)}</b>
+          {running.unknownCount > 0 &&
+            ` — ${running.knownCount} of ${running.knownCount + running.unknownCount} answered, so the real figure is higher.`}
+        </p>
+      </section>
+
       {/* -- divisions + priorities -------------------------------- */}
       <div className="grid gap-5 lg:grid-cols-2 items-start">
         <Panel
@@ -228,7 +291,10 @@ export default async function EmpirePage() {
               {ordered.map((v) => {
                 const c = counts[v.id] ?? { projects: 0, tasks: 0 };
                 const shelved = isShelved(v);
-                const branch = branchForVenture(v.name);
+                const external = isExternal(v);
+                const o = ventureOnboarding(v, {
+                  hasNextStep: withNextStep.has(v.id),
+                });
                 const inner = (
                   <>
                     <div className="min-w-0 flex-1">
@@ -236,7 +302,7 @@ export default async function EmpirePage() {
                         <span className="text-[0.9rem] font-semibold">
                           {v.name}
                         </span>
-                        {v.external_system && (
+                        {external && (
                           <Tag
                             colour="var(--faint)"
                             title="A pointer row. THE BRAIN never reads or copies this system's data."
@@ -245,13 +311,23 @@ export default async function EmpirePage() {
                           </Tag>
                         )}
                       </div>
-                      {v.one_liner && (
-                        <p className="text-[0.76rem] text-[var(--muted)] mt-0.5 leading-snug">
-                          {v.one_liner}
-                        </p>
-                      )}
+                      <p className="text-[0.76rem] text-[var(--muted)] mt-0.5 leading-snug">
+                        {v.one_liner ??
+                          (external
+                            ? "Runs in its own system"
+                            : "No one-liner yet")}
+                      </p>
                     </div>
                     <div className="flex items-center gap-2.5 shrink-0">
+                      {!external && !o.complete && (
+                        <span
+                          className="mono text-[0.66rem]"
+                          title={`${o.done} of ${o.total} onboarding questions answered`}
+                          style={{ color: "var(--faint)" }}
+                        >
+                          {o.done}/{o.total}
+                        </span>
+                      )}
                       <span className="mono text-[0.68rem] text-[var(--faint)] hidden sm:inline">
                         {c.projects}p · {c.tasks}t
                       </span>
@@ -263,21 +339,22 @@ export default async function EmpirePage() {
                 );
                 const cls =
                   "flex items-start gap-3 rounded-[10px] border border-[var(--border)] px-3.5 py-2.5";
-                // Every division links to its branch page — except MAINFRAME,
-                // which lives in a separate system this row only points at.
-                return branch ? (
+                // Every division links to its own dashboard — except
+                // MAINFRAME, which lives in a separate system this row only
+                // points at, and never opens here.
+                return external ? (
+                  <div key={v.id} className={cls} style={{ opacity: shelved ? 0.62 : 1 }}>
+                    {inner}
+                  </div>
+                ) : (
                   <Link
                     key={v.id}
-                    href={`/${branch}`}
+                    href={divisionHref(v.name)}
                     className={`${cls} card-hover no-underline text-[var(--text)]`}
                     style={{ opacity: shelved ? 0.62 : 1 }}
                   >
                     {inner}
                   </Link>
-                ) : (
-                  <div key={v.id} className={cls} style={{ opacity: shelved ? 0.62 : 1 }}>
-                    {inner}
-                  </div>
                 );
               })}
             </div>

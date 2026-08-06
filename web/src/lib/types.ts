@@ -199,6 +199,22 @@ export const STAGE_COLOUR: Record<VentureStage, string> = {
   revenue: "var(--good)",
 };
 
+/**
+ * What each stage actually means, in his words rather than in jargon.
+ *
+ * Shown beside the choice during onboarding so the stage is picked
+ * knowingly. A stage carries a progress baseline (STAGE_BASELINE), so
+ * choosing one is a claim about how far along the division is — that is
+ * worth spelling out before he chooses.
+ */
+export const STAGE_MEANING: Record<VentureStage, string> = {
+  idea: "Written down, nothing tested. It exists as a sentence and no more.",
+  research: "Finding out whether it works — the costs, the demand, the rules.",
+  stabilise: "It exists but it is not steady. The work is stopping the leaks.",
+  launch: "Live and taking on work, but not yet paying its own way.",
+  revenue: "Money arrives without you starting it from scratch every time.",
+};
+
 export type Venture = {
   id: string;
   name: string;
@@ -216,7 +232,227 @@ export type Venture = {
   sort_order: number;
   external_system: string | null;
   external_url?: string | null;
+
+  /* -- what onboarding fills in --------------------------------- *
+   *
+   * All four are nullable and all four mean "not answered". A skipped
+   * budget must never read as a free division, which is why none of them
+   * default to zero — the same discipline the debts screen holds.
+   */
+  /** His words on how this gets built. Free text, never summarised for him. */
+  plan?: string | null;
+  /** What it costs to start, in £. NULL is unknown, not free. */
+  budget?: number | null;
+  /** What it costs to run each month, in £. NULL is unknown, not free. */
+  monthly_cost?: number | null;
+  funding_route?: string | null;
+  /** Researched compliance material. jsonb — validate, never trust. */
+  profile?: Record<string, unknown> | null;
+  /** jsonb. Carries `onboarded_at` and his compliance answers. */
+  meta?: Record<string, unknown> | null;
 };
+
+/**
+ * Money a division has actually had put into it.
+ *
+ * There is no spend table and onboarding does not collect one, so "spent"
+ * is the value of the assets recorded against the division. With none, spend
+ * is NULL — unknown — and never zero.
+ */
+export type Asset = {
+  id: string;
+  name: string;
+  kind: string;
+  venture_id: string | null;
+  pillar_id: string | null;
+  value: number | null;
+  income_monthly: number | null;
+  cost_monthly: number | null;
+  status: string;
+  acquired_on?: string | null;
+};
+
+/* ------------------------------------------------------------------ *
+ * EMPIRE_OS — division onboarding
+ *
+ * Eighteen divisions and almost no numbers against them. The questionnaire
+ * is what fills the dashboards, so it is the feature and the dashboard is
+ * what it pays for.
+ *
+ * Two rules govern every question here:
+ *   1. Nothing is required. Skipping writes NULL — never zero, never "".
+ *   2. Every answer is saved as it is given. Eighteen divisions will not be
+ *      done in one sitting, and a form that loses answers on exit is a form
+ *      that never gets finished.
+ * ------------------------------------------------------------------ */
+
+export type OnboardStepKey =
+  | "one_liner"
+  | "stage"
+  | "budget"
+  | "monthly_cost"
+  | "funding_route"
+  | "next_step"
+  | "plan";
+
+export type OnboardStep = {
+  key: OnboardStepKey;
+  /** Asked in his language, not the schema's. */
+  question: string;
+  /** The one line under the question saying what a good answer looks like. */
+  hint: string;
+  /** What skipping this leaves the dashboard unable to say. */
+  skipped: string;
+};
+
+/**
+ * The questions, in the order they are asked.
+ *
+ * Only what a dashboard will actually show. A question whose answer nothing
+ * displays is a question that wastes the one sitting he gives it.
+ */
+export const ONBOARD_STEPS: OnboardStep[] = [
+  {
+    key: "one_liner",
+    question: "What does this business do?",
+    hint: "One line. The version you would say to someone in a van, not a pitch deck.",
+    skipped: "The division shows as a name with nothing under it.",
+  },
+  {
+    key: "stage",
+    question: "What stage is it really at?",
+    hint: "Each stage is worth a different amount of progress, so pick the honest one.",
+    skipped: "The stage stays whatever it was last set to.",
+  },
+  {
+    key: "budget",
+    question: "What will it cost to start?",
+    hint: "The one-off money to get it going. A rough figure beats no figure.",
+    skipped: "Budget reads £— and the budget bar has nothing to draw.",
+  },
+  {
+    key: "monthly_cost",
+    question: "What does it cost to run each month?",
+    hint: "Rent, storage, subscriptions, insurance — the money that leaves whether or not you trade.",
+    skipped: "The empire cannot total what it costs to stand still.",
+  },
+  {
+    key: "funding_route",
+    question: "How is it funded?",
+    hint: "Where the money comes from. Four divisions already say angel investors / AS Ltd unit.",
+    skipped: "The plan has a cost and no source.",
+  },
+  {
+    key: "next_step",
+    question: "What is the single next step?",
+    hint: "One thing, small enough to actually do. It becomes a real open task.",
+    skipped: "The division has no way into the planner.",
+  },
+  {
+    key: "plan",
+    question: "The plan",
+    hint: "Your words, at whatever length. Nothing here gets summarised or rewritten.",
+    skipped: "The dashboard has numbers and no story.",
+  },
+];
+
+/** Suggested funding routes. Free text is always allowed beside them. */
+export const FUNDING_ROUTES = [
+  "Angel investors / AS Ltd unit",
+  "Own cash",
+  "Revenue from another division",
+  "Business loan",
+  "Grant",
+];
+
+/** Where `onboarded_at` lives inside `ventures.meta`. */
+export const ONBOARDED_AT_KEY = "onboarded_at";
+
+/**
+ * The stage question is the one question the database cannot tell has been
+ * answered: `ventures.stage` is NOT NULL and defaults to 'idea', so every
+ * division already has one. This flag in `meta` is the difference between a
+ * stage that was defaulted and a stage he chose.
+ */
+export const STAGE_CONFIRMED_KEY = "stage_confirmed";
+
+/* ------------------------------------------------------------------ *
+ * EMPIRE_OS — the researched compliance profiles
+ *
+ * Four divisions carry research in `ventures.profile`. The point of having
+ * researched it is to ask him something, so onboarding turns it into
+ * questions rather than reading material.
+ *
+ * An answer of "no" or "not sure" creates an INBOX item, never a task. The
+ * inbox is the one table THE BRAIN owns, and a prompt he never asked for
+ * belongs somewhere he triages — not in his plan as a decision he never made.
+ * ------------------------------------------------------------------ */
+
+export type ComplianceKind = "property" | "cis";
+
+export type ComplianceOption = {
+  value: string;
+  label: string;
+  /** True when this answer is one that should reach the inbox. */
+  concern: boolean;
+};
+
+export type ComplianceQuestion = {
+  key: string;
+  question: string;
+  /** Stated plainly beside the question — the reason it is being asked. */
+  because: string;
+  options: ComplianceOption[];
+  /** The line that lands in the inbox when a concerning answer is given. */
+  prompt: string;
+};
+
+export const COMPLIANCE_QUESTIONS: Record<ComplianceKind, ComplianceQuestion[]> = {
+  property: [
+    {
+      key: "rent_smart_wales",
+      question: "Are you registered with Rent Smart Wales?",
+      because:
+        "Registration is compulsory for every landlord in Wales. An unregistered landlord cannot serve a valid notice seeking possession — you lose the legal ability to evict. Penalties run from a £150–£250 fixed penalty up to Rent Repayment Orders and Rent Stopping Orders that halt the rent itself.",
+      options: [
+        { value: "yes", label: "Yes, registered", concern: false },
+        { value: "no", label: "No", concern: true },
+        { value: "unsure", label: "Not sure", concern: true },
+      ],
+      prompt: "Confirm Rent Smart Wales registration",
+    },
+    {
+      key: "empty_status",
+      question: "Is this property currently empty, and for how long?",
+      because:
+        "Welsh councils may charge up to a 300% council tax premium on homes empty for 12 months or more. Structural repair carries an exemption for up to a year, and so does actively marketing it for sale or for rent — but both are clocks, and they only help if you claim them before they run out.",
+      options: [
+        { value: "occupied", label: "Not empty", concern: false },
+        { value: "under_12", label: "Empty, under 12 months", concern: true },
+        { value: "over_12", label: "Empty, 12 months or more", concern: true },
+        { value: "unsure", label: "Not sure", concern: true },
+      ],
+      prompt: "Check the empty-home council tax premium",
+    },
+  ],
+  cis: [
+    {
+      key: "cis_registered",
+      question: "Are you CIS registered as a subcontractor?",
+      because:
+        "Registered subcontractors have 20% deducted at source. Unregistered have 30%. Registering is worth ten percentage points of every single payment you take — the same work, a tenth more of it kept.",
+      options: [
+        { value: "yes", label: "Yes, registered", concern: false },
+        { value: "no", label: "No", concern: true },
+        { value: "unsure", label: "Not sure", concern: true },
+      ],
+      prompt: "Register for CIS as a subcontractor",
+    },
+  ],
+};
+
+/** Where his compliance answers live inside `ventures.meta`. */
+export const COMPLIANCE_KEY = "compliance";
 
 export type Metric = {
   id: string;

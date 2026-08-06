@@ -32,7 +32,16 @@ import {
   type Obstacle,
   type Review,
   type Mode,
+  type Asset,
+  type ComplianceKind,
+  type ComplianceQuestion,
+  type OnboardStepKey,
   VENTURE_STAGES,
+  ONBOARD_STEPS,
+  ONBOARDED_AT_KEY,
+  STAGE_CONFIRMED_KEY,
+  COMPLIANCE_KEY,
+  COMPLIANCE_QUESTIONS,
   VEHICLE_DATE_KEYS,
   DUE_SOON_DAYS,
   PAYMENTS_PER_YEAR,
@@ -2286,4 +2295,639 @@ export function habitsDoneToday<T extends Pick<Habit, "id">>(
     done: habits.filter((h) => today.has(h.id)).length,
     of: habits.length,
   };
+}
+
+/* ================================================================== *
+ * EMPIRE_OS — division onboarding
+ *
+ * Eighteen divisions, almost no numbers. Everything below exists to turn
+ * that into seventeen answered questionnaires (MAINFRAME is a pointer row
+ * and is never asked anything), because a division dashboard built over
+ * nothing is just an empty page with a chart on it.
+ *
+ * The rule every function here holds: an unanswered question is NULL, and
+ * NULL is not zero. A division whose budget nobody has entered is a
+ * division of unknown cost, never a free one.
+ * ================================================================== */
+
+/**
+ * A number that came out of the database, or null.
+ *
+ * PostgREST hands back `numeric` as a JSON number, but a null, an empty
+ * string or a NaN must all collapse to "not answered" rather than to 0 —
+ * the one wrong coercion here would make every unpriced division look free.
+ */
+export function toNumberOrNull(v: unknown): number | null {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  // Only a string is worth parsing. `Number("  ")` and `Number([])` are both
+  // 0, so anything looser than this would turn a box he left blank into a
+  // division that costs nothing — the exact lie this whole file exists to
+  // prevent.
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  if (t === "") return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+/** Trimmed text, or null. An empty box is an unanswered question. */
+export function toTextOrNull(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t === "" ? null : t;
+}
+
+/**
+ * A pointer row, not a division. MAINFRAME is a separate business system
+ * (locked decision A1) — it is never onboarded, never asked a question and
+ * never counted in the total.
+ */
+export function isExternal(v: Pick<Venture, "external_system">): boolean {
+  return toTextOrNull(v.external_system) != null;
+}
+
+/** The divisions onboarding applies to: everything THE BRAIN actually owns. */
+export function onboardableVentures<
+  T extends Pick<Venture, "external_system">
+>(ventures: T[]): T[] {
+  return ventures.filter((v) => !isExternal(v));
+}
+
+/** When onboarding was finished, as recorded in `ventures.meta`. */
+export function readOnboardedAt(meta: unknown): string | null {
+  const m = (meta ?? {}) as Record<string, unknown>;
+  return toTextOrNull(m[ONBOARDED_AT_KEY]);
+}
+
+/** Whether the stage was chosen rather than defaulted. See STAGE_CONFIRMED_KEY. */
+export function stageConfirmed(meta: unknown): boolean {
+  const m = (meta ?? {}) as Record<string, unknown>;
+  return m[STAGE_CONFIRMED_KEY] === true;
+}
+
+export type VentureOnboarding = {
+  answered: OnboardStepKey[];
+  missing: OnboardStepKey[];
+  /** How many of the questions have an answer. */
+  done: number;
+  total: number;
+  percent: number;
+  /** True only when nothing is outstanding. */
+  complete: boolean;
+  /** The stamp in `meta`, which records *when* — not whether. */
+  onboardedAt: string | null;
+  /** True when he has not started: no answer to anything. */
+  untouched: boolean;
+  /**
+   * Whether there is anything for a dashboard to draw.
+   *
+   * A one-liner on its own is not. All seventeen divisions were seeded with
+   * one, so counting it would mean the questionnaire invitation never
+   * appeared for a single division — and the empty state *is* the on-ramp.
+   * Anything else he has answered (a figure, a funding route, a plan, a next
+   * step, a stage he confirmed rather than inherited) is a panel with
+   * something in it.
+   */
+  hasDashboardData: boolean;
+};
+
+/**
+ * How far through the questionnaire one division is.
+ *
+ * `hasNextStep` is passed in rather than derived here, because a task
+ * reaches a venture through its project and this file does not get to
+ * assume the caller loaded them.
+ *
+ * Completeness is computed from the answers themselves, never from the
+ * `onboarded_at` stamp. That way clearing an answer takes the division back
+ * out of the count instead of leaving a flag saying it is finished — the
+ * count can go down, which is what makes it worth reading.
+ */
+export function ventureOnboarding(
+  v: Pick<
+    Venture,
+    "one_liner" | "budget" | "monthly_cost" | "funding_route" | "plan" | "meta"
+  >,
+  opts: { hasNextStep?: boolean } = {}
+): VentureOnboarding {
+  const has: Record<OnboardStepKey, boolean> = {
+    one_liner: toTextOrNull(v.one_liner) != null,
+    stage: stageConfirmed(v.meta),
+    budget: toNumberOrNull(v.budget) != null,
+    monthly_cost: toNumberOrNull(v.monthly_cost) != null,
+    funding_route: toTextOrNull(v.funding_route) != null,
+    next_step: opts.hasNextStep === true,
+    plan: toTextOrNull(v.plan) != null,
+  };
+
+  const answered = ONBOARD_STEPS.filter((s) => has[s.key]).map((s) => s.key);
+  const missing = ONBOARD_STEPS.filter((s) => !has[s.key]).map((s) => s.key);
+  const total = ONBOARD_STEPS.length;
+
+  return {
+    answered,
+    missing,
+    done: answered.length,
+    total,
+    percent: total === 0 ? 0 : Math.round((answered.length / total) * 100),
+    complete: missing.length === 0,
+    onboardedAt: readOnboardedAt(v.meta),
+    untouched: answered.length === 0,
+    hasDashboardData: answered.some((k) => k !== "one_liner"),
+  };
+}
+
+export type OnboardingProgress = {
+  done: number;
+  total: number;
+  /** Divisions with some answers but not all — the ones worth returning to. */
+  started: number;
+  percent: number;
+};
+
+/**
+ * "6 of 17 divisions onboarded."
+ *
+ * Seventeen, not eighteen: MAINFRAME is excluded, because counting a
+ * division you have decided never to onboard as outstanding would make the
+ * number permanently wrong by one.
+ */
+export function onboardingProgress<
+  T extends Pick<
+    Venture,
+    | "id"
+    | "external_system"
+    | "one_liner"
+    | "budget"
+    | "monthly_cost"
+    | "funding_route"
+    | "plan"
+    | "meta"
+  >
+>(ventures: T[], withNextStep: Set<string> = new Set()): OnboardingProgress {
+  const mine = onboardableVentures(ventures);
+  let done = 0;
+  let started = 0;
+  for (const v of mine) {
+    const o = ventureOnboarding(v, { hasNextStep: withNextStep.has(v.id) });
+    if (o.complete) done += 1;
+    else if (!o.untouched) started += 1;
+  }
+  return {
+    done,
+    total: mine.length,
+    started,
+    percent: mine.length === 0 ? 0 : Math.round((done / mine.length) * 100),
+  };
+}
+
+/**
+ * The divisions worth asking about next: least answered first, and a
+ * division that is half-done before one that has never been opened.
+ */
+export function nextToOnboard<
+  T extends Pick<
+    Venture,
+    | "id"
+    | "name"
+    | "status"
+    | "external_system"
+    | "one_liner"
+    | "budget"
+    | "monthly_cost"
+    | "funding_route"
+    | "plan"
+    | "meta"
+  >
+>(ventures: T[], withNextStep: Set<string> = new Set()): T[] {
+  return onboardableVentures(ventures)
+    .map((v) => ({
+      v,
+      o: ventureOnboarding(v, { hasNextStep: withNextStep.has(v.id) }),
+    }))
+    .filter((x) => !x.o.complete)
+    .sort((a, b) => {
+      // Started but unfinished first — finishing one is cheaper than starting one.
+      const ax = a.o.untouched ? 1 : 0;
+      const bx = b.o.untouched ? 1 : 0;
+      if (ax !== bx) return ax - bx;
+      // Then live divisions before shelved ones.
+      const as = isShelved(a.v) ? 1 : 0;
+      const bs = isShelved(b.v) ? 1 : 0;
+      if (as !== bs) return as - bs;
+      return b.o.done - a.o.done;
+    })
+    .map((x) => x.v);
+}
+
+/* ------------------------------------------------------------------ *
+ * The next step — one task, hung off the division honestly
+ * ------------------------------------------------------------------ */
+
+/**
+ * A task reaches a venture through its project — there is no
+ * `tasks.venture_id` and inventing one would give a task two parents that
+ * could disagree (see countsByVenture). So the next step needs a project to
+ * live in, and this is the one it gets: one per division, created on demand
+ * and reused forever after.
+ */
+export const NEXT_STEP_ROLE = "next_steps";
+
+export function nextStepProjectTitle(ventureName: string): string {
+  return `${ventureName} · next steps`;
+}
+
+/**
+ * The division's next-steps project, if it already exists.
+ *
+ * Matched on `meta.role` rather than on the title, so renaming the division
+ * — or the project — never orphans it into a second one.
+ */
+export function findNextStepProject<
+  T extends { id: string; venture_id?: string | null; meta?: unknown }
+>(projects: T[], ventureId: string): T | null {
+  return (
+    projects.find((p) => {
+      if (p.venture_id !== ventureId) return false;
+      const m = (p.meta ?? {}) as Record<string, unknown>;
+      return m.role === NEXT_STEP_ROLE;
+    }) ?? null
+  );
+}
+
+/** Every project belonging to a division. */
+export function ventureProjects<
+  T extends { venture_id?: string | null }
+>(projects: T[], ventureId: string): T[] {
+  return projects.filter((p) => p.venture_id === ventureId);
+}
+
+/** Every task belonging to a division, reached through its projects. */
+export function ventureTasks<
+  P extends { id: string; venture_id?: string | null },
+  T extends { project_id?: string | null }
+>(projects: P[], tasks: T[], ventureId: string): T[] {
+  const ids = new Set(ventureProjects(projects, ventureId).map((p) => p.id));
+  return tasks.filter((t) => t.project_id != null && ids.has(t.project_id));
+}
+
+/**
+ * The goals a division is working towards, reached through its projects.
+ *
+ * `goals` has no `venture_id`: a goal is a thing you want, and a division is
+ * one of the ways you get it. The link is the project that serves both.
+ */
+export function ventureGoals<
+  P extends { goal_id?: string | null; venture_id?: string | null },
+  G extends { id: string }
+>(projects: P[], goals: G[], ventureId: string): G[] {
+  const ids = new Set(
+    ventureProjects(projects, ventureId)
+      .map((p) => p.goal_id)
+      .filter((g): g is string => g != null)
+  );
+  return goals.filter((g) => ids.has(g.id));
+}
+
+/**
+ * Whether each division has a next step recorded, as a set of venture ids.
+ * An open task counts; a done one does not — a step already taken is not a
+ * next step, and the questionnaire should ask again.
+ */
+export function venturesWithNextStep<
+  P extends { id: string; venture_id?: string | null },
+  T extends { project_id?: string | null; status: string }
+>(projects: P[], tasks: T[]): Set<string> {
+  const ventureOfProject = new Map<string, string>();
+  for (const p of projects) {
+    if (p.venture_id) ventureOfProject.set(p.id, p.venture_id);
+  }
+  const out = new Set<string>();
+  for (const t of tasks) {
+    if (!t.project_id || !isOpenWork(t as Pick<Task, "status">)) continue;
+    const v = ventureOfProject.get(t.project_id);
+    if (v) out.add(v);
+  }
+  return out;
+}
+
+/* ------------------------------------------------------------------ *
+ * Money — budget against what has actually gone in
+ * ------------------------------------------------------------------ */
+
+export type BudgetState =
+  /** Neither side known. Nothing to draw and nothing to claim. */
+  | "unknown"
+  /** A budget, and nothing spent against it yet. */
+  | "unspent"
+  /** Spending recorded against no budget — real, and not an overspend. */
+  | "unbudgeted"
+  | "under"
+  | "over";
+
+export type BudgetVsSpend = {
+  budget: number | null;
+  spent: number | null;
+  /** Budget minus spend, or null when either side is unknown. */
+  remaining: number | null;
+  /** How much of the budget is used, 0–100+. Null without both figures. */
+  percent: number | null;
+  state: BudgetState;
+  /** Only ever true when both figures are known and spend exceeds budget. */
+  over: boolean;
+};
+
+/**
+ * Budget against spend, where either side may be missing.
+ *
+ * The state that matters most is `unbudgeted`: money has gone into
+ * something nobody set a budget for. That is a real and common state — it is
+ * not an overspend, and calling it one would be the system inventing a
+ * failure out of a missing number.
+ */
+export function budgetVsSpend(
+  budgetRaw: unknown,
+  spentRaw: unknown
+): BudgetVsSpend {
+  const budget = toNumberOrNull(budgetRaw);
+  const spent = toNumberOrNull(spentRaw);
+
+  if (budget == null && spent == null) {
+    return { budget, spent, remaining: null, percent: null, state: "unknown", over: false };
+  }
+  if (budget == null) {
+    return { budget, spent, remaining: null, percent: null, state: "unbudgeted", over: false };
+  }
+  if (spent == null) {
+    return { budget, spent, remaining: null, percent: null, state: "unspent", over: false };
+  }
+
+  const remaining = budget - spent;
+  // A zero budget with anything spent is over by any reading; guard the
+  // division rather than emitting Infinity into a bar's width.
+  const percent = budget === 0 ? (spent > 0 ? 100 : 0) : Math.round((spent / budget) * 100);
+  return {
+    budget,
+    spent,
+    remaining,
+    percent,
+    state: spent > budget ? "over" : "under",
+    over: spent > budget,
+  };
+}
+
+/**
+ * What has actually gone into each division, from the assets recorded
+ * against it. A division with no assets returns nothing at all rather than
+ * a zero — see the £— rule.
+ */
+export function spendByVenture<
+  T extends Pick<Asset, "venture_id" | "value">
+>(assets: T[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const a of assets) {
+    if (!a.venture_id) continue;
+    const v = toNumberOrNull(a.value);
+    if (v == null) continue;
+    out[a.venture_id] = (out[a.venture_id] ?? 0) + v;
+  }
+  return out;
+}
+
+/** Total monthly running cost across divisions, and how many are unknown. */
+export function runningCostTotal<
+  T extends Pick<Venture, "monthly_cost" | "external_system">
+>(ventures: T[]): { known: number | null; knownCount: number; unknownCount: number } {
+  const mine = onboardableVentures(ventures);
+  const figures = mine
+    .map((v) => toNumberOrNull(v.monthly_cost))
+    .filter((n): n is number => n != null);
+  return {
+    known: figures.length === 0 ? null : figures.reduce((a, b) => a + b, 0),
+    knownCount: figures.length,
+    unknownCount: mine.length - figures.length,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * The division dashboard — what its graphs are drawn from
+ * ------------------------------------------------------------------ */
+
+/** Where a stage sits on the path to revenue, 0-indexed. */
+export function stagePosition(stage: VentureStage): number {
+  const i = VENTURE_STAGES.indexOf(stage);
+  return i < 0 ? 0 : i;
+}
+
+/**
+ * How far along the path a stage is, as a percentage of the *path* rather
+ * than of the progress baseline. Idea is the start line, not 10% of nothing.
+ */
+export function stagePathPercent(stage: VentureStage): number {
+  const last = VENTURE_STAGES.length - 1;
+  return last <= 0 ? 0 : Math.round((stagePosition(stage) / last) * 100);
+}
+
+export type TaskMix = {
+  open: number;
+  doing: number;
+  done: number;
+  total: number;
+  /** Share of the division's tasks that are finished. Null with no tasks. */
+  donePercent: number | null;
+};
+
+/**
+ * The task chart. A division with no tasks returns `donePercent: null` —
+ * zero percent done would be a judgement about work that does not exist.
+ */
+export function taskMix<T extends Pick<Task, "status">>(tasks: T[]): TaskMix {
+  const count = (s: TaskStatus) => tasks.filter((t) => t.status === s).length;
+  const open = count("open");
+  const doing = count("doing");
+  const done = count("done");
+  const total = tasks.length;
+  return {
+    open,
+    doing,
+    done,
+    total,
+    donePercent: total === 0 ? null : Math.round((done / total) * 100),
+  };
+}
+
+/**
+ * A name turned into a URL slug. The single implementation — `ventureSlug`
+ * in references.ts is this function, so a branch shelf and a division page
+ * can never disagree about what a division is called in a URL.
+ *
+ * Derived rather than hand-mapped, because the hand-map broke exactly once
+ * and expensively: "A to Z Trailerz" was renamed "A to Z Traderz" and its
+ * link silently stopped resolving.
+ */
+export function slugifyName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * Resolve `/empire/[id]` — a uuid or a name-derived slug, both.
+ *
+ * The slug form means a renamed division moves its page with it; the uuid
+ * form keeps a link already written down working after that rename. An
+ * external system resolves to nothing: MAINFRAME has no cockpit here by
+ * design (locked decision A1).
+ */
+
+export function resolveVenture<
+  T extends Pick<Venture, "id" | "name" | "external_system">
+>(ventures: T[], idOrSlug: string): T | null {
+  const key = idOrSlug.trim().toLowerCase();
+  if (key === "") return null;
+  const usable = onboardableVentures(ventures);
+  return (
+    usable.find((v) => v.id.toLowerCase() === key) ??
+    usable.find((v) => slugifyName(v.name) === key) ??
+    null
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Compliance — research turned into questions
+ * ------------------------------------------------------------------ */
+
+export type VentureProfile = {
+  regulator: string | null;
+  duty: string | null;
+  critical: string | null;
+  penalties: string | null;
+  money: string | null;
+  councilTaxWarning: string | null;
+  firstSteps: string[];
+  alsoConsider: string[];
+  sources: string[];
+  /** True when there is any researched material at all. */
+  any: boolean;
+};
+
+/**
+ * `ventures.profile` is jsonb, so every field is validated rather than
+ * trusted — the same discipline `jayMarks` and `readHours` hold. A page he
+ * opened to check a legal duty must not blank because a key holds a string
+ * where an array was expected.
+ */
+export function readVentureProfile(profile: unknown): VentureProfile {
+  const p = (profile ?? {}) as Record<string, unknown>;
+  const text = (k: string) => toTextOrNull(p[k]);
+  const list = (k: string): string[] =>
+    Array.isArray(p[k])
+      ? (p[k] as unknown[]).filter(
+          (x): x is string => typeof x === "string" && x.trim() !== ""
+        )
+      : [];
+
+  const regulator = text("regulator");
+  const duty = text("duty");
+  const critical = text("critical");
+  const penalties = text("penalties");
+  const money = text("money");
+  const councilTaxWarning = text("council_tax_warning");
+  const firstSteps = list("first_steps");
+  const alsoConsider = list("also_consider");
+  const sources = list("sources").filter((s) => s.startsWith("https://"));
+
+  return {
+    regulator,
+    duty,
+    critical,
+    penalties,
+    money,
+    councilTaxWarning,
+    firstSteps,
+    alsoConsider,
+    sources,
+    any:
+      [regulator, duty, critical, penalties, money, councilTaxWarning].some(
+        (x) => x != null
+      ) || firstSteps.length + alsoConsider.length + sources.length > 0,
+  };
+}
+
+/**
+ * Which set of questions a profile earns, derived from the regulator it
+ * names rather than from a hand-kept list of division names — so a fifth
+ * property researched tomorrow gets the property questions without an edit.
+ */
+export function complianceKind(profile: unknown): ComplianceKind | null {
+  const p = readVentureProfile(profile);
+  const hay = `${p.regulator ?? ""} ${p.duty ?? ""}`.toLowerCase();
+  if (hay.includes("rent smart wales")) return "property";
+  if (hay.includes("cis") || hay.includes("construction industry scheme")) {
+    return "cis";
+  }
+  return null;
+}
+
+/** The questions this division should be asked. Empty when none apply. */
+export function complianceQuestions(profile: unknown): ComplianceQuestion[] {
+  const kind = complianceKind(profile);
+  return kind ? COMPLIANCE_QUESTIONS[kind] : [];
+}
+
+/** His answers, validated out of `ventures.meta`. */
+export function readComplianceAnswers(meta: unknown): Record<string, string> {
+  const m = (meta ?? {}) as Record<string, unknown>;
+  const raw = m[COMPLIANCE_KEY];
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    const t = toTextOrNull(v);
+    if (t != null) out[k] = t;
+  }
+  return out;
+}
+
+/** Whether a given answer is one that should reach the inbox. */
+export function isConcerningAnswer(
+  q: ComplianceQuestion,
+  value: string | null | undefined
+): boolean {
+  if (value == null) return false;
+  return q.options.some((o) => o.value === value && o.concern);
+}
+
+/**
+ * The line that lands in the inbox.
+ *
+ * An inbox item, never a task: this is a prompt research raised, not a
+ * decision he made, and locked decision 6 keeps the AI and the research
+ * layer advisory. He triages it into a task himself, or bins it.
+ *
+ * Deterministic, so the same answer never produces two different lines —
+ * that is what makes de-duplicating on the text honest.
+ */
+export function complianceInboxText(
+  ventureName: string,
+  q: ComplianceQuestion,
+  value: string
+): string {
+  const option = q.options.find((o) => o.value === value);
+  const answer = option ? option.label.toLowerCase() : value;
+  return `${q.prompt} — ${ventureName} (answered: ${answer})`;
+}
+
+/** Every outstanding compliance prompt for a division, given his answers. */
+export function complianceConcerns(
+  profile: unknown,
+  meta: unknown
+): { question: ComplianceQuestion; answer: string }[] {
+  const answers = readComplianceAnswers(meta);
+  return complianceQuestions(profile)
+    .map((q) => ({ question: q, answer: answers[q.key] }))
+    .filter((x): x is { question: ComplianceQuestion; answer: string } =>
+      isConcerningAnswer(x.question, x.answer)
+    );
 }

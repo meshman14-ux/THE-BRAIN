@@ -157,6 +157,17 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 - **Debt is a metric, not a table.** "Debt remaining" lives in `metrics`/`metric_readings`
   (unit £, direction down, unique on `(metric_id, taken_on)`), which gives a trend for free.
   The training streak is derived from `habits`/`habit_logs` at read time and never stored.
+- **The onboarding columns are all nullable, and NULL means "not answered".**
+  `ventures.budget`, `monthly_cost`, `funding_route` and `plan` (migration
+  `venture_profiles_and_plans`) are what the division questionnaire fills in. None
+  defaults to zero, because a skipped budget must never make a division look free —
+  `toNumberOrNull` exists for exactly this and rejects `"  "` and `[]`, both of which
+  `Number()` turns into 0. `ventures.profile` is jsonb holding *researched* material;
+  `ventures.meta` holds *his answers* — `onboarded_at`, `stage_confirmed` and
+  `compliance` — and the two are never mixed, so the UI can say which is which.
+- **`ventures.stage` is NOT NULL default `'idea'`, so the database cannot tell a
+  chosen stage from a defaulted one.** `meta.stage_confirmed` is that difference, and
+  it is why the stage question counts as answered only once he has picked knowingly.
 - **`goals.progress` is `integer NOT NULL default 0`.** It can never mean "work it out
   for me", so the app keeps two separate signals: `statedProgress` (what you claim) and
   `derivedProgress` (the mean of the goal's projects). When they disagree by ≥15 points
@@ -213,8 +224,10 @@ for the calling user. Called from `/auth/confirm` on sign-in and from the first-
 Migrations applied to the live project: `the_brain_os_v1_full_schema`,
 `harden_seed_pillars_search_path`, `planner_kanban_and_richer_areas`,
 `add_vehicles_pillar_thirteen_areas`, `empire_os_venture_stages`,
-`life_os_area_scores_and_debt_metric`, `debts_and_vehicles` (the SQL for the last
-is captured at `supabase/migrations/20260801_debts_and_vehicles.sql`).
+`life_os_area_scores_and_debt_metric`, `debts_and_vehicles` (the SQL for that one
+is captured at `supabase/migrations/20260801_debts_and_vehicles.sql`), and
+`venture_profiles_and_plans` — which added `ventures.plan`, `budget`, `monthly_cost`,
+`funding_route` and `profile`, the columns the division questionnaire fills in.
 **Do not re-apply any of them.**
 
 **Seeded data (verified live 2026-08-01):** the 13 pillars; **18 ventures** (A to Z Traderz
@@ -239,10 +252,11 @@ reviews and the inbox start empty — the first-run empty states are load-bearin
 (`meshman14@gmail.com`). Supabase Site URL and redirect allow-list point at the live Vercel
 URL and a magic-link round trip has been completed against it.
 
-## A5. Build state (as of 2026-08-05)
+## A5. Build state (as of 2026-08-06)
 
-Verified in this repo: **287/287 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`,
-vitest) and **`npm run build` produces exactly 20 routes**. `npx tsc --noEmit` is clean.
+Verified in this repo: **355/355 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
++ `divisions`, vitest) and **`npm run build` produces exactly 22 routes**. `npx tsc --noEmit`
+is clean.
 
 **`/dashboard` is built to Jay's own prototype** (`THE BRAIN.dc.html` in his claude.ai/design
 project "THE BRAIN", implemented 2026-08-01): watchtower ("needs attention", assembled from
@@ -292,7 +306,7 @@ Three modes — `brain · life · empire` — with **brain as the neutral positi
 | **EMPIRE_OS** — the CEO dashboard at `/empire` | ✅ KPIs, divisions, week priorities, four-horizon goals, build progress, the 5 empire areas with the same editor, vision footer |
 | Capture, Inbox/Triage, Planner (Kanban), This Week | ✅ in `src/app/(app)/` |
 | Goals + Projects UI (Phase 2) | ✅ `/goals` — the cascade, stated vs derived progress |
-| Branch pages for unbuilt views + all divisions | ✅ `(app)/[slug]` + `src/lib/placeholders.ts` — each says what it will be, links to where it already lives in the system, and carries its reference shelf. Delete a row when its view gets built |
+| Branch pages for unbuilt views | ✅ `(app)/[slug]` + `src/lib/placeholders.ts` — each says what it will be, links to where it already lives in the system, and carries its reference shelf. Delete a row when its view gets built. **The 17 divisions left the registry on 2026-08-06** when their cockpits shipped; they live in `DIVISION_BRANCHES`/`BUILT_BRANCHES` now and `[slug]` forwards the old address |
 | **The reference library** at `/library` | ✅ `src/lib/references.ts` — curated UK-focused shelves per pillar and per branch (researched 2026-08-01), surfaced on pillar pages, branch pages and `/library`. Integrity-tested: every seeded pillar has a shelf, every venture maps to a branch, https-only, no orphan keys |
 | Debts + payment plans | ✅ `/life/debts` — creditors, plans, honest partial total |
 | Vehicles | ✅ `/life/vehicles` — tax/MOT/insurance/service, worst-first |
@@ -302,6 +316,8 @@ Three modes — `brain · life · empire` — with **brain as the neutral positi
 | **Weekly review + obstacles** | ✅ `/reviews` — four questions, the fourth being what got in the way (his three circled defaults + free text) in `reviews.meta.obstacles`. The recurring-obstacle tally **stays silent below three reviews** |
 | Daily habits | ✅ `Habits.tsx` on `/life` — one tap, idempotent, untickable, 7-day dots and streak on the row |
 | **The mode switch** | ✅ `ModeScript` + `ModeSwitch` + `src/lib/nav.ts` — two buttons in the top bar, `brain` neutral, accent + nav + dashboard all follow. Flash-free; nav filtered in CSS |
+| **Division onboarding** | ✅ `/empire/[id]/onboard` — seven questions per division, resumable and partial, every answer saved as it is given. Nothing is required and skipping writes NULL. `Onboard.tsx` + `ventureOnboarding` in `logic.ts` |
+| **The division dashboards** | ✅ `/empire/[id]` — one page per division: stage on the path to revenue, budget against spend, task completion, its projects, tasks and goals, the plan, and the researched profile marked as researched. Resolves a uuid **or** a name-derived slug |
 | **Two horizon scales** | ✅ LIFE month/6mo/annual/5yr/10yr on `/life`, EMPIRE quarter/year/5yr/20yr unchanged on `/empire` (§A3 2a) |
 | **The bucket list** | ✅ `BucketList.tsx` on `/life` — `goals.status = 'someday'`, add in one box, promote in one field (§A3 2b) |
 | Paper theme + dark toggle | ✅ both dashboards checked in both, and at 390px |
@@ -328,7 +344,19 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /(app)/dashboard       THE BRAIN — the command centre (sidebar, cross-system KPIs, today's three)
 /(app)/life            LIFE_OS — the 8 personal areas, scores, habits (#habits),
                        the life horizon scale, and the bucket list
-/(app)/empire          EMPIRE_OS — the CEO dashboard + the 5 business areas
+/(app)/empire          EMPIRE_OS — the CEO dashboard, the 5 business areas, and
+                       the honest "N of 17 divisions onboarded" count
+/(app)/empire/[id]     one division's own dashboard. `[id]` is a uuid OR the
+                       name-derived slug, so /empire/kathleen-st and the uuid
+                       both answer and a rename moves the page with it.
+                       MAINFRAME never resolves — it is a pointer row (§A1).
+                       A division with nothing but a name and a line shows the
+                       questionnaire invitation, not an empty dashboard
+/(app)/empire/[id]/onboard
+                       the seven-question division questionnaire, plus the
+                       researched compliance questions for the four divisions
+                       carrying a `profile`. A "no" or "not sure" there creates
+                       an INBOX item, never a task
 /(app)/goals           goals → projects, with unattached projects listed separately
 /(app)/planner         Kanban
 /(app)/week            7-day scheduler + hour purpose (journal.meta.hours)
@@ -342,10 +370,13 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /(app)/library/principles
                        the principle library + the creed. A destination, never a
                        notification — nothing here appears on the dashboard
-/(app)/[slug]          branch pages: what the view will be, its strings into the
-                       system, and its reference shelf (src/lib/placeholders.ts +
-                       src/lib/references.ts; unknown slugs 404). Every venture on
-                       /empire links to its branch page except MAINFRAME.
+/(app)/[slug]          branch pages for views not built yet: what the view will
+                       be, its strings into the system, and its reference shelf
+                       (src/lib/placeholders.ts + src/lib/references.ts).
+                       Resolution order: retired-slug alias → a branch whose
+                       view is built (redirect to it, which is how every
+                       /a-to-z-traderz style link reaches /empire/<slug>) →
+                       registry row → the ventures table → 404.
 ```
 
 `src/middleware.ts` refreshes the session and redirects unauthenticated users to `/login`.
@@ -373,10 +404,16 @@ Public paths: `/login`, `/auth`, `/manifest.webmanifest`, `/sw.js`.
   goes; nothing with `kind = 'principle'` may be read by the dashboard, enter the watchtower,
   or arrive uninvited anywhere. `PRINCIPLES_NEVER_PUSH` in `types.ts` is where that rule is
   written down. The creed is the one exception, and only because he wrote it himself.
-- **A branch that gets built leaves `PLACEHOLDERS` in the same commit.** If its view lives
-  at the same address it moves to `BUILT_BRANCHES` (which keeps its name and its reference
-  shelf); if it lives elsewhere it gets a `BRANCH_ALIASES` redirect, as `vehicles` did. Both
-  are integrity-tested, so a slug can never be "built" and "not built yet" at once.
+- **A branch that gets built leaves `PLACEHOLDERS` in the same commit.** It moves to
+  `BUILT_BRANCHES`, which keeps its name and its reference shelf and records where its view
+  actually lives — `/reviews` for reviews, `/empire/<slug>` for every division.
+  `BRANCH_ALIASES` is the other job: it retires a *slug* so an old link still lands, as
+  `vehicles` and `a-to-z-trailerz` do. Both are integrity-tested, so a slug can never be
+  "built" and "not built yet" at once.
+- **One slug rule, in one place.** `slugifyName` in `logic.ts` is the implementation;
+  `ventureSlug` and `divisionHref` in `references.ts` are the names the empire calls it by,
+  and `DIVISION_NAMES` derives every division's slug and href from its name. Nothing is
+  hand-mapped, because the hand-map broke once already when "A to Z Trailerz" was renamed.
 
 ## A8. Build order & open items
 
@@ -385,7 +422,8 @@ Phases: 0 auth/RLS/PWA/areas ✅ · 1 Inbox+Capture+Planner+Week ✅ · 2 Goals 
 · **3 Notes + links + backlinks ← next** (the read side landed early with the principle
 library; what remains is writing notes, the `links` table and backlinks)
 · 4 LIFE_OS — habits ✅, journal partly (hour purpose writes `journal.meta`), people and
-metrics still to build · 5 EMPIRE_OS (assets, investments, opportunities)
+metrics still to build · 5 EMPIRE_OS — **division onboarding + the division dashboards ✅**
+(Stage 4 · Phase C, 2026-08-06); assets, investments and opportunities still to build
 · 6 Review rituals — the weekly one ✅ at `/reviews`; daily and quarterly still to build
 · 7 AI layer.
 
@@ -418,7 +456,8 @@ Open items:
    `eslint.config.mjs` when convenient.
 7. **`/dashboard` sidebar views are placeholders.** Every route in `src/lib/placeholders.ts`
    renders an honest "not built yet" page. When one gets built, delete its registry row in the
-   same commit — `reviews` left the registry this way on 2026-08-05.
+   same commit — `reviews` left the registry this way on 2026-08-05, and all 17 divisions
+   left it on 2026-08-06 when `/empire/[id]` shipped.
 8. **The obstacle tally has no data yet.** `reviews` is empty, so `/reviews` shows its
    "stays quiet until three" state. It starts saying something after Jay's third weekly
    review — worth checking then that the sentence reads the way he wanted.
@@ -426,6 +465,15 @@ Open items:
    nearly all of them under one heading (Home & Admin and Money & Security have one each).
    That is honest to how they were filed rather than a bug, but refiling some of them
    would make the grouping earn its place.
+10. **Nothing is onboarded yet — 0 of 17.** Every division has a name and a one-liner from
+   seeding and nothing else, so every one of them currently shows the questionnaire
+   invitation rather than a dashboard. That is the intended first-run state: the counter on
+   `/empire` starts moving the first time Jay answers anything. Four divisions already carry
+   budgets from his costing sheet, so those arrive with their figures pre-filled.
+11. **Spend is read from `assets.value` and `assets` is empty**, so every division's
+   "spent so far" is `£—`. That is honest rather than missing: budget-versus-spend is
+   `unbudgeted`/`unspent`/`unknown` until Phase 5 builds the assets view, and a null budget
+   with real spend is deliberately **not** an overspend (there is a test).
 
 ## A9. Commands
 
@@ -435,8 +483,8 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 287 tests — must be green before build
-npm run build                  # 20 routes — green before you push
+npm test                       # 355 tests — must be green before build
+npm run build                  # 22 routes — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from
