@@ -31,9 +31,24 @@ export default function ModeSwitch() {
   const router = useRouter();
 
   useEffect(() => {
-    // Read what ModeScript already applied rather than localStorage, so the
-    // button state can never disagree with the palette on screen.
-    setMode(normaliseMode(document.documentElement.getAttribute("data-mode")));
+    // Re-apply rather than only read, exactly as ThemeToggle does for the
+    // palette. ModeScript sets `data-mode` before first paint, but a client
+    // navigation can reconcile <html> and drop it — and the CSS that filters
+    // the nav keys off that one attribute. When it went missing the top bar
+    // showed every item from every mode at once. The theme never had this
+    // problem because its toggle rewrote the attribute on mount; now the
+    // mode does too, so the state on screen heals itself either way.
+    let saved: string | null = null;
+    try {
+      saved = localStorage.getItem(MODE_KEY);
+    } catch {
+      // Storage denied. `brain` is the neutral position and the right default.
+    }
+    const next = normaliseMode(
+      saved ?? document.documentElement.getAttribute("data-mode")
+    );
+    document.documentElement.setAttribute("data-mode", next);
+    setMode(next);
   }, []);
 
   function select(pressed: SystemKey) {

@@ -246,7 +246,17 @@ h2.serif,
 
 /* Nav items declare the modes they belong to; the rest are hidden. Written
    as a negation so each item keeps its own display type (flex, block …)
-   rather than being forced to one. */
+   rather than being forced to one.
+
+   The `:not([data-mode])` pair is the important one: it makes a MISSING
+   attribute mean `brain` rather than meaning nothing. Without it the rules
+   below simply fail to match and every item from every mode renders at once,
+   which overflows the top bar sideways — that is exactly what happened in
+   production when a client navigation dropped the attribute. Failing closed
+   to the neutral position costs one selector and removes a whole class of
+   bug: no script has to win a race for the nav to be right. */
+:root:not([data-mode]) [data-nav-modes]:not([data-nav-modes~="brain"]),
+:root:not([data-mode]) [data-phone-modes]:not([data-phone-modes~="brain"]),
 :root[data-mode="brain"] [data-nav-modes]:not([data-nav-modes~="brain"]),
 :root[data-mode="life"] [data-nav-modes]:not([data-nav-modes~="life"]),
 :root[data-mode="empire"] [data-nav-modes]:not([data-nav-modes~="empire"]),

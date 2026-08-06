@@ -11,6 +11,7 @@
  * ==================================================================== */
 
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
 import {
   // modes
   systemForMode,
@@ -196,6 +197,56 @@ describe("nav by mode", () => {
   it("leaves no item stranded in no mode at all", () => {
     for (const item of NAV) {
       expect(item.modes.length, `${item.label} belongs to no mode`).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe("the nav CSS fails closed", () => {
+  /* The nav is filtered in CSS off `data-mode` (§A5), which means the
+   * stylesheet — not `navForMode` — is what the top bar actually obeys. The
+   * tests above can all pass while the bar is wrong, and on 2026-08-06 they
+   * did: a client navigation dropped the attribute in production, every
+   * selector keyed on `:root[data-mode=…]` stopped matching, and all
+   * seventeen items from all three modes rendered at once and pushed the
+   * page sideways. Nothing here could have caught it, so this reads the
+   * stylesheet directly. It is a coarse test of a file rather than a
+   * function, and that is the point: the rule it guards lives in a file. */
+  const css = readFileSync(
+    new URL("../src/app/globals.css", import.meta.url),
+    "utf8"
+  );
+
+  it("treats a missing data-mode as `brain` rather than as no mode", () => {
+    // Without these two, a dropped attribute shows every item from every
+    // mode. Failing closed to the neutral position is what makes the nav
+    // correct with no JavaScript at all, and correct even when it loses.
+    expect(css).toContain(
+      ':root:not([data-mode]) [data-nav-modes]:not([data-nav-modes~="brain"])'
+    );
+    expect(css).toContain(
+      ':root:not([data-mode]) [data-phone-modes]:not([data-phone-modes~="brain"])'
+    );
+  });
+
+  it("hides the other modes' items in each of the three modes", () => {
+    for (const m of ["brain", "life", "empire"] as const) {
+      expect(css, `nav items outside ${m}`).toContain(
+        `:root[data-mode="${m}"] [data-nav-modes]:not([data-nav-modes~="${m}"])`
+      );
+      expect(css, `phone items outside ${m}`).toContain(
+        `:root[data-mode="${m}"] [data-phone-modes]:not([data-phone-modes~="${m}"])`
+      );
+    }
+  });
+
+  it("marks up every nav item with both attributes the CSS filters on", () => {
+    // The stylesheet hides what does NOT carry the current mode, so an item
+    // rendered without `data-nav-modes` at all is visible in every mode. The
+    // registry is where that attribute comes from, so both lists must be
+    // present on every row for the selectors above to have anything to bite.
+    for (const item of NAV) {
+      expect(Array.isArray(item.modes), `${item.label}.modes`).toBe(true);
+      expect(Array.isArray(item.phoneModes), `${item.label}.phoneModes`).toBe(true);
     }
   });
 });

@@ -884,12 +884,14 @@ export default async function TheBrain() {
             </div>
           </Panel>
 
-          {/* -- AI digest ------------------------------------------- */}
-          <Panel title="AI digest" hint="Phase 7 · not wired yet">
-            <Empty cta={{ href: "/advisor", label: "What the Advisor will be" }}>
-              One paragraph each morning, drawn from your own data: what moved
-              yesterday, what is due, which area is quietly slipping. Advisory,
-              never autonomous — it drafts, you decide.
+          {/* -- the advisor ----------------------------------------- */}
+          <Panel title="Advisor" hint="briefing + retrieval, advisory only">
+            <Empty cta={{ href: "/advisor", label: "Open the advisor" }}>
+              The morning brief is assembled from your own data — what is
+              slipping, what is set for today, what is still unanswered — and
+              costs nothing to produce. Ask it anything over your own notes and
+              it answers with the sources attached. It cannot change anything
+              here; everything it says is yours to act on.
             </Empty>
           </Panel>
 

@@ -23,7 +23,7 @@ export const PLACEHOLDERS: Placeholder[] = [
   {
     slug: "search",
     name: "Search everything",
-    what: "One box over tasks, notes, goals and captures. Retrieval arrives with the notes layer, and gets AI citations with the advisor.",
+    what: "One box over tasks, goals and captures. Searching your notes already works — the advisor does it, with citations. What is missing is everything that is not a note.",
     phase: "Phase 3 · Notes + links",
   },
   {

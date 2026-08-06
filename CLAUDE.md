@@ -320,9 +320,34 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-06)
 
-Verified in this repo: **470/470 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **473/473 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor`, vitest) and **`npm run build` produces exactly 31
 routes** (24 pages + 7 API routes). `npx tsc --noEmit` is clean.
+
+**The core loop was walked end to end on 2026-08-06**, against the live database, as one
+continuous journey rather than page by page: capture a thought → it appears in the inbox and
+moves the badge → triage it into a task with an area → the Kanban moves it `open → doing` →
+`/week` gives it a `do_date` → `/calendar` shows it on that day with the not-yet-in-Google
+dot → `/dashboard` lists it under Today's three → the advisor's brief opens with it. Marking
+it done struck it through on the calendar without giving up its slot, which is the behaviour
+the legend promises. Two things worth recording because they are the discipline holding:
+scheduling a day never wrote a `due_date`, and triage marked the inbox row `routed` rather
+than deleting it, so the capture survives its own routing. Every test row was removed
+afterwards; the database is back to 0 tasks, 0 habit logs and 8 open inbox items.
+
+That pass found two real bugs, both now fixed:
+
+- **`/dashboard` still advertised the advisor as "Phase 7 · not wired yet"** a day after it
+  shipped. Harmless-looking, and exactly the kind of lie §0's last bullet is about.
+- **The nav could render every item from every mode at once.** `data-mode` went missing from
+  `<html>` after a client navigation, and both halves of the mechanism failed open: the CSS
+  keyed only on `:root[data-mode=…]`, so no rule matched, and `ModeSwitch` only *read* the
+  attribute on mount instead of re-applying it the way `ThemeToggle` always has for the
+  palette. Seventeen items in a bar built for eight pushed the page sideways. Both halves
+  fixed — the stylesheet now treats a missing attribute as `brain` (§A7) and the switch
+  re-stamps it. **`tests/stage4.test.ts` now reads `globals.css` and asserts the fail-closed
+  selectors are present**, because every existing test passed while the bar was visibly
+  broken: the nav obeys a stylesheet, so a test of `navForMode` alone can never see this.
 
 **`/dashboard` is built to Jay's own prototype** (`THE BRAIN.dc.html` in his claude.ai/design
 project "THE BRAIN", implemented 2026-08-01): watchtower ("needs attention", assembled from
@@ -367,7 +392,7 @@ Three modes — `brain · life · empire` — with **brain as the neutral positi
 | Piece | State |
 |---|---|
 | Magic-link login, `/auth/confirm`, `/auth/signout`, middleware | ✅ |
-| **THE BRAIN** — the command centre at `/dashboard` | ✅ sidebar (Systems / Workspace / Arms / Plan / Pinned), hero, cross-system KPI strip, LIFE_OS + EMPIRE_OS summary panels, pick-three Today, AI-digest placeholder |
+| **THE BRAIN** — the command centre at `/dashboard` | ✅ sidebar (Systems / Workspace / Arms / Plan / Pinned), hero, cross-system KPI strip, LIFE_OS + EMPIRE_OS summary panels, pick-three Today, and the advisor panel linking to `/advisor` |
 | **LIFE_OS** — the personal dashboard at `/life` | ✅ the 8 life areas worst-first with the score/status/focus editor, area status, life-scoped KPIs, training streak, **the six daily habits with one-tap ticks** |
 | **EMPIRE_OS** — the CEO dashboard at `/empire` | ✅ KPIs, divisions, week priorities, four-horizon goals, build progress, the 5 empire areas with the same editor, vision footer |
 | Capture, Inbox/Triage, Planner (Kanban), This Week | ✅ in `src/app/(app)/` |
@@ -472,6 +497,14 @@ Public paths: `/login`, `/auth`, `/manifest.webmanifest`, `/sw.js`.
   `var(--accent)`, `var(--muted)`, `var(--sys)` etc. so both themes work automatically.
   `.card`, `.btn`, `.chip`, `.input`, `.label`, `.mono`, `.serif` belong in `globals.css`.
 - **`.sys-life` / `.sys-empire`** set `--sys`, so a subtree colours itself by subsystem.
+- **CSS that hides things must fail closed.** The nav is filtered by hiding what does *not*
+  belong to the current mode, so anything the selectors fail to match stays visible. A rule
+  keyed only on `:root[data-mode="…"]` therefore breaks *open* the moment the attribute is
+  missing — which is how seventeen nav items once rendered at once in production. Every such
+  rule carries a `:root:not([data-mode])` partner treating absence as `brain`, the neutral
+  position, and `tests/stage4.test.ts` reads `globals.css` to keep them there. The same
+  reasoning applies to any future attribute-driven hiding: decide what a missing attribute
+  means and write that case down, rather than letting "no match" mean "show everything".
 - Headlines are serif (`h1` is serif by default); numbers use `.mono` for tabular alignment.
 - **Pure logic belongs in `src/lib/logic.ts`, never inline in a component.** Lane transitions,
   priority ordering, week maths, area roll-ups and capture routing all go there. If you write a
@@ -590,7 +623,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 470 tests — must be green before build
+npm test                       # 473 tests — must be green before build
 npm run build                  # 31 routes — green before you push
 ```
 
