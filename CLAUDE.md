@@ -320,9 +320,17 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-06)
 
-Verified in this repo: **473/473 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **479/479 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor`, vitest) and **`npm run build` produces exactly 31
 routes** (24 pages + 7 API routes). `npx tsc --noEmit` is clean.
+
+**Phone is checked at a real 390×844, not by eye.** The claude-in-chrome tab renders at a
+fixed ~1526px viewport that `resize_window` cannot change, so phone work has to be driven
+through headless Edge with `puppeteer-core` — install it *outside* the repo. A device sweep
+on 2026-08-06 put all sixteen signed-in routes through it: no horizontal overflow anywhere,
+the phone bar exactly five items on every page (the five-column grid rule, §A5), the top nav
+correctly absent below 1024px. It found two things, both since fixed and described under
+"Two rules the layout has to keep" below.
 
 **The core loop was walked end to end on 2026-08-06**, against the live database, as one
 continuous journey rather than page by page: capture a thought → it appears in the inbox and
@@ -409,7 +417,7 @@ Three modes — `brain · life · empire` — with **brain as the neutral positi
 | **The mode switch** | ✅ `ModeScript` + `ModeSwitch` + `src/lib/nav.ts` — two buttons in the top bar, `brain` neutral, accent + nav + dashboard all follow. Flash-free; nav filtered in CSS |
 | **Division onboarding** | ✅ `/empire/[id]/onboard` — seven questions per division, resumable and partial, every answer saved as it is given. Nothing is required and skipping writes NULL. `Onboard.tsx` + `ventureOnboarding` in `logic.ts` |
 | **The division dashboards** | ✅ `/empire/[id]` — one page per division: stage on the path to revenue, budget against spend, task completion, its projects, tasks and goals, the plan, and the researched profile marked as researched. Resolves a uuid **or** a name-derived slug |
-| **The calendar** | ✅ `/calendar` — two-way Google sync (§A3 decision 8). Month grid, conflicts panel, connect/disconnect, manual "Sync now". **Needs three environment variables before it can connect** — the page says which, and says so honestly rather than looking broken |
+| **The calendar** | ✅ `/calendar` — two-way Google sync (§A3 decision 8). Month grid from 640px, **an agenda below it** (`monthAgenda` — the same days as a list, because seven readable columns need ~560px and a month that hides Saturday is not a month), conflicts panel, connect/disconnect, manual "Sync now". **Needs three environment variables before it can connect** — the page says which, and says so honestly rather than looking broken |
 | **The advisor** | ✅ `/advisor` — the assembled morning brief (no model, no key), ask-your-notes with numbered sources and a grounding check, and a review drafted from the week's evidence. **Search works without an API key; the written answer needs one** |
 | **Two horizon scales** | ✅ LIFE month/6mo/annual/5yr/10yr on `/life`, EMPIRE quarter/year/5yr/20yr unchanged on `/empire` (§A3 2a) |
 | **The bucket list** | ✅ `BucketList.tsx` on `/life` — `goals.status = 'someday'`, add in one box, promote in one field (§A3 2b) |
@@ -455,7 +463,9 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /(app)/week            7-day scheduler + hour purpose (journal.meta.hours)
 /(app)/calendar        two-way Google Calendar sync: the month, the connection,
                        and any conflict waiting on a decision. Writes only ever
-                       to THE BRAIN's own calendar (§A3 decision 8)
+                       to THE BRAIN's own calendar (§A3 decision 8). The month
+                       is a grid from 640px and an agenda below it — same days,
+                       same tasks, both built from the same anchor
 /api/calendar/connect      → Google's consent screen (sets the state cookie)
 /api/calendar/callback     ← Google; trades the code, finds/creates the calendar
 /api/calendar/sync         POST, one two-way pass
@@ -497,6 +507,23 @@ Public paths: `/login`, `/auth`, `/manifest.webmanifest`, `/sw.js`.
   `var(--accent)`, `var(--muted)`, `var(--sys)` etc. so both themes work automatically.
   `.card`, `.btn`, `.chip`, `.input`, `.label`, `.mono`, `.serif` belong in `globals.css`.
 - **`.sys-life` / `.sys-empire`** set `--sys`, so a subtree colours itself by subsystem.
+- **Two rules the layout has to keep, both learned the hard way on 2026-08-06:**
+
+  1. **`flex-1` is not "wrap when there is no room" — it is the opposite.** A flex child
+     with `flex-1 min-w-0` beside a `shrink-0` sibling never wraps; it surrenders width and
+     keeps going. The dashboard hero did exactly that, leaving its text about 165px at
+     390px, so the eyebrow ran to five lines and the greeting to three. When a block should
+     get its own row on a phone, say so — `basis-full sm:basis-0 sm:flex-1` — rather than
+     hoping `flex-wrap` on the parent will do it.
+  2. **A page that does not scroll sideways is not the same as a page that fits.**
+     `overflow-x-auto` contains overflow rather than removing it, so a page-level check
+     reports clean while content sits off-screen inside a box. The month grid was doing
+     this: `min-w-[560px]` in a 316px container showed Monday to Thursday and put the
+     weekend behind a swipe. When wide content cannot fit, decide what the small screen
+     gets instead — the calendar now has `monthAgenda` — and only fall back to a scroll
+     container when the wide thing genuinely is the only honest view. Checking overflow
+     means checking the container, not just `document.documentElement`.
+
 - **CSS that hides things must fail closed.** The nav is filtered by hiding what does *not*
   belong to the current mode, so anything the selectors fail to match stays visible. A rule
   keyed only on `:root[data-mode="…"]` therefore breaks *open* the moment the attribute is
@@ -623,7 +650,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 473 tests — must be green before build
+npm test                       # 479 tests — must be green before build
 npm run build                  # 31 routes — green before you push
 ```
 

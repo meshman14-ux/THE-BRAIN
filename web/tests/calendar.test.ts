@@ -43,6 +43,7 @@ import {
   connectionState,
   summaryLine,
   monthGrid,
+  monthAgenda,
   monthLabel,
   shiftMonth,
   tasksByDay,
@@ -667,6 +668,84 @@ describe("grouping for the grid", () => {
     ];
     expect(scheduledTasks(all, TODAY).map((t) => t.id)).toEqual(["a", "b"]);
     expect(outstanding(scheduledTasks(all, TODAY)).map((t) => t.id)).toEqual(["a"]);
+  });
+});
+
+/* ================================================================== *
+ * The phone's month.
+ *
+ * Seven columns need ~560px to be readable. At 390px the grid was showing
+ * Monday to Thursday and hiding the weekend behind a horizontal scroll, so
+ * the phone gets an agenda instead. The rule these tests defend is that the
+ * two views cover the *same days* — the header says "N scheduled", and both
+ * views have to be talking about the same N.
+ * ================================================================== */
+
+describe("monthAgenda", () => {
+  it("lists only the days that carry work, in date order", () => {
+    const rows = monthAgenda("2026-08-01", TODAY, [
+      task({ id: "c", do_date: "2026-08-20" }),
+      task({ id: "a", do_date: "2026-08-06" }),
+      task({ id: "b", do_date: "2026-08-11" }),
+    ]);
+    expect(rows.map((r) => r.iso)).toEqual([
+      "2026-08-06",
+      "2026-08-11",
+      "2026-08-20",
+    ]);
+  });
+
+  it("groups everything sharing a day into that one row", () => {
+    const rows = monthAgenda("2026-08-01", TODAY, [
+      task({ id: "a", do_date: TODAY }),
+      task({ id: "b", do_date: TODAY }),
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].tasks.map((t) => t.id)).toEqual(["a", "b"]);
+  });
+
+  it("says nothing at all when nothing is scheduled", () => {
+    expect(monthAgenda("2026-08-01", TODAY, [])).toEqual([]);
+    expect(monthAgenda("2026-08-01", TODAY, [task({ do_date: null })])).toEqual([]);
+  });
+
+  it("marks today, so the phone can point at the row that matters", () => {
+    const rows = monthAgenda("2026-08-01", TODAY, [
+      task({ id: "a", do_date: TODAY }),
+      task({ id: "b", do_date: "2026-08-07" }),
+    ]);
+    expect(rows.map((r) => r.isToday)).toEqual([true, false]);
+  });
+
+  /* The important one. */
+  it("covers exactly the days the grid covers, neighbours included", () => {
+    // August 2026 starts on a Saturday, so the grid's first row reaches back
+    // into July. A task on 2026-07-27 is visible in the grid, and therefore
+    // has to be visible in the agenda too.
+    const anchor = "2026-08-01";
+    const gridDays = monthGrid(anchor, TODAY)
+      .flat()
+      .map((d) => d.iso);
+    const everyDay = gridDays.map((iso, i) => task({ id: `t${i}`, do_date: iso }));
+
+    const rows = monthAgenda(anchor, TODAY, everyDay);
+    expect(rows.map((r) => r.iso)).toEqual(gridDays);
+
+    // And the leading neighbour day is carried, flagged as outside the month
+    // rather than silently dropped.
+    const first = rows[0];
+    expect(first.iso).toBe(gridDays[0]);
+    expect(first.inMonth).toBe(false);
+    expect(first.iso.slice(0, 7)).toBe("2026-07");
+  });
+
+  it("drops a task that falls outside the grid's span entirely", () => {
+    // Nothing in the agenda may come from a day the month view cannot show,
+    // or the two would disagree in the other direction.
+    const rows = monthAgenda("2026-08-01", TODAY, [
+      task({ id: "far", do_date: "2026-12-25" }),
+    ]);
+    expect(rows).toEqual([]);
   });
 });
 

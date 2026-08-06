@@ -395,9 +395,22 @@ export default async function TheBrain() {
             </section>
           )}
 
-          {/* -- HERO ------------------------------------------------- */}
+          {/* -- HERO ------------------------------------------------- *
+           *
+           * Three blocks, in the order they are wanted: who and when, the
+           * two numbers, then the words. On a phone they simply stack in
+           * that order; from 640px the first two share a row and the quotes
+           * take the full width beneath.
+           *
+           * The greeting is `basis-full` below `sm` on purpose. It used to
+           * be `flex-1` at every width, which does not wrap — it just gives
+           * up whatever the streak box wants and keeps the rest. At 390px
+           * that left it about 165px, so the eyebrow ran to five lines and
+           * "Good afternoon, Jay" to three. Wrapping is the behaviour that
+           * was wanted; `flex-1` is the one thing that prevents it.
+           */}
           <div className="card p-4 sm:p-5 flex items-start gap-4 flex-wrap">
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
               <p
                 className="text-[0.66rem] font-bold tracking-[0.16em] uppercase"
                 style={{ color: "var(--accent)" }}
@@ -410,30 +423,6 @@ export default async function TheBrain() {
               <p className="text-[0.82rem] text-[var(--muted)] mt-1.5">
                 {formatDayLong(today)} · WK {wk} · Q{q}
               </p>
-              <blockquote
-                className="mt-3 pl-3 max-w-[62ch] flex items-baseline gap-2.5 flex-wrap"
-                style={{ borderLeft: "2px solid var(--accent)" }}
-              >
-                <span className="text-[0.82rem] italic text-[var(--muted)] leading-relaxed">
-                  “{verse.v}”
-                </span>
-                <span className="mono text-[0.62rem] text-[var(--faint)] shrink-0">
-                  {verse.ref}
-                </span>
-              </blockquote>
-              {creedLine && (
-                <blockquote
-                  className="mt-2 pl-3 max-w-[62ch] flex items-baseline gap-2.5 flex-wrap"
-                  style={{ borderLeft: "2px solid var(--warn)" }}
-                >
-                  <span className="serif text-[0.88rem] leading-relaxed">
-                    {creedLine}
-                  </span>
-                  <span className="mono text-[0.62rem] text-[var(--faint)] shrink-0">
-                    YOUR OWN HAND
-                  </span>
-                </blockquote>
-              )}
             </div>
             <div className="flex items-center gap-2.5 shrink-0">
               <span
@@ -460,6 +449,35 @@ export default async function TheBrain() {
                   day streak
                 </div>
               </div>
+            </div>
+            {/* The words come last. They are the part he reads, not the part
+                he acts on, so they yield the top of the card to the numbers
+                and take the whole width once they get there. */}
+            <div className="min-w-0 basis-full">
+              <blockquote
+                className="pl-3 max-w-[62ch] flex items-baseline gap-2.5 flex-wrap"
+                style={{ borderLeft: "2px solid var(--accent)" }}
+              >
+                <span className="text-[0.82rem] italic text-[var(--muted)] leading-relaxed">
+                  “{verse.v}”
+                </span>
+                <span className="mono text-[0.62rem] text-[var(--faint)] shrink-0">
+                  {verse.ref}
+                </span>
+              </blockquote>
+              {creedLine && (
+                <blockquote
+                  className="mt-2 pl-3 max-w-[62ch] flex items-baseline gap-2.5 flex-wrap"
+                  style={{ borderLeft: "2px solid var(--warn)" }}
+                >
+                  <span className="serif text-[0.88rem] leading-relaxed">
+                    {creedLine}
+                  </span>
+                  <span className="mono text-[0.62rem] text-[var(--faint)] shrink-0">
+                    YOUR OWN HAND
+                  </span>
+                </blockquote>
+              )}
             </div>
           </div>
 

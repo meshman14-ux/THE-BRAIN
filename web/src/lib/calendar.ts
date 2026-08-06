@@ -662,6 +662,54 @@ export function tasksByDay<T extends Pick<Task, "do_date">>(
   return out;
 }
 
+export type AgendaDay<T> = {
+  iso: string;
+  inMonth: boolean;
+  isToday: boolean;
+  tasks: T[];
+};
+
+/**
+ * The same month, as a list of the days that actually have something on them.
+ *
+ * A seven-column month needs about 560px to be readable — below that a day
+ * cell is 45px, which fits a date and nothing else, so the phone was showing
+ * Monday to Thursday and hiding the weekend behind a sideways scroll nobody
+ * would think to try. A calendar that hides Saturday is not a calendar.
+ *
+ * So the phone gets this instead: the days that carry work, in order. It is
+ * built from `monthGrid` rather than from the tasks directly, which is the
+ * part that matters — both views then cover exactly the same span of days,
+ * including the neighbouring-month days at either end. Derive them
+ * separately and the month header's count would eventually disagree with
+ * what one of the two views is showing, and nobody would know which lied.
+ *
+ * Empty days are dropped on purpose. On a phone a run of blank rows is just
+ * scrolling; the month grid is the view that shows shape, and this is the
+ * view that shows content.
+ */
+export function monthAgenda<T extends Pick<Task, "do_date">>(
+  anchorIso: string,
+  todayIso: string,
+  tasks: T[]
+): AgendaDay<T>[] {
+  const byDay = tasksByDay(tasks);
+  const out: AgendaDay<T>[] = [];
+  for (const week of monthGrid(anchorIso, todayIso)) {
+    for (const day of week) {
+      const on = byDay[day.iso];
+      if (on == null || on.length === 0) continue;
+      out.push({
+        iso: day.iso,
+        inMonth: day.inMonth,
+        isToday: day.isToday,
+        tasks: on,
+      });
+    }
+  }
+  return out;
+}
+
 /** Tasks that are open and scheduled — what the calendar page counts. */
 export function scheduledTasks<
   T extends Pick<Task, "do_date" | "status">

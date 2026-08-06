@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { type Pillar, type Task, PRIORITY_COLOUR, DAY_LABELS } from "@/lib/types";
 import {
   BRAIN_CALENDAR_NAME,
+  monthAgenda,
   monthGrid,
   monthLabel,
   shiftMonth,
@@ -56,6 +57,12 @@ export default function Calendar({
   const [failure, setFailure] = useState<string | null>(null);
 
   const grid = useMemo(() => monthGrid(anchor, today), [anchor, today]);
+  // The phone's view of the same month. Built from the same anchor as the
+  // grid, so the two can never end up showing different days.
+  const agenda = useMemo(
+    () => monthAgenda(anchor, today, tasks),
+    [anchor, today, tasks]
+  );
   const byDay = useMemo(() => tasksByDay(tasks), [tasks]);
   const pillarById = useMemo(
     () => new Map(pillars.map((p) => [p.id, p])),
@@ -358,8 +365,88 @@ export default function Calendar({
             only carries plans.
           </Empty>
         ) : (
-          <div className="overflow-x-auto">
-            <div className="min-w-[560px]">
+          <>
+            {/* -- the phone's month: the days that carry work ------- *
+             *
+             * Seven readable columns need about 560px. Below that the grid
+             * was scrolling sideways inside its own box, which put Friday,
+             * Saturday and Sunday behind a swipe nobody would guess was
+             * there. Squeezing the cells instead would have given him a
+             * month he could see and not read. So the phone gets the same
+             * days as a list — same span, same tasks, same dots — and the
+             * grid returns the moment there is room for it.
+             */}
+            <div className="sm:hidden grid gap-3.5">
+              {agenda.map((day) => (
+                <div key={day.iso} className="grid gap-1.5">
+                  <div className="flex items-baseline gap-2 flex-wrap">
+                    <p
+                      className="label"
+                      style={{ color: day.isToday ? "var(--accent)" : undefined }}
+                    >
+                      {formatDayLong(day.iso)}
+                    </p>
+                    {day.isToday && (
+                      <span
+                        className="mono text-[0.64rem]"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        today
+                      </span>
+                    )}
+                    {!day.inMonth && (
+                      <span className="mono text-[0.64rem] text-[var(--faint)]">
+                        {monthLabel(day.iso).split(" ")[0]}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid gap-1">
+                    {day.tasks.map((t) => {
+                      const p = t.pillar_id ? pillarById.get(t.pillar_id) : null;
+                      const synced = linkByTask.has(t.id);
+                      return (
+                        <div
+                          key={t.id}
+                          className="rounded-[9px] border px-3 py-2 flex items-baseline gap-2"
+                          style={{ borderColor: PRIORITY_COLOUR[t.priority] }}
+                        >
+                          {!synced && (
+                            <span
+                              aria-hidden
+                              className="text-[0.7rem] shrink-0"
+                              style={{ color: "var(--faint)" }}
+                            >
+                              •
+                            </span>
+                          )}
+                          {/* No truncation here — there is a whole row for
+                              it, and a half-read task is not a task. */}
+                          <span
+                            className="text-[0.85rem] leading-snug min-w-0 flex-1"
+                            style={{
+                              textDecoration:
+                                t.status === "done" ? "line-through" : "none",
+                              opacity: t.status === "done" ? 0.6 : 1,
+                            }}
+                          >
+                            {t.title}
+                          </span>
+                          {p && (
+                            <span className="text-[0.7rem] text-[var(--faint)] shrink-0">
+                              {p.emoji} {p.name}
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* -- the month itself, once there is room for it ------- */}
+            <div className="hidden sm:block overflow-x-auto">
+              <div className="min-w-[560px]">
               <div className="grid grid-cols-7 gap-1 mb-1">
                 {DAY_LABELS.map((d) => (
                   <p key={d} className="label text-center">
@@ -425,8 +512,9 @@ export default function Calendar({
                   </div>
                 ))}
               </div>
+              </div>
             </div>
-          </div>
+          </>
         )}
         <p className="text-[0.72rem] text-[var(--faint)] leading-relaxed">
           A dot means the task has not reached Google yet — it goes on the next
