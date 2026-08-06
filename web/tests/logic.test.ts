@@ -1088,6 +1088,7 @@ const REAL_ROUTES = [
   "/library/principles",
   "/reviews",
   "/calendar",
+  "/advisor",
 ];
 
 describe("reference library integrity", () => {

@@ -151,6 +151,7 @@ describe("nav by mode", () => {
       "Goals",
       "Week",
       "Calendar",
+      "Advisor",
       "Capture",
       "Inbox",
     ]);

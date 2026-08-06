@@ -45,12 +45,6 @@ export const PLACEHOLDERS: Placeholder[] = [
     phase: "Phase 4 · LIFE_OS",
   },
   {
-    slug: "advisor",
-    name: "Advisor",
-    what: "Ask-anything over your own notes with citations, and a morning brief drawn from your own data. Advisory, never autonomous.",
-    phase: "Phase 7 · AI layer",
-  },
-  {
     slug: "finance",
     name: "Finance",
     what: "Debt payoff engine, bills, income vs outgoings. The debt number on the dashboard already comes from the metrics that will power this.",
@@ -188,6 +182,7 @@ export const DIVISION_NAMES = [
 export const BUILT_BRANCHES: Record<string, { name: string; href: string }> = {
   reviews: { name: "Reviews", href: "/reviews" },
   calendar: { name: "Calendar", href: "/calendar" },
+  advisor: { name: "Advisor", href: "/advisor" },
   ...Object.fromEntries(
     DIVISION_NAMES.map((name) => [
       ventureSlug(name),

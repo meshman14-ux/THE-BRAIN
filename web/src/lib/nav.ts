@@ -152,6 +152,16 @@ export const NAV: NavItem[] = [
     // desk job. Capture and Inbox are what a phone is for.
     phoneModes: [],
   },
+  {
+    key: "advisor",
+    href: "/advisor",
+    label: "Advisor",
+    icon: "✦",
+    // The command centre only: the advisor reads across both systems, so it
+    // belongs to neither of them.
+    modes: ["brain"],
+    phoneModes: [],
+  },
 
   /* -- the entry points, in every mode ----------------------------- */
   {

@@ -124,6 +124,30 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 6. **AI = briefing + retrieval advisor.** Morning brief from own data; ask-anything over notes
    with citations; review assistant drafting from evidence. **Advisory, never autonomous.**
    pgvector is enabled and `notes.embedding` / `inbox.embedding` are `vector(1536)`.
+
+   **Built 2026-08-06 (Stage 4 · Phase E)** at `/advisor`. How each clause is kept:
+
+   - *Advisory, never autonomous.* `ADVISOR_NEVER_WRITES` in `advisor.ts` says it, and both
+     routes hold it: `/api/advisor/ask` and `/api/advisor/review` only ever `select`. There
+     is no path from a model's output to a row — no task creation, no edits, no auto-filed
+     review. The draft is text he copies into `/reviews` himself.
+   - *The morning brief is assembled, not generated.* Every line is arithmetic over data the
+     database already holds, so it costs nothing, works with no API key, and cannot
+     hallucinate. A model that narrated numbers it was handed would only add a way to be wrong.
+   - *With citations.* Retrieval happens in **our** code, not the model's: it is shown at most
+     six numbered passages and told to cite each claim. `checkAnswer` then finds citations
+     that point at nothing and asserting sentences with no citation at all, and the page
+     labels the answer **not fully grounded** rather than presenting it as fact.
+   - *Push vs pull, and PRINCIPLES_NEVER_PUSH.* The brief arrives unasked, so `briefSources`
+     strips every `kind = 'principle'` from it. The ask box is something he goes to, so a
+     question may pull a principle freely. That is §A7's rule split correctly rather than
+     applied bluntly, and both halves are tested.
+
+   **Retrieval is word matching, not vectors, and that is deliberate.** `notes.embedding` is
+   `vector(1536)` and pgvector is on, but the vault holds eleven notes — semantic search over
+   eleven rows ranks worse than matching the words he used, and would need a second provider
+   for embeddings. `RETRIEVAL_CEILING` in `advisor.ts` records the note count at which that
+   stops being true.
 7. **Rituals: daily 2 min, weekly 20 min, quarterly 1 hr.** Monthly deliberately omitted.
 8. **Calendar: full two-way sync, blast radius contained** — THE BRAIN writes ONLY to its own
    dedicated Google calendar, never the main one. `calendar_sync` maps task ↔ event with etag.
@@ -296,9 +320,9 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-06)
 
-Verified in this repo: **428/428 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
-+ `divisions` + `calendar`, vitest) and **`npm run build` produces exactly 28 routes**
-(23 pages + 5 API routes). `npx tsc --noEmit` is clean.
+Verified in this repo: **470/470 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
++ `divisions` + `calendar` + `advisor`, vitest) and **`npm run build` produces exactly 31
+routes** (24 pages + 7 API routes). `npx tsc --noEmit` is clean.
 
 **`/dashboard` is built to Jay's own prototype** (`THE BRAIN.dc.html` in his claude.ai/design
 project "THE BRAIN", implemented 2026-08-01): watchtower ("needs attention", assembled from
@@ -361,6 +385,7 @@ Three modes — `brain · life · empire` — with **brain as the neutral positi
 | **Division onboarding** | ✅ `/empire/[id]/onboard` — seven questions per division, resumable and partial, every answer saved as it is given. Nothing is required and skipping writes NULL. `Onboard.tsx` + `ventureOnboarding` in `logic.ts` |
 | **The division dashboards** | ✅ `/empire/[id]` — one page per division: stage on the path to revenue, budget against spend, task completion, its projects, tasks and goals, the plan, and the researched profile marked as researched. Resolves a uuid **or** a name-derived slug |
 | **The calendar** | ✅ `/calendar` — two-way Google sync (§A3 decision 8). Month grid, conflicts panel, connect/disconnect, manual "Sync now". **Needs three environment variables before it can connect** — the page says which, and says so honestly rather than looking broken |
+| **The advisor** | ✅ `/advisor` — the assembled morning brief (no model, no key), ask-your-notes with numbered sources and a grounding check, and a review drafted from the week's evidence. **Search works without an API key; the written answer needs one** |
 | **Two horizon scales** | ✅ LIFE month/6mo/annual/5yr/10yr on `/life`, EMPIRE quarter/year/5yr/20yr unchanged on `/empire` (§A3 2a) |
 | **The bucket list** | ✅ `BucketList.tsx` on `/life` — `goals.status = 'someday'`, add in one box, promote in one field (§A3 2b) |
 | Paper theme + dark toggle | ✅ both dashboards checked in both, and at 390px |
@@ -411,6 +436,11 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /api/calendar/sync         POST, one two-way pass
 /api/calendar/resolve      POST, settles ONE conflict the way he chose
 /api/calendar/disconnect   POST, revokes and forgets. Touches nothing in Google
+/(app)/advisor         the advisor (§A3 decision 6): the morning brief assembled
+                       from his own data, ask-anything over the vault with
+                       citations, and a weekly-review draft. Reads only
+/api/advisor/ask           POST, retrieve → answer → grounding check
+/api/advisor/review        POST, evidence → draft. Saves nothing
 /(app)/reviews         the weekly review + "what got in the way" + the obstacle tally
 /(app)/capture         one-box capture (PWA start_url)
 /(app)/inbox           triage
@@ -482,7 +512,7 @@ library; what remains is writing notes, the `links` table and backlinks)
 metrics still to build · 5 EMPIRE_OS — **division onboarding + the division dashboards ✅**
 (Stage 4 · Phase C, 2026-08-06); assets, investments and opportunities still to build
 · 6 Review rituals — the weekly one ✅ at `/reviews`; daily and quarterly still to build
-· 7 AI layer.
+· **7 AI layer ✅ built 2026-08-06** at `/advisor` (§A3 decision 6).
 · **Calendar (decision 8) ✅ built 2026-08-06** at `/calendar`, waiting only on credentials.
 
 Open items:
@@ -540,7 +570,14 @@ Open items:
 12. **Sync is manual.** A background job would have to act as him with no session, which
    means a service-role key in the deployment — a much larger blast radius than this feature
    justifies. If he wants it automatic, that trade is the conversation to have first.
-13. **Spend is read from `assets.value` and `assets` is empty**, so every division's
+13. **The advisor's answering half needs `ANTHROPIC_API_KEY`; its search half does not.**
+   Without the key `/advisor` still assembles the brief and still returns ranked passages
+   from the vault — only the written, cited answer and the review draft are off, and the
+   page says so. Add the key from console.anthropic.com to Vercel and `.env.local`.
+   **The model call has never been executed against the real API** — retrieval, citation
+   checking, the brief and the evidence assembly are all tested and were exercised end to
+   end against his real eleven notes, but the request to Claude itself has not run.
+14. **Spend is read from `assets.value` and `assets` is empty**, so every division's
    "spent so far" is `£—`. That is honest rather than missing: budget-versus-spend is
    `unbudgeted`/`unspent`/`unknown` until Phase 5 builds the assets view, and a null budget
    with real spend is deliberately **not** an overspend (there is a test).
@@ -553,8 +590,8 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 428 tests — must be green before build
-npm run build                  # 28 routes — green before you push
+npm test                       # 470 tests — must be green before build
+npm run build                  # 31 routes — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from
@@ -563,8 +600,9 @@ green, then confirm the deployment went READY and the pages render. If the URL e
 update Site URL and the redirect allow-list in Supabase → Authentication → URL Configuration.
 
 `.env.local` needs the two `NEXT_PUBLIC_` Supabase values. The calendar additionally wants
-`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `CALENDAR_TOKEN_SECRET`; without them
-`/calendar` says so plainly and the rest of the app is unaffected. Note that `.gitignore`
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `CALENDAR_TOKEN_SECRET`; the advisor wants
+`ANTHROPIC_API_KEY`. Without any of them the pages that use them say so plainly and the rest
+of the app is unaffected. Note that `.gitignore`
 matches `.env*.local` — a file like `.env.local.bak` is **not** ignored, so keep backups
 outside the repo.
 
