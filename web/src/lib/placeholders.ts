@@ -33,12 +33,6 @@ export const PLACEHOLDERS: Placeholder[] = [
     phase: "Phase 6 · Review rituals",
   },
   {
-    slug: "calendar",
-    name: "Calendar",
-    what: "Two-way sync with a dedicated Google calendar — THE BRAIN writes only to its own calendar, never your main one. Until then, the Week view schedules by day.",
-    phase: "Phase 7+ · Calendar sync",
-  },
-  {
     slug: "diary",
     name: "Work Diary",
     what: "Hour-by-hour record of where the day actually went, feeding the weekly review.",
@@ -193,6 +187,7 @@ export const DIVISION_NAMES = [
  */
 export const BUILT_BRANCHES: Record<string, { name: string; href: string }> = {
   reviews: { name: "Reviews", href: "/reviews" },
+  calendar: { name: "Calendar", href: "/calendar" },
   ...Object.fromEntries(
     DIVISION_NAMES.map((name) => [
       ventureSlug(name),

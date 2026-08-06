@@ -142,6 +142,16 @@ export const NAV: NavItem[] = [
     modes: ["brain", "life"],
     phoneModes: ["life"],
   },
+  {
+    key: "calendar",
+    href: "/calendar",
+    label: "Calendar",
+    icon: "▤",
+    modes: ["brain", "life"],
+    // No phone slot: the bar is exactly five per mode, and syncing is a
+    // desk job. Capture and Inbox are what a phone is for.
+    phoneModes: [],
+  },
 
   /* -- the entry points, in every mode ----------------------------- */
   {

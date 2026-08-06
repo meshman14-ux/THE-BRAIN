@@ -125,6 +125,7 @@ describe("nav by mode", () => {
       "Vehicles",
       "Habits",
       "Week",
+      "Calendar",
       "Capture",
       "Inbox",
     ]);
@@ -149,6 +150,7 @@ describe("nav by mode", () => {
       "Review",
       "Goals",
       "Week",
+      "Calendar",
       "Capture",
       "Inbox",
     ]);

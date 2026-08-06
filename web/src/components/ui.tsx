@@ -26,7 +26,11 @@ export function Panel({
   className?: string;
 }) {
   return (
-    <section className={`card p-4 sm:p-5 flex flex-col gap-3.5 ${className}`}>
+    // `min-w-0` is load-bearing: a grid item defaults to `min-width: auto`,
+    // so a panel holding something wide (the month grid, a code block) would
+    // otherwise push the whole page wider than the phone and take every
+    // other panel with it.
+    <section className={`card p-4 sm:p-5 flex flex-col gap-3.5 min-w-0 ${className}`}>
       <div className="flex items-baseline gap-3 flex-wrap">
         <h2 className="label">{title}</h2>
         {hint && (

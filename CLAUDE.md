@@ -3,7 +3,7 @@
 The one canonical context file for this repo.
 
 **There is one application: THE BRAIN OS, in `web/` — Next.js + Supabase.** Its data layer is
-Supabase Postgres with RLS on 20 tables (§A4). That is the only live data layer; nothing in this
+Supabase Postgres with RLS on 24 tables (§A4). That is the only live data layer; nothing in this
 repo stores user data in the browser.
 
 Everything under the "Archived" heading at the end describes a **retired** static app that no
@@ -128,6 +128,36 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 8. **Calendar: full two-way sync, blast radius contained** — THE BRAIN writes ONLY to its own
    dedicated Google calendar, never the main one. `calendar_sync` maps task ↔ event with etag.
    Deletes unschedule, never destroy. Conflicts logged and surfaced, never auto-resolved.
+
+   **Built 2026-08-06 (Stage 4 · Phase D).** How each clause is kept:
+
+   - *Only its own calendar.* `assertWritable` in `src/lib/calendar.ts` is the guard, and
+     every write path calls it first. It refuses the `primary` alias in any casing, refuses
+     the account's real primary id (usually the email address), and refuses an empty or
+     missing id rather than defaulting to anything. It **throws** rather than returning
+     false, so a caller that forgets to check cannot slip past. The calendar is *created* by
+     the app, never chosen from a list — asking him to pick is asking him to pick his real
+     diary by accident once, and there is no undo for that. The OAuth scope is
+     `calendar.app.created`, so even a bug cannot reach a calendar THE BRAIN did not make.
+   - *task ↔ event with etag.* `calendar_sync` carries the etag. "Did it change in Google?"
+     is the etag; "did it change here?" is a fingerprint of the last-pushed event stored in
+     `calendar_sync.meta.signature` — `tasks` has no `updated_at`, and this needs no
+     migration to add one.
+   - *Deletes unschedule, never destroy.* A cancelled event clears `tasks.do_date` and
+     nothing else. There is no branch in `pullAction` that can return a delete-the-task
+     outcome, and a test asserts that.
+   - *Never auto-resolved.* When both sides moved, the link is flagged and **neither side is
+     written**. `pushAction` returns `none` for a conflicted link, so the next sync cannot
+     quietly resolve it either. `/calendar` shows both dates and two buttons; the resolve
+     route is the only thing that settles one, and it cannot be called without a choice.
+
+   **`do_date` only, never `due_date`.** Due is a fact about the world; do is a decision, and
+   a calendar is a record of decisions. Syncing due dates would fill his week with days he
+   never agreed to.
+
+   Sync is **manual** — a "Sync now" button on `/calendar`. Not automatic: a background job
+   needs to act as him without a session, which means a service-role key, and that is a much
+   larger blast radius than this feature is worth. Revisit if he asks.
 9. **Clean start.** No data migration.
 10. **Theme: "paper" is default, "dark" is the toggle.** Paper is Jay's own design language from
     his Blueprint v2 — warm paper `#f4f2ee`, white cards, indigo `#4b57c9`, Source Serif
@@ -198,15 +228,19 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 ## A4. Database (live project)
 
 Supabase project **`qttroyuajpyelfrbxzzt`** · https://qttroyuajpyelfrbxzzt.supabase.co
-Region eu-west-2 (London), free tier. **RLS owner-only on all 20 tables.** pgvector enabled.
+Region eu-west-2 (London), free tier. **RLS owner-only on all 24 tables.** pgvector enabled.
 
 ```
 command centre : vision · pillars · goals · projects · tasks · inbox · links · reviews
 vault          : notes
 LIFE_OS        : habits · habit_logs · journal · people · metrics · metric_readings
+                 debts · debt_payments · vehicles
 EMPIRE_OS      : ventures · assets · investments · opportunities
-calendar       : calendar_sync
+calendar       : calendar_sync · integrations
 ```
+
+> The count said 20 for a while and was wrong: `debts`, `debt_payments` and `vehicles`
+> shipped with the debts/vehicles work and `integrations` with the calendar. Twenty-four.
 
 > **The live project is ahead of `supabase/` in this repo** — the earlier 6-table `schema.sql`
 > was v1-scaffold era. Never apply an old schema file over the live project. Pull the live schema
@@ -227,8 +261,16 @@ Migrations applied to the live project: `the_brain_os_v1_full_schema`,
 `life_os_area_scores_and_debt_metric`, `debts_and_vehicles` (the SQL for that one
 is captured at `supabase/migrations/20260801_debts_and_vehicles.sql`), and
 `venture_profiles_and_plans` — which added `ventures.plan`, `budget`, `monthly_cost`,
-`funding_route` and `profile`, the columns the division questionnaire fills in.
-**Do not re-apply any of them.**
+`funding_route` and `profile`, the columns the division questionnaire fills in — and
+`calendar_integration`, which added the `integrations` table plus a unique index keeping
+one event per task. **Do not re-apply any of them.**
+
+**`integrations` holds the Google connection, and its token columns are ciphertext.**
+RLS makes the row readable by its owner, and "its owner" includes anything running in his
+browser — so a refresh token in the clear there would be one XSS from being someone else's.
+AES-256-GCM, keyed from `CALENDAR_TOKEN_SECRET`, which only ever exists as a server
+environment variable. Rotating that secret makes every stored token unreadable, which reads
+as a connection needing to be redone; that is the intended failure mode, not a bug.
 
 **Seeded data (verified live 2026-08-01):** the 13 pillars; **18 ventures** (A to Z Traderz
 *launch*, Building + Maintenance *launch*, Amazon FBA *research*, Kathleen St / Bedlinog
@@ -254,9 +296,9 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-06)
 
-Verified in this repo: **355/355 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
-+ `divisions`, vitest) and **`npm run build` produces exactly 22 routes**. `npx tsc --noEmit`
-is clean.
+Verified in this repo: **428/428 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
++ `divisions` + `calendar`, vitest) and **`npm run build` produces exactly 28 routes**
+(23 pages + 5 API routes). `npx tsc --noEmit` is clean.
 
 **`/dashboard` is built to Jay's own prototype** (`THE BRAIN.dc.html` in his claude.ai/design
 project "THE BRAIN", implemented 2026-08-01): watchtower ("needs attention", assembled from
@@ -318,6 +360,7 @@ Three modes — `brain · life · empire` — with **brain as the neutral positi
 | **The mode switch** | ✅ `ModeScript` + `ModeSwitch` + `src/lib/nav.ts` — two buttons in the top bar, `brain` neutral, accent + nav + dashboard all follow. Flash-free; nav filtered in CSS |
 | **Division onboarding** | ✅ `/empire/[id]/onboard` — seven questions per division, resumable and partial, every answer saved as it is given. Nothing is required and skipping writes NULL. `Onboard.tsx` + `ventureOnboarding` in `logic.ts` |
 | **The division dashboards** | ✅ `/empire/[id]` — one page per division: stage on the path to revenue, budget against spend, task completion, its projects, tasks and goals, the plan, and the researched profile marked as researched. Resolves a uuid **or** a name-derived slug |
+| **The calendar** | ✅ `/calendar` — two-way Google sync (§A3 decision 8). Month grid, conflicts panel, connect/disconnect, manual "Sync now". **Needs three environment variables before it can connect** — the page says which, and says so honestly rather than looking broken |
 | **Two horizon scales** | ✅ LIFE month/6mo/annual/5yr/10yr on `/life`, EMPIRE quarter/year/5yr/20yr unchanged on `/empire` (§A3 2a) |
 | **The bucket list** | ✅ `BucketList.tsx` on `/life` — `goals.status = 'someday'`, add in one box, promote in one field (§A3 2b) |
 | Paper theme + dark toggle | ✅ both dashboards checked in both, and at 390px |
@@ -360,6 +403,14 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /(app)/goals           goals → projects, with unattached projects listed separately
 /(app)/planner         Kanban
 /(app)/week            7-day scheduler + hour purpose (journal.meta.hours)
+/(app)/calendar        two-way Google Calendar sync: the month, the connection,
+                       and any conflict waiting on a decision. Writes only ever
+                       to THE BRAIN's own calendar (§A3 decision 8)
+/api/calendar/connect      → Google's consent screen (sets the state cookie)
+/api/calendar/callback     ← Google; trades the code, finds/creates the calendar
+/api/calendar/sync         POST, one two-way pass
+/api/calendar/resolve      POST, settles ONE conflict the way he chose
+/api/calendar/disconnect   POST, revokes and forgets. Touches nothing in Google
 /(app)/reviews         the weekly review + "what got in the way" + the obstacle tally
 /(app)/capture         one-box capture (PWA start_url)
 /(app)/inbox           triage
@@ -410,6 +461,12 @@ Public paths: `/login`, `/auth`, `/manifest.webmanifest`, `/sw.js`.
   `BRANCH_ALIASES` is the other job: it retires a *slug* so an old link still lands, as
   `vehicles` and `a-to-z-trailerz` do. Both are integrity-tested, so a slug can never be
   "built" and "not built yet" at once.
+- **Anything holding a secret imports `server-only`.** `src/lib/google.ts` and
+  `calendar-server.ts` both do. It turns "this accidentally got imported by a Client
+  Component" from a shipped client secret into a build error. The corollary is that such a
+  module cannot be unit-tested, so the parts worth testing are extracted out of it:
+  `token-crypto.ts` (the encryption round trip) and `google-oauth.ts` (the consent URL) are
+  plain modules with tests, and `google.ts` just calls them.
 - **One slug rule, in one place.** `slugifyName` in `logic.ts` is the implementation;
   `ventureSlug` and `divisionHref` in `references.ts` are the names the empire calls it by,
   and `DIVISION_NAMES` derives every division's slug and href from its name. Nothing is
@@ -426,6 +483,7 @@ metrics still to build · 5 EMPIRE_OS — **division onboarding + the division d
 (Stage 4 · Phase C, 2026-08-06); assets, investments and opportunities still to build
 · 6 Review rituals — the weekly one ✅ at `/reviews`; daily and quarterly still to build
 · 7 AI layer.
+· **Calendar (decision 8) ✅ built 2026-08-06** at `/calendar`, waiting only on credentials.
 
 Open items:
 
@@ -470,7 +528,19 @@ Open items:
    invitation rather than a dashboard. That is the intended first-run state: the counter on
    `/empire` starts moving the first time Jay answers anything. Four divisions already carry
    budgets from his costing sheet, so those arrive with their figures pre-filled.
-11. **Spend is read from `assets.value` and `assets` is empty**, so every division's
+11. **The calendar needs three environment variables before it can connect, and only Jay
+   can create two of them.** `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` come from an
+   OAuth client he makes in Google Cloud Console (enable the Calendar API, type *Web
+   application*, redirect URI `<site>/api/calendar/callback` for both the live URL and
+   `http://localhost:3000`). `CALENDAR_TOKEN_SECRET` is any long random string and encrypts
+   the stored tokens. `/calendar` lists exactly which are missing. **Everything either side
+   of the network is built and tested; the HTTP calls to Google are the one part of this
+   repo that has never been executed against the real thing**, and the first connection is
+   where that gets proven.
+12. **Sync is manual.** A background job would have to act as him with no session, which
+   means a service-role key in the deployment — a much larger blast radius than this feature
+   justifies. If he wants it automatic, that trade is the conversation to have first.
+13. **Spend is read from `assets.value` and `assets` is empty**, so every division's
    "spent so far" is `£—`. That is honest rather than missing: budget-versus-spend is
    `unbudgeted`/`unspent`/`unknown` until Phase 5 builds the assets view, and a null budget
    with real spend is deliberately **not** an overspend (there is a test).
@@ -483,14 +553,20 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 355 tests — must be green before build
-npm run build                  # 22 routes — green before you push
+npm test                       # 428 tests — must be green before build
+npm run build                  # 28 routes — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from
 `web/`.** See `/DEPLOY-NOTES.md`. Push only after tests, `npx tsc --noEmit` and the build are
 green, then confirm the deployment went READY and the pages render. If the URL ever changes,
 update Site URL and the redirect allow-list in Supabase → Authentication → URL Configuration.
+
+`.env.local` needs the two `NEXT_PUBLIC_` Supabase values. The calendar additionally wants
+`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `CALENDAR_TOKEN_SECRET`; without them
+`/calendar` says so plainly and the rest of the app is unaffected. Note that `.gitignore`
+matches `.env*.local` — a file like `.env.local.bak` is **not** ignored, so keep backups
+outside the repo.
 
 Never commit `.env.local` or `.env.production`. The Supabase **anon** key is safe in client
 code — RLS is what protects the data — but the service-role key must never appear in this repo.
