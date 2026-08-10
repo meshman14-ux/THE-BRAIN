@@ -123,6 +123,7 @@ describe("nav by mode", () => {
     expect(labels("life")).toEqual([
       "Areas",
       "Debts",
+      "People",
       "Vehicles",
       "Habits",
       "Close",

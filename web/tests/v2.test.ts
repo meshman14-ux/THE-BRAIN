@@ -25,6 +25,19 @@ import {
   moodTrend,
   addDays,
   type CheckinField,
+  type PersonRow,
+  TIERS,
+  TIER_CADENCE,
+  TIER_LABEL,
+  TIER_HINT,
+  tierForCadence,
+  personStatus,
+  cadenceWatchtower,
+  CADENCE_SURFACED,
+  occasions,
+  rosterProgress,
+  nextToSet,
+  ROSTER_TARGET,
 } from "../src/lib/logic";
 import {
   INLINE_FIELDS,
@@ -599,3 +612,203 @@ describe("unknowns", () => {
     for (const u of out) expect(Object.keys(INLINE_FIELDS)).toContain(u.key);
   });
 });
+
+/* ------------------------------------------------------------------ *
+ * People — cadence, occasions, the roster
+ * ------------------------------------------------------------------ */
+
+const person = (over: Partial<PersonRow> = {}): PersonRow => ({
+  id: over.name ?? "p",
+  name: "Somebody",
+  relationship: null,
+  last_contact: null,
+  cadence_days: null,
+  birthday: null,
+  ...over,
+});
+
+describe("Dunbar tiers", () => {
+  it("uses the layers as the cadence, because that is what defines them", () => {
+    expect(TIER_CADENCE).toEqual({ inner: 7, close: 30, band: 90, wider: 365 });
+    expect(TIERS).toEqual(["inner", "close", "band", "wider"]);
+  });
+
+  it("names the tier a stored cadence is closest to, for showing it back", () => {
+    expect(tierForCadence(7)).toBe("inner");
+    expect(tierForCadence(28)).toBe("close");
+    expect(tierForCadence(100)).toBe("band");
+    expect(tierForCadence(400)).toBe("wider");
+  });
+
+  it("returns null for no cadence rather than guessing one", () => {
+    expect(tierForCadence(null)).toBeNull();
+    expect(tierForCadence(undefined)).toBeNull();
+  });
+
+  it("gives every tier a label and a hint in plain English", () => {
+    for (const t of TIERS) {
+      expect(TIER_LABEL[t]).toBeTruthy();
+      expect(TIER_HINT[t]).toBeTruthy();
+    }
+  });
+});
+
+describe("personStatus", () => {
+  it("never calls somebody overdue when no cadence has been set", () => {
+    // Nobody said how often. That is a gap to fill, not a failure to report
+    // — exactly like an unrecorded MOT date.
+    const s = personStatus(person({ last_contact: "2020-01-01" }), TODAY);
+    expect(s.state).toBe("no_cadence");
+    expect(s.over).toBeNull();
+  });
+
+  it("never calls somebody overdue when there is no clock to be past", () => {
+    const s = personStatus(person({ cadence_days: 7 }), TODAY);
+    expect(s.state).toBe("never");
+    expect(s.since).toBeNull();
+  });
+
+  it("reports overdue with how far past the cadence it is", () => {
+    const s = personStatus(
+      person({ cadence_days: 14, last_contact: addDays(TODAY, -47) }),
+      TODAY
+    );
+    expect(s.state).toBe("overdue");
+    expect(s.since).toBe(47);
+    expect(s.over).toBe(33);
+  });
+
+  it("nudges at four fifths of the cadence, so the window scales", () => {
+    // A fixed seven-day window would make a yearly contact useless and a
+    // weekly one constant.
+    expect(personStatus(person({ cadence_days: 7, last_contact: addDays(TODAY, -6) }), TODAY).state).toBe("due");
+    expect(personStatus(person({ cadence_days: 7, last_contact: addDays(TODAY, -3) }), TODAY).state).toBe("ok");
+    expect(personStatus(person({ cadence_days: 365, last_contact: addDays(TODAY, -300) }), TODAY).state).toBe("due");
+    expect(personStatus(person({ cadence_days: 365, last_contact: addDays(TODAY, -200) }), TODAY).state).toBe("ok");
+  });
+
+  it("treats contact today as in touch", () => {
+    const s = personStatus(person({ cadence_days: 7, last_contact: TODAY }), TODAY);
+    expect(s.state).toBe("ok");
+    expect(s.since).toBe(0);
+  });
+});
+
+describe("cadenceWatchtower", () => {
+  it("surfaces at most three, however many are overdue", () => {
+    // A list of eleven people you have let down is a page you close.
+    const many = Array.from({ length: 11 }, (_, i) =>
+      person({ id: `p${i}`, name: `P${i}`, cadence_days: 7, last_contact: addDays(TODAY, -60) })
+    );
+    const w = cadenceWatchtower(many, TODAY);
+    expect(w.surfaced).toHaveLength(CADENCE_SURFACED);
+    expect(w.alsoOverdue).toBe(8);
+  });
+
+  it("ranks by how far past the cadence proportionally, not in raw days", () => {
+    // Two weeks past a weekly friend is much louder than two weeks past a
+    // yearly one; sorting on raw days would bury the first forever.
+    const w = cadenceWatchtower(
+      [
+        person({ id: "yearly", name: "yearly", cadence_days: 365, last_contact: addDays(TODAY, -400) }),
+        person({ id: "weekly", name: "weekly", cadence_days: 7, last_contact: addDays(TODAY, -21) }),
+      ],
+      TODAY
+    );
+    expect(w.surfaced[0].person.id).toBe("weekly");
+  });
+
+  it("counts the unmeasured separately rather than calling them overdue", () => {
+    const w = cadenceWatchtower(
+      [person({ id: "a" }), person({ id: "b", cadence_days: 30 })],
+      TODAY
+    );
+    expect(w.surfaced).toHaveLength(0);
+    expect(w.unset).toBe(2);
+  });
+
+  it("says nothing when nobody has drifted", () => {
+    const w = cadenceWatchtower(
+      [person({ cadence_days: 30, last_contact: TODAY })],
+      TODAY
+    );
+    expect(w).toEqual({ surfaced: [], alsoOverdue: 0, unset: 0 });
+  });
+});
+
+describe("occasions", () => {
+  it("looks 60 days ahead and flags what is inside the lead time", () => {
+    // A birthday you learn about on the day is a text; one you learn about
+    // a fortnight out is a present.
+    const list = occasions(
+      [
+        person({ id: "soon", name: "Soon", birthday: shiftYear(addDays(TODAY, 10)) }),
+        person({ id: "later", name: "Later", birthday: shiftYear(addDays(TODAY, 40)) }),
+        person({ id: "far", name: "Far", birthday: shiftYear(addDays(TODAY, 90)) }),
+      ],
+      TODAY
+    );
+    expect(list.map((o) => o.personId)).toEqual(["soon", "later"]);
+    expect(list[0].soon).toBe(true);
+    expect(list[1].soon).toBe(false);
+  });
+
+  it("orders by how close it is, soonest first", () => {
+    const list = occasions(
+      [
+        person({ id: "b", name: "B", birthday: shiftYear(addDays(TODAY, 30)) }),
+        person({ id: "a", name: "A", birthday: shiftYear(addDays(TODAY, 5)) }),
+      ],
+      TODAY
+    );
+    expect(list.map((o) => o.personId)).toEqual(["a", "b"]);
+  });
+
+  it("ignores anybody with no birthday recorded", () => {
+    expect(occasions([person({ id: "x" })], TODAY)).toEqual([]);
+  });
+
+  it("gives the date it falls on this time round, not the birth year", () => {
+    const [o] = occasions(
+      [person({ id: "x", name: "X", birthday: shiftYear(addDays(TODAY, 3)) })],
+      TODAY
+    );
+    expect(o.on).toBe(addDays(TODAY, 3));
+    expect(o.on.slice(0, 4)).toBe(TODAY.slice(0, 4));
+  });
+});
+
+describe("the roster", () => {
+  it("measures usefulness by cadences set, not by names entered", () => {
+    // Five people with cadences beats fifteen names with none, because the
+    // cadence is the thing that makes the feature work at all.
+    const named = Array.from({ length: 15 }, (_, i) => person({ id: `p${i}`, name: `P${i}` }));
+    expect(rosterProgress(named).useful).toBe(false);
+    const five = named.map((p, i) => (i < 5 ? { ...p, cadence_days: 30 } : p));
+    expect(rosterProgress(five).useful).toBe(true);
+    expect(rosterProgress(five).withCadence).toBe(5);
+  });
+
+  it("asks next about somebody with a name and no cadence", () => {
+    // The cheapest possible win: one tap turns a dead row into a live one.
+    const next = nextToSet([
+      person({ id: "set", name: "Set", cadence_days: 30 }),
+      person({ id: "unset", name: "Unset" }),
+    ]);
+    expect(next?.id).toBe("unset");
+  });
+
+  it("has nothing to ask once everybody is measured", () => {
+    expect(nextToSet([person({ id: "a", cadence_days: 7 })])).toBeNull();
+    expect(nextToSet([])).toBeNull();
+  });
+
+  it("aims at fifteen — a practice, not a database", () => {
+    expect(ROSTER_TARGET).toBe(15);
+  });
+});
+
+/** Push a date back a plausible number of years, keeping month and day. */
+function shiftYear(iso: string): string {
+  return `${Number(iso.slice(0, 4)) - 30}${iso.slice(4)}`;
+}

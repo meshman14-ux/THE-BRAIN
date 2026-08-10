@@ -3368,3 +3368,249 @@ export function moodTrend(
     of: window.length,
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * People — cadence, occasions, and the roster
+ *
+ * `people.cadence_days` was already called the highest-value thing in the
+ * schema: it is what lets the system say "you have not spoken to your
+ * brother in 47 days and you said 14". What it lacked was a sane default,
+ * a way to log a conversation in one tap, and a rule about how much of the
+ * backlog to show.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Dunbar's layers, used as the default cadence for a tier.
+ *
+ * The numbers are not arbitrary and not ours: the layers (roughly 5 / 15 /
+ * 50 / 150) fall out of contact-frequency data, including mobile-call
+ * records, and the frequency is what defines the layer in the first place.
+ * So the tier IS the cadence, and asking "how close is this person" is a
+ * question he can answer instantly where "how often should I ring them"
+ * is one he would have to compute.
+ *
+ * Every default is overridable per person. The tier is a starting point,
+ * not a verdict — some people in the outer band get a call every week.
+ */
+export type Tier = "inner" | "close" | "band" | "wider";
+
+export const TIERS: Tier[] = ["inner", "close", "band", "wider"];
+
+export const TIER_CADENCE: Record<Tier, number> = {
+  inner: 7,
+  close: 30,
+  band: 90,
+  wider: 365,
+};
+
+export const TIER_LABEL: Record<Tier, string> = {
+  inner: "Inner five",
+  close: "Close fifteen",
+  band: "The fifty",
+  wider: "Wider circle",
+};
+
+export const TIER_HINT: Record<Tier, string> = {
+  inner: "The handful you would ring at 3am — about weekly",
+  close: "Close friends and family — about monthly",
+  band: "People you genuinely know — about quarterly",
+  wider: "Worth not losing — about yearly",
+};
+
+/** The tier a stored cadence corresponds to, for showing it back to him. */
+export function tierForCadence(days: number | null | undefined): Tier | null {
+  if (days == null) return null;
+  let best: Tier | null = null;
+  let bestGap = Infinity;
+  for (const t of TIERS) {
+    const gap = Math.abs(TIER_CADENCE[t] - days);
+    if (gap < bestGap) {
+      bestGap = gap;
+      best = t;
+    }
+  }
+  return best;
+}
+
+export type PersonRow = {
+  id: string;
+  name: string;
+  relationship: string | null;
+  last_contact: string | null;
+  cadence_days: number | null;
+  birthday: string | null;
+};
+
+export type ContactState = "overdue" | "due" | "ok" | "no_cadence" | "never";
+
+export type PersonStatus = {
+  person: PersonRow;
+  state: ContactState;
+  /** Days since the last logged contact, or null if there has never been one. */
+  since: number | null;
+  /** Days past the cadence. Positive means overdue. Null if not measurable. */
+  over: number | null;
+};
+
+/**
+ * How a person stands against their own cadence.
+ *
+ * Four honest outcomes, and the two that mean "I cannot tell you" are kept
+ * separate from the two that mean "here is the answer". A person with no
+ * cadence is not overdue — nobody has said how often — and a person never
+ * contacted is not overdue either, because there is no clock to be past.
+ * Both are prompts to fill something in, exactly like an unrecorded MOT.
+ */
+export function personStatus(p: PersonRow, todayIso: string): PersonStatus {
+  // `|| 0` rather than a bare negation: negating zero gives -0, which
+  // renders as "-0 days" on the day he actually spoke to somebody.
+  const since =
+    p.last_contact == null ? null : -(daysUntil(p.last_contact, todayIso) ?? 0) || 0;
+  if (p.cadence_days == null) return { person: p, state: "no_cadence", since, over: null };
+  if (since == null) return { person: p, state: "never", since: null, over: null };
+  const over = since - p.cadence_days;
+  // "Due" opens at 80% of the cadence — a weekly person nudges on day six,
+  // a yearly one from ten months out. A fixed window would make the yearly
+  // ones useless and the weekly ones constant.
+  if (over >= 0) return { person: p, state: "overdue", since, over };
+  if (since >= p.cadence_days * 0.8) return { person: p, state: "due", since, over };
+  return { person: p, state: "ok", since, over };
+}
+
+/** How many of the overdue the watchtower will ever show at once. */
+export const CADENCE_SURFACED = 3;
+
+/**
+ * The two or three people actually worth surfacing.
+ *
+ * A personal CRM that lists eleven overdue friends produces guilt, and
+ * guilt produces avoidance — the app gets closed rather than the calls
+ * getting made. So the hero surfaces at most three, worst first, and states
+ * the rest as a number rather than as a list. Three is a thing you can do
+ * something about tonight.
+ *
+ * Ranked by how far past the cadence they are as a PROPORTION of it, not in
+ * raw days: two weeks past a weekly friend is a much louder signal than two
+ * weeks past a yearly one, and sorting on raw days would bury the first
+ * behind the second forever.
+ */
+export function cadenceWatchtower(
+  people: PersonRow[],
+  todayIso: string,
+  limit: number = CADENCE_SURFACED
+): { surfaced: PersonStatus[]; alsoOverdue: number; unset: number } {
+  const statuses = people.map((p) => personStatus(p, todayIso));
+  const overdue = statuses
+    .filter((s) => s.state === "overdue")
+    .sort((a, b) => {
+      const ar = (a.over ?? 0) / (a.person.cadence_days || 1);
+      const br = (b.over ?? 0) / (b.person.cadence_days || 1);
+      if (ar !== br) return br - ar;
+      return a.person.name.localeCompare(b.person.name);
+    });
+  return {
+    surfaced: overdue.slice(0, limit),
+    alsoOverdue: Math.max(0, overdue.length - limit),
+    unset: statuses.filter((s) => s.state === "no_cadence" || s.state === "never").length,
+  };
+}
+
+/* -- occasions ------------------------------------------------------ */
+
+/** How far ahead the occasions strip looks. */
+export const OCCASION_WINDOW_DAYS = 60;
+
+/**
+ * How much warning an occasion needs before it is worth flagging.
+ *
+ * A birthday you learn about on the day is a text; one you learn about a
+ * fortnight out is a present. The lead time is the whole value of the
+ * strip, so it is a stated number rather than a feeling.
+ */
+export const OCCASION_LEAD_DAYS = 14;
+
+export type Occasion = {
+  personId: string;
+  name: string;
+  kind: "birthday";
+  /** The date it falls on THIS time round, not the original year. */
+  on: string;
+  inDays: number;
+  /** Inside the lead time — act now or it becomes a text on the day. */
+  soon: boolean;
+};
+
+export function occasions(
+  people: PersonRow[],
+  todayIso: string,
+  windowDays: number = OCCASION_WINDOW_DAYS,
+  leadDays: number = OCCASION_LEAD_DAYS
+): Occasion[] {
+  const out: Occasion[] = [];
+  for (const p of people) {
+    if (p.birthday == null) continue;
+    const inDays = daysUntilBirthday(p.birthday, todayIso);
+    if (inDays == null || inDays > windowDays) continue;
+    out.push({
+      personId: p.id,
+      name: p.name,
+      kind: "birthday",
+      on: addDays(todayIso, inDays),
+      inDays,
+      soon: inDays <= leadDays,
+    });
+  }
+  return out.sort((a, b) => a.inDays - b.inDays || a.name.localeCompare(b.name));
+}
+
+/* -- seeding the roster --------------------------------------------- */
+
+/**
+ * How many people the seeding session aims at. Fifteen, not a hundred.
+ *
+ * Dunbar's inner two layers are about twenty people, and they are the ones
+ * a cadence is meaningful for. A roster of a hundred is a database; a
+ * roster of fifteen is a relationship practice, and it can be built in one
+ * sitting of one question at a time.
+ */
+export const ROSTER_TARGET = 15;
+
+export type RosterProgress = {
+  named: number;
+  /** How many have a tier, which is what makes the cadence meaningful. */
+  withCadence: number;
+  target: number;
+  /** Done enough to be useful — not "complete", which it never is. */
+  useful: boolean;
+};
+
+export function rosterProgress(
+  people: PersonRow[],
+  target: number = ROSTER_TARGET
+): RosterProgress {
+  const withCadence = people.filter((p) => p.cadence_days != null).length;
+  return {
+    named: people.length,
+    withCadence,
+    target,
+    // Five people with cadences beats fifteen names with none, so the bar
+    // is set on the thing that makes the feature work rather than on the
+    // count. It is a floor, not a finish line.
+    useful: withCadence >= 5,
+  };
+}
+
+/**
+ * The next person to ask about, so the seeding session is one question at
+ * a time rather than a form with fifteen rows.
+ *
+ * Someone with a name and no cadence is the cheapest possible win — one
+ * tap turns a dead row into a live one — so those come first.
+ */
+export function nextToSet(people: PersonRow[]): PersonRow | null {
+  return (
+    [...people]
+      .filter((p) => p.cadence_days == null)
+      .sort((a, b) => a.name.localeCompare(b.name))[0] ?? null
+  );
+}
