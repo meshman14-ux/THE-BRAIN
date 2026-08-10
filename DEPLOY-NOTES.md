@@ -69,6 +69,38 @@ magic-link round trip has been completed against it. If the URL ever changes, up
 
 Otherwise magic links bounce to the old address.
 
+### "I can't log in" — check which URL you are on FIRST
+
+**This cost an afternoon on 2026-08-10 and looked exactly like broken auth.** The magic
+link arrived, the link was clicked, and the app would not sign in. Nothing was wrong with
+authentication at all: Supabase logged `/verify 303 login` — the link worked perfectly.
+
+The sign-in was happening on **`the-brain-os-…vercel.app`**, the dead project's URL. Its
+builds fail, so that hostname still serves whatever it last deployed successfully, months
+stale, against a database that has moved on. You sign in fine and then get an old app.
+
+Ninety-one of the ninety-four auth requests in that day's log came from that host, and
+only three from the real one. So this is not a slip you make once — something was pointing
+at it persistently.
+
+**How to tell in ten seconds.** Open Supabase → Logs → Auth and read the `referer` on the
+recent `/otp` and `/verify` rows. It names the host the browser was actually on. If it is
+not `the-brain-meshman14-uxs-projects.vercel.app` (or `the-brain-pi.vercel.app`), the URL
+is the bug and the code is fine.
+
+**The part that makes it persistent: the PWA.** An installed progressive web app bakes its
+`start_url` in at install time. Install from the wrong host once and the icon on the home
+screen keeps opening the wrong app forever, no matter what you type into a browser
+afterwards. Fixing the bookmark is not enough — **delete and reinstall the PWA from the
+correct URL.** The session cookie is per-origin too, so expect to sign in again after
+moving.
+
+**A green deploy on `the-brain` tells you nothing about which app you are looking at.**
+The way to check the live site is genuinely running the newest code is the compiled
+stylesheet hash in the page source: `/_next/static/css/<hash>.css` changes whenever the CSS
+changes. It went `e1488b38f14a2e40` → `ce6d45e0f2c8dad1` when v2 shipped. Same hash as
+before a deploy that should have changed styling means you are on a cached or stale host.
+
 ## Environment variables
 
 ```
