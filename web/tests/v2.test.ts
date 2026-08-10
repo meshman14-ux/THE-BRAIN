@@ -26,6 +26,12 @@ import {
   addDays,
   type CheckinField,
 } from "../src/lib/logic";
+import {
+  INLINE_FIELDS,
+  parseInline,
+  unknowns,
+  type InlineKey,
+} from "../src/lib/inline";
 
 const TODAY = "2026-08-10";
 
@@ -450,5 +456,146 @@ describe("moodTrend", () => {
     );
     expect(t.mood).toBe(5);
     expect(t.of).toBe(1);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * The dash is the input
+ * ------------------------------------------------------------------ */
+
+describe("parseInline", () => {
+  it("treats an empty box as a return to unknown, not as an error", () => {
+    // Clearing a figure has to be as easy as entering one, or a mistyped
+    // balance is stuck there forever and the total quietly lies.
+    for (const key of Object.keys(INLINE_FIELDS) as InlineKey[]) {
+      expect(parseInline(key, "   ")).toEqual({ ok: true, value: null });
+    }
+  });
+
+  it("refuses a negative balance rather than storing it", () => {
+    expect(parseInline("debts.current_balance", "-5").ok).toBe(false);
+    expect(parseInline("debts.current_balance", "0")).toEqual({ ok: true, value: 0 });
+    expect(parseInline("debts.current_balance", "1234.56")).toEqual({
+      ok: true,
+      value: 1234.56,
+    });
+  });
+
+  it("refuses a date that does not exist", () => {
+    // type=date will not produce one, but a paste or an autofill can.
+    expect(parseInline("vehicles.mot_due", "2026-02-31").ok).toBe(false);
+    expect(parseInline("vehicles.mot_due", "31/03/2026").ok).toBe(false);
+    expect(parseInline("vehicles.mot_due", "2026-03-31")).toEqual({
+      ok: true,
+      value: "2026-03-31",
+    });
+  });
+
+  it("holds a cadence to whole days inside a sane range", () => {
+    expect(parseInline("people.cadence_days", "14")).toEqual({ ok: true, value: 14 });
+    expect(parseInline("people.cadence_days", "7.5").ok).toBe(false);
+    expect(parseInline("people.cadence_days", "0").ok).toBe(false);
+    expect(parseInline("people.cadence_days", "99999").ok).toBe(false);
+  });
+
+  it("rejects text where a number belongs", () => {
+    expect(parseInline("debts.plan_amount", "about fifty").ok).toBe(false);
+    expect(parseInline("debts.plan_amount", "Infinity").ok).toBe(false);
+  });
+
+  it("keeps text fields as typed, trimmed", () => {
+    expect(parseInline("pillars.status_line", "  debt-heavy, plan in motion  ")).toEqual({
+      ok: true,
+      value: "debt-heavy, plan in motion",
+    });
+  });
+});
+
+describe("the inline allowlist", () => {
+  it("gives every field a real prompt rather than N/A", () => {
+    // A missing value renders as its own prompt. "N/A" tells him nothing
+    // about what would fill it, which is the one thing the row is for.
+    for (const [key, f] of Object.entries(INLINE_FIELDS)) {
+      expect(f.placeholder, key).toBeTruthy();
+      expect(f.placeholder.toLowerCase(), key).not.toContain("n/a");
+      expect(f.label, key).toBeTruthy();
+      expect(key).toBe(`${f.table}.${f.column}`);
+    }
+  });
+});
+
+describe("unknowns", () => {
+  const debt = (id: string, balance: number | null, status = "active") => ({
+    id,
+    creditor: id,
+    status,
+    current_balance: balance,
+  });
+  const vehicle = (id: string, over: Record<string, unknown> = {}) => ({
+    id,
+    name: id,
+    registration: null,
+    status: "active",
+    tax_due: null,
+    mot_due: null,
+    insurance_due: null,
+    ...over,
+  }) as Parameters<typeof unknowns>[0]["vehicles"][number];
+
+  it("lists every missing balance and every missing vehicle date", () => {
+    const out = unknowns({
+      debts: [debt("a", null), debt("b", 200)],
+      vehicles: [vehicle("v", { tax_due: "2026-09-01" })],
+    });
+    expect(out.map((u) => `${u.key}:${u.id}`)).toEqual([
+      "debts.current_balance:a",
+      "vehicles.mot_due:v",
+      "vehicles.insurance_due:v",
+    ]);
+  });
+
+  it("counts a zero balance as known", () => {
+    // Zero and "not yet" are different facts, and a settled debt is not a gap.
+    expect(unknowns({ debts: [debt("paid", 0)], vehicles: [] })).toEqual([]);
+  });
+
+  it("ignores settled debts and retired vehicles", () => {
+    const out = unknowns({
+      debts: [debt("cleared", null, "cleared")],
+      vehicles: [vehicle("sold", { status: "sold" })],
+    });
+    expect(out).toEqual([]);
+  });
+
+  it("says nothing at all when nothing is missing", () => {
+    // A list that congratulates you every day is a list you scroll past.
+    expect(
+      unknowns({
+        debts: [debt("a", 100)],
+        vehicles: [
+          vehicle("v", {
+            tax_due: "2026-09-01",
+            mot_due: "2026-09-02",
+            insurance_due: "2026-09-03",
+          }),
+        ],
+      })
+    ).toEqual([]);
+  });
+
+  it("names the vehicle by its registration when it has one", () => {
+    const [first] = unknowns({
+      debts: [],
+      vehicles: [vehicle("BMW", { registration: "ME54 JAY" })],
+    });
+    expect(first.subject).toBe("BMW · ME54 JAY");
+  });
+
+  it("only ever produces keys the allowlist knows", () => {
+    const out = unknowns({
+      debts: [debt("a", null)],
+      vehicles: [vehicle("v")],
+    });
+    for (const u of out) expect(Object.keys(INLINE_FIELDS)).toContain(u.key);
   });
 });
