@@ -184,8 +184,58 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
    larger blast radius than this feature is worth. Revisit if he asks.
 9. **Clean start.** No data migration.
 10. **Theme: "paper" is default, "dark" is the toggle.** Paper is Jay's own design language from
-    his Blueprint v2 — warm paper `#f4f2ee`, white cards, indigo `#4b57c9`, Source Serif
-    headlines, Public Sans body, IBM Plex Mono numerals.
+    his Blueprint v2 — warm paper `#f4f2ee`, white cards, indigo, Source Serif headlines,
+    Public Sans body, IBM Plex Mono numerals.
+
+11. **Palette B, "Two Machines" — chosen by Jay 2026-08-10 over three alternatives** (A "Ink
+    & Bronze", C "Signal", D "Neon"). THEME and MODE are different axes and must stay that
+    way. Theme is the light Jay chooses. **MODE replaces the ground:** LIFE keeps the
+    theme's own surface, indigo, serif headlines and roomy chrome; EMPIRE flips to graphite
+    with a cyan accent, mono headlines and tighter `--radius`/`--pad` — **in both themes**.
+    Switching does not recolour a button; it changes the light in the room. If you are
+    tempted to make EMPIRE a tinted version of LIFE, don't: the surface is the whole of the
+    distinction.
+
+    **Four colour channels, and nothing may borrow another's:**
+
+    | channel | carries | encoded by |
+    |---|---|---|
+    | 1 · system | which OS | hue + surface + typeface + density |
+    | 2 · status | how it is going | green/amber/red, permanently reserved |
+    | 3 · priority | how urgent | **shape and weight, never hue** |
+    | 4 · module | what kind | glyph + micro-label, no colour |
+
+    **Priority may not have a colour, and that is structural rather than fussy.** The two
+    colours it would reach for are already spoken for: red means "something is wrong"
+    (channel 2) and the accent means "the system you are wearing" (channel 1). So `.prio`
+    thickens a left bar and `.prio-mark` fills a dot, both from `currentColor` — which is
+    what lets a row carry an overdue status AND a High priority without either mark becoming
+    ambiguous. `tests/palette.test.ts` asserts no `--prio-*` token exists at all; the
+    absence is the design, because a token would immediately be reached for.
+
+    **v1 shipped three collisions and every review missed them**, because two hex strings
+    differing in every digit can still be the same colour: `--empire` was `#c07a1e`, the
+    *exact value* of `--warn`; `--doing`, `--accent` and `--life` were all `#4b57c9`, so
+    LIFE mode's "in progress" lane was invisible; `--p-learning` sat about one step from
+    `--warn`, so a learning hour read as an alert. All three are fixed at the root rather
+    than retuned — the accent left the warm band entirely, and the three task states became
+    a **hue-free** neutral ramp (`--todo: var(--faint)`, `--doing: var(--text)`,
+    `--done: var(--muted)`) because they are a sequence, not three categories, and a lane
+    with its name written on it needs no colour.
+
+12. **Zero-obligation floor, optional depth.** Derived from Jay's interview answers, which
+    returned "all of these" three times and "no preference" once — read as a brief rather
+    than as indecision: hold everything, don't make me pre-commit, show me what matters.
+
+    Every module has a floor that costs nothing and a ceiling that is always present and
+    never demanded. The check-in's floor is two taps; nutrition's is a weight and one tap;
+    the roster's is a name. **A skipped question writes NULL, never a zero and never an
+    empty string** — this generalises `formatGBP(null)` from one function's good manners
+    into a system-wide law. The corollary is the one that keeps being load-bearing: every
+    convenient default lies in the *flattering* direction, so net worth reads as a ceiling
+    while a debt is unknown, cashflow returns a dash rather than a big negative when no
+    income is recorded, and readiness shows no band rather than a green one on four days of
+    data.
 
 ### Schema choices worth preserving
 - **`tasks.do_date` is separate from `tasks.due_date`.** Due is a fact about the world; *do* is a
@@ -252,19 +302,21 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 ## A4. Database (live project)
 
 Supabase project **`qttroyuajpyelfrbxzzt`** · https://qttroyuajpyelfrbxzzt.supabase.co
-Region eu-west-2 (London), free tier. **RLS owner-only on all 24 tables.** pgvector enabled.
+Region eu-west-2 (London), free tier. **RLS owner-only on all 28 tables.** pgvector enabled.
 
 ```
 command centre : vision · pillars · goals · projects · tasks · inbox · links · reviews
 vault          : notes
-LIFE_OS        : habits · habit_logs · journal · people · metrics · metric_readings
-                 debts · debt_payments · vehicles
+LIFE_OS        : habits · habit_logs · journal · people · people_contacts
+                 metrics · metric_readings · debts · debt_payments · vehicles
+                 health_days · workouts · lifts
 EMPIRE_OS      : ventures · assets · investments · opportunities
 calendar       : calendar_sync · integrations
 ```
 
 > The count said 20 for a while and was wrong: `debts`, `debt_payments` and `vehicles`
-> shipped with the debts/vehicles work and `integrations` with the calendar. Twenty-four.
+> shipped with the debts/vehicles work and `integrations` with the calendar. The v2 pass
+> (2026-08-10) added `people_contacts` and the three health tables. Twenty-eight.
 
 > **The live project is ahead of `supabase/` in this repo** — the earlier 6-table `schema.sql`
 > was v1-scaffold era. Never apply an old schema file over the live project. Pull the live schema
@@ -287,7 +339,25 @@ is captured at `supabase/migrations/20260801_debts_and_vehicles.sql`), and
 `venture_profiles_and_plans` — which added `ventures.plan`, `budget`, `monthly_cost`,
 `funding_route` and `profile`, the columns the division questionnaire fills in — and
 `calendar_integration`, which added the `integrations` table plus a unique index keeping
-one event per task. **Do not re-apply any of them.**
+one event per task. The v2 pass added three more: `people_contacts_and_tiers`,
+`debt_apr_and_savings_metric` and `health_hub_readiness_lifts_nutrition`.
+**Do not re-apply any of them.**
+
+**`debts.apr` is nullable and NULL is never 0%.** Avalanche ordering IS "highest interest
+first", so without a rate the word means nothing. Treating a missing rate as zero would sort
+an unrecorded credit card to the *bottom* of the queue and cost real money, so `canAvalanche()`
+refuses the ordering entirely when no rate exists rather than quietly producing snowball under
+the other name, and `payoffPlan()` reports interest as `null` rather than as a smaller number
+whenever any rate is missing.
+
+**`people_contacts` is unique on `(person_id, contacted_on)`.** That is what makes the one-tap
+log idempotent: tapping twice on the same day records one conversation, not two, so a double
+tap cannot inflate a frequency later.
+
+**`health_days` has every measure nullable, deliberately.** A day with only a weight is a valid
+day and must never read as a zero-step day. `lifts.movement` is constrained to the Big 4
+because the tracker is a fixed four, not a free exercise log — a free log is a different
+feature needing a different UI.
 
 **`integrations` holds the Google connection, and its token columns are ciphertext.**
 RLS makes the row readable by its owner, and "its owner" includes anything running in his
@@ -318,11 +388,17 @@ reviews and the inbox start empty — the first-run empty states are load-bearin
 (`meshman14@gmail.com`). Supabase Site URL and redirect allow-list point at the live Vercel
 URL and a magic-link round trip has been completed against it.
 
-## A5. Build state (as of 2026-08-06)
+## A5. Build state (as of 2026-08-10)
 
-Verified in this repo: **479/479 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
-+ `divisions` + `calendar` + `advisor`, vitest) and **`npm run build` produces exactly 31
-routes** (24 pages + 7 API routes). `npx tsc --noEmit` is clean.
+Verified in this repo: **625/625 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
++ `divisions` + `calendar` + `advisor` + **`palette`** + **`v2`**, vitest) and
+**`npm run build` produces exactly 35 routes** (28 pages + 7 API routes).
+`npx tsc --noEmit` is clean.
+
+> **Not yet checked in a browser.** The v2 pass was built, typechecked, unit-tested and
+> built for production, but no page of it has been opened — not the four dashboard tabs,
+> not the check-in, not the money hub, not health. The 390×844 device sweep described
+> below predates all of it. Treat "renders correctly" as unverified until somebody looks.
 
 **Phone is checked at a real 390×844, not by eye.** The claude-in-chrome tab renders at a
 fixed ~1526px viewport that `resize_window` cannot change, so phone work has to be driven
@@ -422,6 +498,14 @@ Three modes — `brain · life · empire` — with **brain as the neutral positi
 | **Two horizon scales** | ✅ LIFE month/6mo/annual/5yr/10yr on `/life`, EMPIRE quarter/year/5yr/20yr unchanged on `/empire` (§A3 2a) |
 | **The bucket list** | ✅ `BucketList.tsx` on `/life` — `goals.status = 'someday'`, add in one box, promote in one field (§A3 2b) |
 | Paper theme + dark toggle | ✅ both dashboards checked in both, and at 390px |
+| **Palette B · two machines** | ✅ `globals.css` — EMPIRE replaces the ground in both themes; four colour channels; priority as shape. `tests/palette.test.ts` measures ΔE and dichromat separation across all four grounds rather than trusting the values |
+| **Four dashboard tabs** | ✅ `/dashboard?tab=` — Now · Attention · Systems · Trend, one question each |
+| **Focus · 3 + 2** | ✅ `Focus.tsx` — three visible, two on deck behind a closed drawer. Same ordering as `pickThree` (both call `rankForToday`), and `todayProgress` deliberately ignores the drawer |
+| **The daily close** | ✅ `/checkin` — floor of two taps, ceiling of five prompts, weekly-rotating gratitude, week-counting reflection streak |
+| **Dash-is-the-input** | ✅ `InlineValue.tsx` + `src/lib/inline.ts` allowlist + the "Not yet known" panel on `/life` gathering every missing figure into one tappable list |
+| **People** | ✅ `/life/people` — Dunbar-tier cadences, watchtower capped at three, occasions at 60 days, one-tap idempotent contact log |
+| **Money** | ✅ `/life/money` — four tabs, avalanche/snowball priced, per-debt thermometers, monthly one-question balance update |
+| **Health** | ✅ `/life/health` — readiness band on his own baseline, load spike detector, Big 4, nutrition ladder |
 | `src/lib/logic.ts` + `tests/` + vitest | ✅ `tests/logic.test.ts` + `tests/stage3.test.ts` |
 
 The dashboard's governing idea, which must survive edits: **it sorts worst-first and surfaces
@@ -442,7 +526,25 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /login                 magic link
 /auth/confirm          verifies + redirects, calls seed_pillars()
 /auth/signout          POST
-/(app)/dashboard       THE BRAIN — the command centre (sidebar, cross-system KPIs, today's three)
+/(app)/dashboard       THE BRAIN — the command centre, in FOUR TABS off `?tab=`:
+                       now (what am I doing next) · attention (what is going
+                       wrong) · systems (how are LIFE and EMPIRE) · trend (am I
+                       getting better). A tab may only exist if it answers a
+                       question the other three cannot. The tab is a URL
+                       parameter, not state, so the page stays a Server
+                       Component and every tab is an address. Anything
+                       unrecognised falls back to `now`
+/(app)/checkin         the daily close — mood and energy as the floor, then
+                       wins · friction · gratitude · tomorrow · one area. Writes
+                       on tap; a skip records the skip and leaves the answer
+                       NULL. The reflection streak counts WEEKS, not days
+/(app)/life/money      Money & Security in four tabs off `?tab=`: debt · worth ·
+                       cashflow · buffer, with `?strategy=snowball` pricing the
+                       alternative ordering in pounds and months
+/(app)/life/health     readiness band · load spike detector · the Big 4 ·
+                       the nutrition ladder
+/(app)/life/people     cadence watchtower (at most three) · occasions strip ·
+                       the roster with one-tap tiers and contact logging
 /(app)/life            LIFE_OS — the 8 personal areas, scores, habits (#habits),
                        the life horizon scale, and the bucket list
 /(app)/empire          EMPIRE_OS — the CEO dashboard, the 5 business areas, and
@@ -479,7 +581,8 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /(app)/reviews         the weekly review + "what got in the way" + the obstacle tally
 /(app)/capture         one-box capture (PWA start_url)
 /(app)/inbox           triage
-/(app)/life/debts      creditors, balances, payment plans, payoff projection
+/(app)/life/debts      the creditor detail — rates, references, payment days.
+                       Reached from the Money page's Debt tab
 /(app)/life/vehicles   tax · MOT · insurance · service, worst-first
 /(app)/pillar/[id]     area detail + its reference shelf, back-links to its system
 /(app)/library         the reference library — every curated shelf in one place
@@ -568,10 +671,12 @@ Phases: 0 auth/RLS/PWA/areas ✅ · 1 Inbox+Capture+Planner+Week ✅ · 2 Goals 
 · 2.5 the two dashboards (JAY_OS `/dashboard` + EMPIRE_OS `/empire`) ✅
 · **3 Notes + links + backlinks ← next** (the read side landed early with the principle
 library; what remains is writing notes, the `links` table and backlinks)
-· 4 LIFE_OS — habits ✅, journal partly (hour purpose writes `journal.meta`), people and
-metrics still to build · 5 EMPIRE_OS — **division onboarding + the division dashboards ✅**
+· 4 LIFE_OS — habits ✅, **journal ✅** (the daily close writes it), **people ✅**
+(`/life/people`), **money ✅** (`/life/money`), **health ✅** (`/life/health`); metrics
+still to build · 5 EMPIRE_OS — **division onboarding + the division dashboards ✅**
 (Stage 4 · Phase C, 2026-08-06); assets, investments and opportunities still to build
-· 6 Review rituals — the weekly one ✅ at `/reviews`; daily and quarterly still to build
+· 6 Review rituals — the weekly one ✅ at `/reviews`, **the daily two-minute one ✅ at
+`/checkin`**; the quarterly hour still to build
 · **7 AI layer ✅ built 2026-08-06** at `/advisor` (§A3 decision 6).
 · **Calendar (decision 8) ✅ built 2026-08-06** at `/calendar`, waiting only on credentials.
 
@@ -597,8 +702,9 @@ Open items:
    "not recorded", never as overdue and never as fine; there is a test that proves it.
 5. His blueprint has **5** review cadences (daily, weekly, monthly, quarterly, annual); we
    deliberately build **3**. Confirm with him before adding monthly/annual. The **weekly**
-   one is built at `/reviews`; the daily 2-minute and quarterly hour are still to come, and
-   `/reviews` says so on screen rather than pretending they exist.
+   one is built at `/reviews` and the daily 2-minute one at `/checkin` (2026-08-10); the
+   quarterly hour is still to come, and `/reviews` says so on screen rather than pretending
+   it exists.
 6. **No ESLint config.** v1.2 ships none, and `next lint` is deprecated and prompts
    interactively. `npx tsc --noEmit` is the current gate and is clean. Add a flat
    `eslint.config.mjs` when convenient.
@@ -637,7 +743,24 @@ Open items:
    **The model call has never been executed against the real API** — retrieval, citation
    checking, the brief and the evidence assembly are all tested and were exercised end to
    end against his real eleven notes, but the request to Claude itself has not run.
-14. **Spend is read from `assets.value` and `assets` is empty**, so every division's
+14. **Nothing from the v2 pass has been opened in a browser.** It is typechecked,
+   unit-tested and production-built, and that is genuinely all: the four dashboard tabs,
+   `/checkin`, `/life/money`, `/life/health` and `/life/people` have never been rendered.
+   The 390×844 device sweep in §A5 predates every one of them, so the five-item phone bar
+   and the no-horizontal-overflow claims are unverified for the new routes. Run the sweep
+   again before trusting them.
+15. **The health tables are empty and nothing writes `source = 'samsung'` yet.** The
+   readiness band therefore says "needs 14 days of readings" and the load panel says "needs
+   four weeks", which is the intended first-run state rather than a fault. Porting the
+   `_parseSHealth` OCR parser from the archived prototype (§B2) is what fills them; the
+   columns are already shaped for it.
+16. **`debts.apr` is null on all eight creditors**, so `/life/money` shows avalanche as
+   unavailable and offers snowball only. That is deliberate (§A4) — one rate on any debt
+   turns the option on.
+17. **`people` holds three rows.** The roster's seeding banner shows until five have
+   cadences, which is the floor `rosterProgress()` measures rather than the fifteen the
+   target names.
+18. **Spend is read from `assets.value` and `assets` is empty**, so every division's
    "spent so far" is `£—`. That is honest rather than missing: budget-versus-spend is
    `unbudgeted`/`unspent`/`unknown` until Phase 5 builds the assets view, and a null budget
    with real spend is deliberately **not** an overspend (there is a test).
@@ -650,8 +773,8 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 479 tests — must be green before build
-npm run build                  # 31 routes — green before you push
+npm test                       # 625 tests — must be green before build
+npm run build                  # 35 routes — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from
