@@ -33,6 +33,8 @@ import {
 import AreaBars from "@/components/AreaBars";
 import Habits from "@/components/Habits";
 import BucketList from "@/components/BucketList";
+import Unknowns from "@/components/Unknowns";
+import { unknowns } from "@/lib/inline";
 import { Panel, Kpi, Empty } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -59,6 +61,8 @@ export default async function LifeOs() {
     { data: readings },
     { data: habits },
     { data: habitLogs },
+    { data: debtRows },
+    { data: vehicleRows },
   ] = await Promise.all([
     supabase
       .from("pillars")
@@ -86,7 +90,44 @@ export default async function LifeOs() {
       .eq("active", true)
       .order("name"),
     supabase.from("habit_logs").select("habit_id, done_on"),
+    supabase
+      .from("debts")
+      .select("id, creditor, status, current_balance")
+      .order("sort_order"),
+    supabase
+      .from("vehicles")
+      .select("id, name, registration, status, tax_due, mot_due, insurance_due")
+      .order("sort_order"),
   ]);
+
+  // The gaps, gathered. Every figure the system is missing across debts and
+  // vehicles, so fixing eight of them is eight taps rather than eight
+  // navigations — which is the difference between it happening and not.
+  const debtsForGaps = (debtRows ?? []) as {
+    id: string;
+    creditor: string;
+    status: string;
+    current_balance: number | null;
+  }[];
+  const vehiclesForGaps = (vehicleRows ?? []) as {
+    id: string;
+    name: string;
+    registration: string | null;
+    status: string;
+    tax_due: string | null;
+    mot_due: string | null;
+    insurance_due: string | null;
+  }[];
+  const gaps = unknowns({ debts: debtsForGaps, vehicles: vehiclesForGaps });
+  const gapValues: Record<string, string | number | null> = {};
+  for (const d of debtsForGaps) {
+    gapValues[`debts.current_balance:${d.id}`] = d.current_balance;
+  }
+  for (const v of vehiclesForGaps) {
+    gapValues[`vehicles.tax_due:${v.id}`] = v.tax_due;
+    gapValues[`vehicles.mot_due:${v.id}`] = v.mot_due;
+    gapValues[`vehicles.insurance_due:${v.id}`] = v.insurance_due;
+  }
 
   const allPillars = (pillars ?? []) as Pillar[];
   const life = areasFor(allPillars, "life");
@@ -190,6 +231,20 @@ export default async function LifeOs() {
           </Link>
         </div>
       </header>
+
+      {/* -- what the system does not know -------------------------- *
+       *
+       * A panel, deliberately, and not an alert: it never enters the
+       * watchtower and never arrives unasked. It is here because this is
+       * the page he is already on when he wonders what the debt total
+       * actually is, and the honest answer to that is upstairs in this
+       * list.
+       */}
+      {gaps.length > 0 && (
+        <Panel title="◌ Not yet known" hint="each one edits here">
+          <Unknowns items={gaps} values={gapValues} />
+        </Panel>
+      )}
 
       {/* -- KPI strip --------------------------------------------- */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">

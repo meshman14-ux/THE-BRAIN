@@ -1,12 +1,55 @@
 @import "tailwindcss";
 
 /* ============================================================
-   THE BRAIN — design tokens
-   Default: "paper" — Jay's Blueprint v2 language (warm paper,
-   white cards, indigo accent, serif headlines).
-   Optional: "dark".
+   THE BRAIN — design tokens · Palette B, "Two Machines"
+   ============================================================
+
+   Two themes and two machines, and they are different axes.
+
+   THEME is the light in the room and Jay chooses it: "paper" is his
+   Blueprint v2 language (warm paper, white cards, serif headlines);
+   "dark" is the toggle for a dark room.
+
+   MODE is which operating system he is wearing, and it changes far more
+   than an accent. LIFE_OS keeps the theme's own ground, indigo, serif
+   headlines and roomy chrome. EMPIRE_OS flips the whole surface to
+   graphite with a cyan accent, mono headlines and tighter chrome — in
+   BOTH themes. Switching does not recolour a button; it changes the
+   light in the room. That is the whole of the two-machines idea, and it
+   rides the one `data-mode` attribute that is already on <html> before
+   first paint.
+
+   FOUR COLOUR CHANNELS, and nothing may borrow another's colour:
+
+     1 · SYSTEM   which OS      hue + surface + typeface + density
+     2 · STATUS   how it is going   green/amber/red, permanently reserved
+     3 · PRIORITY how urgent    shape and weight, NEVER hue (.prio below)
+     4 · MODULE   what kind     glyph + micro-label, no colour at all
+
+   The v1 palette broke channel separation in three places, and each one
+   made a real screen lie:
+
+     --empire was #c07a1e, the exact value of --warn, so an EMPIRE
+       element and a warning were the same colour. Channel 1 was wearing
+       channel 2's clothes. EMPIRE is cyan now — out of the warm band
+       entirely, so it cannot collide with warn or bad again.
+
+     --doing, --accent and --life were all #4b57c9, so in LIFE mode the
+       Kanban's "in progress" lane was invisible against the accent.
+       Fixed at the root rather than by retuning: the three task states
+       are a sequence, not three categories, so they are HUE-FREE — a
+       neutral ramp from faint (not started) through full (live) to
+       muted (finished). Nothing about a lane needs a colour when the
+       lane has a name written on it.
+
+     --p-learning was #b3801d against --warn #c07a1e — a difference of
+       about one step, so a learning hour read as an alert. The five
+       hour purposes now sit entirely off the alarm band.
    ============================================================ */
 
+/* ------------------------------------------------------------------ *
+ * Theme: paper (default) — Jay's Blueprint v2 ground
+ * ------------------------------------------------------------------ */
 :root,
 :root[data-theme="paper"] {
   --bg: #f4f2ee;
@@ -19,72 +62,96 @@
   --border: #e6e3dd;
   --border-bright: #d9d5cd;
 
-  --accent: #4b57c9;
-  --accent-soft: #eceefb;
+  --accent: #3b47b8;
+  --accent-soft: #eaecfa;
   --on-accent: #ffffff;
 
-  --life: #4b57c9;
-  --life-dim: #c4c9f2;
-  --life-soft: #eceefb;
-  --empire: #c07a1e;
-  --empire-dim: #e8d5b4;
-  --empire-soft: #faf1e3;
+  /* Channel 1 · system identity. Both values must be legible on this
+     theme's own ground, because the command centre shows the two side
+     by side on paper. EMPIRE gets its bright cyan only in EMPIRE mode,
+     where the ground beneath it has gone graphite. */
+  --life: #3b47b8;
+  --life-dim: #bfc5ef;
+  --life-soft: #eaecfa;
+  --empire: #0e6d88;
+  --empire-dim: #b3d6e1;
+  --empire-soft: #e6f2f6;
 
-  --good: #2f8f4e;
-  --warn: #c07a1e;
-  --bad: #d1495b;
+  /* Channel 2 · status. Reserved — nothing else may use these three.
+     Amber and red sit in the same band once red-green vision is taken out,
+     so hue alone cannot separate warn from bad. LIGHTNESS is the lever, and
+     it is why `bad` here is a deep crimson rather than a bright one: at
+     L* 23 against warn's L* 50 the pair reads as ΔE 24.8 under deuteranopia,
+     where a conventional bright red would read as 3.1 — the same colour.
+     tests/palette.test.ts measures this rather than trusting it. */
+  --good: #1d7f4a;
+  --warn: #ab6608;
+  --bad: #73091f;
 
-  --todo: #8a6a4a;
-  --doing: #4b57c9;
-  --done: #2f8f4e;
+  /* Task states are a sequence, so they are a weight ramp, not a palette.
+     See the header note on the --doing collision. */
+  --todo: var(--faint);
+  --doing: var(--text);
+  --done: var(--muted);
 
-  /* The five hour purposes Jay circled. Five distinguishable hues, none of
-     them the alarm colours — an hour spent resting is not a warning. */
-  --p-work: #4b57c9;
-  --p-rest: #2f8f4e;
-  --p-learning: #b3801d;
-  --p-cleaning: #7a6a9c;
-  --p-connecting: #bf5580;
+  /* The five hour purposes Jay circled. Five distinguishable hues, all of
+     them clear of the alarm colours above — an hour spent resting is not
+     a warning, and an hour spent learning is not one either. */
+  --p-work: #4c5bd4;
+  --p-rest: #2f8f8f;
+  --p-learning: #7b5cd6;
+  --p-cleaning: #7c8494;
+  --p-connecting: #b8478f;
 
+  /* Channel 1 · density and voice. EMPIRE tightens both. */
   --radius: 13px;
+  --pad: 18px;
+  --headfont: "Source Serif 4", ui-serif, Georgia, serif;
+  --headtrack: -0.02em;
+
   --shadow: 0 6px 24px rgba(32, 36, 43, 0.08);
 }
 
+/* ------------------------------------------------------------------ *
+ * Theme: dark
+ * ------------------------------------------------------------------ */
 :root[data-theme="dark"] {
-  --bg: #0b0d11;
-  --bg-2: #11141a;
-  --card: #151920;
-  --card-hover: #1a1f28;
+  --bg: #0b0d14;
+  --bg-2: #11141c;
+  --card: #151924;
+  --card-hover: #1a1f2b;
   --text: #e9ecf1;
   --muted: #8d95a3;
   --faint: #5b6270;
-  --border: #232936;
-  --border-bright: #2e3644;
+  --border: #232939;
+  --border-bright: #2e3648;
 
-  --accent: #6ea8fe;
-  --accent-soft: #1c2740;
-  --on-accent: #0b0d11;
+  --accent: #8b96f5;
+  --accent-soft: #1e2340;
+  --on-accent: #0b0d14;
 
-  --life: #6ea8fe;
-  --life-dim: #2a3b57;
-  --life-soft: #1c2740;
-  --empire: #f0b357;
-  --empire-dim: #4a3a1e;
-  --empire-soft: #3a2c14;
+  --life: #8b96f5;
+  --life-dim: #2f3660;
+  --life-soft: #1e2340;
+  --empire: #3ac9e0;
+  --empire-dim: #17414c;
+  --empire-soft: #0f2b33;
 
-  --good: #4ec98f;
+  /* Dark has far more room than paper: colours may be light here, so the
+     warn/bad pair separates upward instead of downward. */
+  --good: #63d79f;
   --warn: #f0b357;
-  --bad: #f0736f;
+  --bad: #e04f6e;
 
-  --todo: #c49a6c;
-  --doing: #6ea8fe;
-  --done: #4ec98f;
+  --todo: var(--faint);
+  --doing: var(--text);
+  --done: var(--muted);
 
-  --p-work: #6ea8fe;
-  --p-rest: #4ec98f;
-  --p-learning: #f0b357;
-  --p-cleaning: #b3a3dd;
-  --p-connecting: #f08fb0;
+  --p-work: #8b96f5;
+  --p-rest: #52c2c2;
+  --p-learning: #b39af0;
+  --p-cleaning: #8d95a3;
+  --p-connecting: #ef85c6;
 
   --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
 }
@@ -110,12 +177,13 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* Serif for headlines — the blueprint's voice. */
+/* Headlines follow the machine: serif in LIFE and the command centre,
+   mono in EMPIRE. One variable, so nothing downstream has to know. */
 h1,
 h2.serif,
 .serif {
-  font-family: "Source Serif 4", ui-serif, Georgia, serif;
-  letter-spacing: -0.02em;
+  font-family: var(--headfont);
+  letter-spacing: var(--headtrack);
 }
 
 .mono {
@@ -133,11 +201,21 @@ h2.serif,
   border-color: var(--border-bright);
 }
 
+/* The density-carrying panel. `.card` sets the skin; `.panel` sets the
+   skin AND the breathing room, so a mode that tightens --pad actually
+   tightens the page rather than only its corners. */
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: var(--pad);
+}
+
 .input {
   width: 100%;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 11px;
+  border-radius: calc(var(--radius) - 2px);
   padding: 12px 14px;
   color: var(--text);
   font: inherit;
@@ -157,7 +235,7 @@ h2.serif,
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
-  border-radius: 10px;
+  border-radius: calc(var(--radius) - 3px);
   padding: 11px 17px;
   background: var(--accent);
   color: var(--on-accent);
@@ -186,7 +264,7 @@ h2.serif,
   font-size: 0.72rem;
   font-weight: 600;
   padding: 5px 11px;
-  border-radius: 8px;
+  border-radius: calc(var(--radius) - 5px);
   border: 1px solid var(--border);
   background: var(--card);
   color: var(--muted);
@@ -221,15 +299,64 @@ h2.serif,
 }
 
 /* ------------------------------------------------------------------ *
+ * Channel 3 · PRIORITY IS SHAPE, NEVER HUE
+ *
+ * Priority cannot have a colour. The two colours it would reach for are
+ * already spoken for: red means "something is wrong" (channel 2) and the
+ * accent means "this is the system you are wearing" (channel 1). A red
+ * High-priority task is indistinguishable from an overdue one, which is
+ * exactly the confusion the four-channel split exists to stop.
+ *
+ * So urgency is drawn as weight: a left bar that thickens and a marker
+ * that fills. Both survive greyscale, both survive every form of colour
+ * blindness, and both stack with a status colour on the same row without
+ * either one becoming ambiguous. The marker is decoration — every row
+ * still carries the word High/Med/Low for a screen reader.
+ * ------------------------------------------------------------------ */
+.prio {
+  border-left-style: solid;
+  border-left-color: currentColor;
+  padding-left: 10px;
+}
+.prio[data-p="High"] {
+  border-left-width: 4px;
+}
+.prio[data-p="Med"] {
+  border-left-width: 2px;
+}
+.prio[data-p="Low"] {
+  border-left-width: 1px;
+}
+
+.prio-mark {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  flex-shrink: 0;
+}
+.prio-mark[data-p="High"] {
+  background: currentColor;
+}
+.prio-mark[data-p="Med"] {
+  background: linear-gradient(to right, currentColor 50%, transparent 50%);
+}
+.prio-mark[data-p="Low"] {
+  background: transparent;
+}
+
+/* ------------------------------------------------------------------ *
  * Modes — the app wears one system at a time
  *
  * `data-mode` is set on <html> before first paint by ModeScript, so the
- * accent and the nav are already right on the first frame. Everything here
- * keys off that one attribute: no JavaScript runs to colour the page, and
- * nothing rearranges on hydration.
+ * surface, the type and the nav are already right on the first frame.
+ * Everything here keys off that one attribute: no JavaScript runs to
+ * colour the page, and nothing rearranges on hydration.
  *
- * `brain` is the neutral position and deliberately overrides nothing — it
- * keeps the indigo accent and shows the command centre's nav.
+ * `brain` is the neutral position and deliberately overrides nothing —
+ * it keeps the theme's own ground, the indigo accent, serif headlines
+ * and the command centre's nav.
  * ------------------------------------------------------------------ */
 :root[data-mode="life"] {
   --accent: var(--life);
@@ -237,11 +364,50 @@ h2.serif,
   --sys: var(--life);
   --sys-dim: var(--life-dim);
 }
+
+/* EMPIRE is a different machine, not a different button colour. It takes
+   the ground with it in BOTH themes: graphite surface, cyan accent, mono
+   headlines, tighter radius and padding. A screenshot of EMPIRE on the
+   paper theme should be unmistakable for a screenshot of LIFE. */
 :root[data-mode="empire"] {
+  --bg: #14171c;
+  --bg-2: #191d23;
+  --card: #1e222a;
+  --card-hover: #242932;
+  --text: #e8ecf1;
+  --muted: #98a1ad;
+  --faint: #666f7c;
+  --border: #2b313b;
+  --border-bright: #3a414d;
+
+  --empire: #3ac9e0;
+  --empire-dim: #1a4653;
+  --empire-soft: #12303a;
   --accent: var(--empire);
   --accent-soft: var(--empire-soft);
+  --on-accent: #0d1013;
   --sys: var(--empire);
   --sys-dim: var(--empire-dim);
+
+  /* LIFE still appears here — the command centre's cross-links do not
+     vanish because you put the other hat on — so it needs a value that
+     holds on graphite rather than the paper theme's deep indigo. */
+  --life: #8b96f5;
+  --life-dim: #2f3660;
+  --life-soft: #1e2340;
+
+  /* Graphite is a lighter ground than the dark theme's near-black, so the
+     status trio is lifted a step to keep `bad` at AA body-text contrast. */
+  --good: #6bdca5;
+  --warn: #f5bb63;
+  --bad: #ee6b86;
+
+  --headfont: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --headtrack: -0.01em;
+  --radius: 5px;
+  --pad: 13px;
+
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
 }
 
 /* Nav items declare the modes they belong to; the rest are hidden. Written

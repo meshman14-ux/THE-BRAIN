@@ -83,12 +83,30 @@ export const NAV: NavItem[] = [
     phoneModes: ["life"],
   },
   {
-    key: "debts",
-    href: "/life/debts",
-    label: "Debts",
+    key: "money",
+    href: "/life/money",
+    label: "Money",
     icon: "£",
+    // The four views are one page, so the nav carries one item. Debts is
+    // reachable from the Debt tab, where the creditor detail belongs.
     modes: ["life"],
     phoneModes: ["life"],
+  },
+  {
+    key: "health",
+    href: "/life/health",
+    label: "Health",
+    icon: "◍",
+    modes: ["life"],
+    phoneModes: [],
+  },
+  {
+    key: "people",
+    href: "/life/people",
+    label: "People",
+    icon: "◎",
+    modes: ["life"],
+    phoneModes: [],
   },
   {
     key: "vehicles",
@@ -135,12 +153,25 @@ export const NAV: NavItem[] = [
     phoneModes: ["empire"],
   },
   {
+    key: "checkin",
+    href: "/checkin",
+    label: "Close",
+    icon: "◫",
+    // The daily close asks about whichever area the system picked, which
+    // may be either system's, so it belongs to the command centre too.
+    modes: ["brain", "life"],
+    // It takes the phone slot Week used to hold. The close is the one
+    // thing here you genuinely do one-handed in bed; planning a week is a
+    // desk job, the same reasoning that already keeps Calendar off the bar.
+    phoneModes: ["life"],
+  },
+  {
     key: "week",
     href: "/week",
     label: "Week",
     icon: "▦",
     modes: ["brain", "life"],
-    phoneModes: ["life"],
+    phoneModes: [],
   },
   {
     key: "calendar",

@@ -19,7 +19,7 @@ import {
   latestReading,
   currentStreak,
   dueWithin,
-  pickThree,
+  focusList,
   openCount,
   todayProgress,
   todayReason,
@@ -43,12 +43,19 @@ import {
   cashThisMonth,
   daysUntil,
   isExternal,
+  readCheckin,
+  checkinProgress,
+  normaliseTab,
+  BRAIN_TABS,
+  BRAIN_TAB_LABEL,
+  BRAIN_TAB_QUESTION,
+  type BrainTab,
 } from "@/lib/logic";
 import { verseOfDay } from "@/lib/gita";
 import { creedFrom, creedLineOfDay } from "@/lib/creed";
 import { divisionHref } from "@/lib/references";
 import SeedPillars from "@/components/SeedPillars";
-import TodayThree, { type TodayItem } from "@/components/TodayThree";
+import Focus, { type FocusItem } from "@/components/Focus";
 import { Panel, Empty, Bar } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -72,7 +79,12 @@ type NavItem = { label: string; href: string; badge?: number; note?: string };
  * rather than showing an invented number.
  * ------------------------------------------------------------------ */
 
-export default async function TheBrain() {
+export default async function TheBrain({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string }>;
+}) {
+  const tab = normaliseTab((await searchParams).tab);
   const supabase = await createClient();
   const now = new Date();
   const today = toIso(now);
@@ -89,6 +101,7 @@ export default async function TheBrain() {
     { data: people },
     { data: assets },
     { count: inboxCount },
+    { data: tonight },
     { data: creed },
   ] = await Promise.all([
     supabase
@@ -113,6 +126,7 @@ export default async function TheBrain() {
     supabase.from("people").select("id, name, last_contact, cadence_days, birthday"),
     supabase.from("assets").select("id, name, kind, income_monthly, cost_monthly, status"),
     supabase.from("inbox").select("id", { count: "exact", head: true }).eq("status", "open"),
+    supabase.from("journal").select("mood, energy").eq("entry_date", toIso(new Date())).maybeSingle(),
     // The creed only. The principle notes are deliberately NOT read here:
     // they are a place he goes, never something that arrives (§A3, and
     // PRINCIPLES_NEVER_PUSH in types.ts).
@@ -177,7 +191,11 @@ export default async function TheBrain() {
   );
 
   const progress = todayProgress(allTasks, today);
-  const picked: TodayItem[] = pickThree(allTasks, today).map((t) => {
+  // Three visible, two on deck. `todayProgress` deliberately still counts
+  // only what is set for today: the drawer is planning space, so opening it
+  // must never move the TODAY n/3 counter.
+  const focus = focusList(allTasks, today);
+  const toFocusItem = (t: Task): FocusItem => {
     const p = t.pillar_id ? pillarById.get(t.pillar_id) : null;
     return {
       id: t.id,
@@ -185,9 +203,10 @@ export default async function TheBrain() {
       areaLabel: p ? `${p.emoji ?? ""} ${p.name}`.trim() : null,
       system: p?.system ?? null,
       reason: REASON_TEXT[todayReason(t, today)],
+      priority: t.priority,
       done: t.status === "done",
     };
-  });
+  };
   const todayCount = allTasks.filter(
     (t) => isOpenWork(t) && t.do_date != null && t.do_date <= today
   ).length;
@@ -225,6 +244,10 @@ export default async function TheBrain() {
   const building = inDevelopment(allVentures);
 
   /* -- header strings ------------------------------------------------ */
+
+  // Logged means the FLOOR is answered — mood and energy. Anything more is
+  // the ceiling, and the dashboard must not imply he owes it.
+  const closed = checkinProgress(readCheckin(tonight)).logged;
 
   const greet = greetingFor(now.getHours());
   const verse = verseOfDay(today);
@@ -346,55 +369,23 @@ export default async function TheBrain() {
           </div>
         </aside>
 
-        {/* -- main column ------------------------------------------ */}
+        {/* -- main column ------------------------------------------ *
+         *
+         * Four tabs, and the rule that keeps them honest: a tab exists only
+         * if it answers a question the other three cannot. The v1 dashboard
+         * put all four answers in one column, so "what am I doing next" had
+         * to be read past a streak chart to reach.
+         *
+         * The tab is a URL parameter rather than React state. That keeps
+         * this a Server Component, makes every tab a real address the
+         * watchtower can link into, and means the back button does what a
+         * back button does.
+         */}
         <div className="grid gap-5 min-w-0">
-          {/* -- WATCHTOWER ------------------------------------------ */}
-          {alerts.length > 0 && (
-            <section className="card p-4 sm:p-5" style={{ borderColor: "var(--bad)" }}>
-              <div className="flex items-center gap-2.5">
-                <span className="text-[0.95rem]">⚠️</span>
-                <p
-                  className="text-[0.7rem] font-bold tracking-[0.14em] uppercase"
-                  style={{ color: "var(--bad)" }}
-                >
-                  Needs attention · {alerts.length}
-                </p>
-              </div>
-              <div className="grid gap-1.5 mt-3">
-                {alerts.slice(0, 6).map((a, i) => (
-                  <Link
-                    key={`${a.kind}-${i}`}
-                    href={a.href}
-                    className="flex items-center gap-2.5 no-underline text-[var(--text)] py-1"
-                  >
-                    <span
-                      aria-hidden
-                      className="w-[6px] h-[6px] rounded-full shrink-0"
-                      style={{ background: ALERT_TONE[a.kind] }}
-                    />
-                    <span
-                      className="mono text-[0.62rem] font-bold shrink-0 w-[62px]"
-                      style={{ color: ALERT_TONE[a.kind] }}
-                    >
-                      {a.label}
-                    </span>
-                    <span className="text-[0.8rem] flex-1 min-w-0 leading-snug">
-                      {a.text}
-                    </span>
-                    <span className="mono text-[0.66rem] text-[var(--faint)] shrink-0">
-                      →
-                    </span>
-                  </Link>
-                ))}
-              </div>
-              {alerts.length > 6 && (
-                <p className="text-[0.7rem] text-[var(--faint)] mt-2">
-                  +{alerts.length - 6} more
-                </p>
-              )}
-            </section>
-          )}
+          <TabBar tab={tab} attention={alerts.length} />
 
+          {tab === "now" && (
+            <>
           {/* -- HERO ------------------------------------------------- *
            *
            * Three blocks, in the order they are wanted: who and when, the
@@ -490,8 +481,203 @@ export default async function TheBrain() {
             {reviewText} · optional depth, today has the essentials
           </Link>
 
-          {/* -- THE TWO SYSTEMS ------------------------------------- */}
-          <div className="grid gap-5 lg:grid-cols-2 items-start">
+          {/* -- the daily close ------------------------------------- */}
+          <Link
+            href="/checkin"
+            className="panel card-hover no-underline text-[var(--text)] flex items-center gap-3"
+          >
+            <span className="text-[1.1rem] shrink-0" aria-hidden>
+              ◫
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="label block">The daily close</span>
+              <span className="text-[0.82rem] text-[var(--muted)] block mt-1 leading-snug">
+                {closed
+                  ? "Tonight is logged. The rest is there if you want it."
+                  : "Two taps logs today. Everything under that line is optional."}
+              </span>
+            </span>
+            <span
+              className="mono text-[0.66rem] shrink-0"
+              style={{ color: closed ? "var(--good)" : "var(--faint)" }}
+            >
+              {closed ? "LOGGED" : "→"}
+            </span>
+          </Link>
+
+          {/* -- FOCUS · three visible, two on deck ------------------ */}
+          <Panel
+            title="◎ Focus"
+            hint="three, and two behind a drawer"
+            action={
+              <Link
+                href="/capture"
+                className="text-[0.74rem] font-semibold no-underline"
+                style={{ color: "var(--accent)" }}
+              >
+                + CAPTURE
+              </Link>
+            }
+          >
+            <Focus
+              visible={focus.visible.map(toFocusItem)}
+              onDeck={focus.onDeck.map(toFocusItem)}
+              openTotal={focus.openTotal}
+              beyond={focus.beyond}
+            />
+          </Panel>
+
+          {/* -- TASK LIST · both systems ---------------------------- */}
+          <Panel
+            title="▤ Task list · what's open"
+            action={
+              <Link
+                href="/planner"
+                className="text-[0.74rem] font-semibold no-underline"
+                style={{ color: "var(--accent)" }}
+              >
+                ALL TASKS →
+              </Link>
+            }
+          >
+            <div className="grid gap-5 sm:grid-cols-2">
+              <TaskColumn
+                system="life"
+                label="LIFE"
+                count={split.life}
+                tasks={lifeTasks}
+                today={today}
+              />
+              <TaskColumn
+                system="empire"
+                label="EMPIRE"
+                count={split.empire}
+                tasks={empireTasks}
+                today={today}
+              />
+            </div>
+            {split.unassigned > 0 && (
+              <p className="text-[0.7rem] text-[var(--faint)] leading-relaxed">
+                {split.unassigned} open task
+                {split.unassigned === 1 ? "" : "s"} with no area — real work, but
+                it has not been told which life it belongs to.
+              </p>
+            )}
+          </Panel>
+            </>
+          )}
+
+          {/* ================= ATTENTION ============================ *
+           *
+           * Everything that is going wrong, and nothing that is not. The
+           * watchtower is NOT truncated here the way it was on the old
+           * single column: this tab is the place you come to read all of
+           * it, so hiding the seventh alert behind a "+3 more" would make
+           * the tab pointless. `sortWorstFirst` is already applied by
+           * `watchtowerAlerts`, so the order is the answer.
+           */}
+          {tab === "attention" && (
+            <>
+              {alerts.length === 0 ? (
+                <Panel title="⚠ Needs attention" hint="nothing is slipping">
+                  <Empty cta={{ href: "/planner", label: "Look at the work anyway" }}>
+                    Nothing overdue, nobody out of touch past their cadence, no
+                    division drifting from its own claim. This tab is empty when
+                    the system has nothing to tell you, which is the point of
+                    it having its own tab.
+                  </Empty>
+                </Panel>
+              ) : (
+                <section className="panel" style={{ borderColor: "var(--bad)" }}>
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-[0.95rem]">⚠️</span>
+                    <p
+                      className="text-[0.7rem] font-bold tracking-[0.14em] uppercase"
+                      style={{ color: "var(--bad)" }}
+                    >
+                      Needs attention · {alerts.length}
+                    </p>
+                  </div>
+                  <div className="grid gap-1.5 mt-3">
+                    {alerts.map((a, i) => (
+                      <Link
+                        key={`${a.kind}-${i}`}
+                        href={a.href}
+                        className="flex items-center gap-2.5 no-underline text-[var(--text)] py-1"
+                      >
+                        <span
+                          aria-hidden
+                          className="w-[6px] h-[6px] rounded-full shrink-0"
+                          style={{ background: ALERT_TONE[a.kind] }}
+                        />
+                        <span
+                          className="mono text-[0.62rem] font-bold shrink-0 w-[62px]"
+                          style={{ color: ALERT_TONE[a.kind] }}
+                        >
+                          {a.label}
+                        </span>
+                        <span className="text-[0.8rem] flex-1 min-w-0 leading-snug">
+                          {a.text}
+                        </span>
+                        <span className="mono text-[0.66rem] text-[var(--faint)] shrink-0">
+                          →
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+            {/* -- DEADLINES · due now --------------------------------- */}
+            <Panel title="◔ Deadlines · due now" hint="next 7 days, overdue included">
+              {dueSoon.length === 0 ? (
+                <Empty cta={{ href: "/week", label: "Plan the week" }}>
+                  Nothing due — you&apos;re on top of it. A task earns a place here
+                  by having a real due date, which is a fact about the world rather
+                  than a wish.
+                </Empty>
+              ) : (
+                <div className="grid gap-1.5">
+                  {dueSoon.slice(0, 8).map((t, i) => {
+                    const d = daysUntil(t.due_date ?? null, today);
+                    const late = d != null && d < 0;
+                    return (
+                      <div
+                        key={"id" in t ? String(t.id) : i}
+                        className="flex items-center gap-3 rounded-[10px] border border-[var(--border)] px-3.5 py-2.5"
+                      >
+                        <span className="text-[0.82rem] flex-1 min-w-0 truncate">
+                          {"title" in t ? String(t.title) : "Project deadline"}
+                        </span>
+                        <span
+                          className="mono text-[0.66rem] shrink-0"
+                          style={{ color: late ? "var(--bad)" : "var(--warn)" }}
+                        >
+                          {d == null
+                            ? t.due_date
+                            : late
+                              ? `${Math.abs(d)}d late`
+                              : d === 0
+                                ? "today"
+                                : `${d}d`}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Panel>
+            </>
+          )}
+
+          {/* ================= SYSTEMS ============================== *
+           *
+           * The two subsystems as doorways, not as summaries. §A2's rule
+           * is that the command centre reads and the subsystems write, so
+           * everything here links somewhere that can be acted on.
+           */}
+          {tab === "systems" && (
+            <div className="grid gap-5 lg:grid-cols-2 items-start">
             {/* ===== LIFE_OS ===== */}
             <section
               className="sys-life card p-4 sm:p-5 grid gap-4"
@@ -516,13 +702,6 @@ export default async function TheBrain() {
                   OPEN →
                 </span>
               </Link>
-
-              <div>
-                <p className="label">Today&apos;s three</p>
-                <div className="mt-2">
-                  <TodayThree items={picked} openTotal={open} />
-                </div>
-              </div>
 
               <div className="grid grid-cols-2 gap-2">
                 <MiniStat
@@ -735,85 +914,18 @@ export default async function TheBrain() {
               </Link>
             </section>
           </div>
+          )}
 
-          {/* -- TASK LIST · both systems ---------------------------- */}
-          <Panel
-            title="▤ Task list · what's open"
-            action={
-              <Link
-                href="/planner"
-                className="text-[0.74rem] font-semibold no-underline"
-                style={{ color: "var(--accent)" }}
-              >
-                ALL TASKS →
-              </Link>
-            }
-          >
-            <div className="grid gap-5 sm:grid-cols-2">
-              <TaskColumn
-                system="life"
-                label="LIFE"
-                count={split.life}
-                tasks={lifeTasks}
-                today={today}
-              />
-              <TaskColumn
-                system="empire"
-                label="EMPIRE"
-                count={split.empire}
-                tasks={empireTasks}
-                today={today}
-              />
-            </div>
-            {split.unassigned > 0 && (
-              <p className="text-[0.7rem] text-[var(--faint)] leading-relaxed">
-                {split.unassigned} open task
-                {split.unassigned === 1 ? "" : "s"} with no area — real work, but
-                it has not been told which life it belongs to.
-              </p>
-            )}
-          </Panel>
-
-          {/* -- DEADLINES · due now --------------------------------- */}
-          <Panel title="◔ Deadlines · due now" hint="next 7 days, overdue included">
-            {dueSoon.length === 0 ? (
-              <Empty cta={{ href: "/week", label: "Plan the week" }}>
-                Nothing due — you&apos;re on top of it. A task earns a place here
-                by having a real due date, which is a fact about the world rather
-                than a wish.
-              </Empty>
-            ) : (
-              <div className="grid gap-1.5">
-                {dueSoon.slice(0, 8).map((t, i) => {
-                  const d = daysUntil(t.due_date ?? null, today);
-                  const late = d != null && d < 0;
-                  return (
-                    <div
-                      key={"id" in t ? String(t.id) : i}
-                      className="flex items-center gap-3 rounded-[10px] border border-[var(--border)] px-3.5 py-2.5"
-                    >
-                      <span className="text-[0.82rem] flex-1 min-w-0 truncate">
-                        {"title" in t ? String(t.title) : "Project deadline"}
-                      </span>
-                      <span
-                        className="mono text-[0.66rem] shrink-0"
-                        style={{ color: late ? "var(--bad)" : "var(--warn)" }}
-                      >
-                        {d == null
-                          ? t.due_date
-                          : late
-                            ? `${Math.abs(d)}d late`
-                            : d === 0
-                              ? "today"
-                              : `${d}d`}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Panel>
-
+          {/* ================= TREND ================================ *
+           *
+           * The only backward look in the whole command centre, and it has
+           * its own tab so it stays that way. A streak bar is interesting,
+           * but it is not a decision — put it beside today's three and it
+           * competes with them for the same attention while answering a
+           * different question.
+           */}
+          {tab === "trend" && (
+            <>
           {/* -- PRODUCTIVITY · at a glance -------------------------- */}
           <Panel title="Productivity · at a glance">
             <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr_0.9fr] items-center">
@@ -913,11 +1025,72 @@ export default async function TheBrain() {
             </Empty>
           </Panel>
 
+              <Link
+                href="/reviews"
+                className="panel card-hover no-underline block text-[var(--text)]"
+              >
+                <p className="label">The weekly review</p>
+                <p className="text-[0.82rem] text-[var(--muted)] mt-1.5 leading-relaxed">
+                  {reviewText.toLowerCase()}. Four questions, the fourth being
+                  what got in the way — which is the one that turns a streak
+                  into a reason.
+                </p>
+              </Link>
+            </>
+          )}
+
           <p className="mono text-[0.62rem] tracking-[0.12em] text-[var(--faint)] text-center uppercase">
             The brain reads both · tasks are shared · each system owns its own data
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The four tabs.
+ *
+ * Links, not buttons: the tab is in the URL, so this stays server-rendered
+ * and every tab is an address something else can point at — the phone nav,
+ * a notification, the advisor's brief.
+ *
+ * Attention carries its count IN THE LABEL rather than as a badge beside
+ * it. A badge is a decoration you learn to stop seeing; a tab that reads
+ * "Attention · 4" states the fact in the same breath as the name, and a tab
+ * that reads "Attention" with nothing after it is telling you something
+ * too.
+ */
+function TabBar({ tab, attention }: { tab: BrainTab; attention: number }) {
+  return (
+    <div className="grid gap-2">
+      <nav
+        className="flex gap-1.5 overflow-x-auto -mx-1 px-1 pb-0.5"
+        aria-label="Command centre sections"
+      >
+        {BRAIN_TABS.map((t) => {
+          const active = t === tab;
+          const count = t === "attention" && attention > 0 ? ` · ${attention}` : "";
+          return (
+            <Link
+              key={t}
+              href={t === "now" ? "/dashboard" : `/dashboard?tab=${t}`}
+              aria-current={active ? "page" : undefined}
+              className="chip no-underline shrink-0"
+              data-active={active ? "true" : "false"}
+              style={
+                t === "attention" && attention > 0 && !active
+                  ? { color: "var(--bad)", borderColor: "var(--bad)" }
+                  : undefined
+              }
+            >
+              {BRAIN_TAB_LABEL[t]}
+              {count}
+            </Link>
+          );
+        })}
+      </nav>
+      <p className="text-[0.72rem] text-[var(--faint)]">{BRAIN_TAB_QUESTION[tab]}</p>
     </div>
   );
 }

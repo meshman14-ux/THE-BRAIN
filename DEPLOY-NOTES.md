@@ -20,18 +20,41 @@ history, kept only in git.*
 After pushing, confirm the deployment went **READY** and the pages actually render —
 a green build is not a rendered page.
 
-## The old project
+## The old project — UNRESOLVED, and stranger than it looks
 
-`the-brain-os` still exists in the account, is failing, and is scheduled for deletion.
-**Never deploy to it and never point anything at it.** Its URL
-(`the-brain-os-meshman14-uxs-projects.vercel.app`) is not the app. The 2026-07-30
-connector permission saga that created it is preserved in this file's git history if it
-is ever needed again.
+`the-brain-os` is the project the 2026-07-30 connector saga created. It has **no Root
+Directory set**, so it builds at the repo root, finds no `app/` — the app is in `web/` —
+and fails with `Couldn't find any pages or app directory`. It posts a red
+`Vercel – the-brain-os` status on every commit on every branch. **No code change can fix
+it**, and a permanently red check nobody trusts is worse than no check: it trains you to
+ignore the one signal that might one day be real.
+
+**As of 2026-08-10 it is still connected, after both a disconnect and a deletion were
+attempted.** Five consecutive commits on PR #7 each triggered a fresh build with a new
+deployment id — `295FRqcE…`, `48fcQ9Le…`, `58uP3QPm…` among them — spanning both attempts.
+Do not record this as fixed again without the test below passing.
+
+**The test, and the only one that counts:** a NEW commit carrying ONE Vercel status
+instead of two. A settings page that looks saved is not evidence, and neither is a
+deletion dialog that closed. Because GitHub commit statuses are immutable, every commit up
+to and including `61e71e7` keeps its red mark forever — frozen history, not a live
+failure. Judge the newest commit only.
+
+**The likeliest reason both attempts missed: the project may not be in the
+`meshman14-uxs-projects` team at all.** A Vercel API token scoped to that team returns
+**404** for it by slug and by id, and `list_projects` for the team has never included it —
+only `mainfram-4` and `the-brain`. Vercel deployment URLs carry the owner slug from when
+the link was created, so the `meshman14-uxs-projects/the-brain-os` path in the status link
+is not proof of where it lives now. Check the personal scope in the account switcher.
+
+**To reach the right project reliably, do not navigate from the dashboard.** Click
+**Details** on the red status in any PR: that opens the failing deployment itself, and its
+project breadcrumb is by definition the project that is actually building.
 
 | What | URL | State |
 |---|---|---|
 | **THE BRAIN** | https://the-brain-meshman14-uxs-projects.vercel.app | **live — the real one** |
-| the-brain-os | the-brain-os-…vercel.app | failing, delete it |
+| the-brain-os | the-brain-os-…vercel.app | **still building this repo** — see above. Not the app; never point anything at it |
 | Old prototype | https://the-brain-pi.vercel.app | domain now attached to `the-brain` |
 | **MAINFRAME** | https://mainfram-4.vercel.app | **live, do not touch** |
 

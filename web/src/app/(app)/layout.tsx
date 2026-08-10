@@ -116,10 +116,14 @@ export default async function AppLayout({
               key={n.key}
               href={n.href}
               data-phone-modes={n.phoneModes.join(" ")}
-              className="py-2.5 flex flex-col items-center gap-0.5 no-underline text-[var(--muted)] active:text-[var(--accent)]"
+              // `min-w-0` is what lets the label truncate instead of pushing
+              // out of its column. A grid child defaults to min-width:auto, so
+              // without it a long label — "Opportunities" at 390px — renders
+              // wider than its fifth of the bar and leans on its neighbours.
+              className="py-2.5 px-1 min-w-0 flex flex-col items-center gap-0.5 no-underline text-[var(--muted)] active:text-[var(--accent)]"
             >
               <span className="text-base leading-none">{n.icon}</span>
-              <span className="text-[0.6rem] font-semibold uppercase tracking-wide">
+              <span className="text-[0.6rem] font-semibold uppercase tracking-wide max-w-full truncate">
                 {n.label}
               </span>
             </Link>

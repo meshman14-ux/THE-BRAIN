@@ -797,21 +797,79 @@ const PRI_RANK: Record<Priority, number> = { High: 0, Med: 1, Low: 2 };
 export function pickThree<
   T extends Pick<Task, "do_date" | "due_date" | "priority" | "status" | "title">
 >(tasks: T[], todayIso: string, limit: number = TODAY_LIMIT): T[] {
-  return [...tasks]
-    .filter(isOpenWork)
-    .sort((a, b) => {
-      const ar = REASON_RANK[todayReason(a, todayIso)];
-      const br = REASON_RANK[todayReason(b, todayIso)];
-      if (ar !== br) return ar - br;
-      const ap = PRI_RANK[a.priority] ?? 1;
-      const bp = PRI_RANK[b.priority] ?? 1;
-      if (ap !== bp) return ap - bp;
-      const ad = a.do_date ?? a.due_date ?? "9999-12-31";
-      const bd = b.do_date ?? b.due_date ?? "9999-12-31";
-      if (ad !== bd) return ad.localeCompare(bd);
-      return a.title.localeCompare(b.title);
-    })
-    .slice(0, limit);
+  return rankForToday(tasks, todayIso).slice(0, limit);
+}
+
+/**
+ * The one ordering. Extracted so `pickThree` and `focusList` cannot drift:
+ * the drawer's two are literally the next two of the same queue, not a
+ * second opinion about what matters.
+ */
+export function rankForToday<
+  T extends Pick<Task, "do_date" | "due_date" | "priority" | "status" | "title">
+>(tasks: T[], todayIso: string): T[] {
+  return [...tasks].filter(isOpenWork).sort((a, b) => {
+    const ar = REASON_RANK[todayReason(a, todayIso)];
+    const br = REASON_RANK[todayReason(b, todayIso)];
+    if (ar !== br) return ar - br;
+    const ap = PRI_RANK[a.priority] ?? 1;
+    const bp = PRI_RANK[b.priority] ?? 1;
+    if (ap !== bp) return ap - bp;
+    const ad = a.do_date ?? a.due_date ?? "9999-12-31";
+    const bd = b.do_date ?? b.due_date ?? "9999-12-31";
+    if (ad !== bd) return ad.localeCompare(bd);
+    return a.title.localeCompare(b.title);
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Focus — three visible, two on deck
+ * ------------------------------------------------------------------ */
+
+/**
+ * How many the drawer holds. Three plus two, and the two are a drawer for a
+ * reason that matters more than it looks.
+ *
+ * `pickThree` exists to stop Jay scrolling his own life, and "just show five
+ * then" would quietly undo it — five is a list, and a list is the thing the
+ * dashboard was built to not be. But three with nothing behind them makes
+ * the next decision invisible: finish one and you are back at a blank slot
+ * with no idea what was queued.
+ *
+ * So the two are PLANNING SPACE, not more today. They are closed by default,
+ * they are not counted by `todayProgress`, and they never render alongside
+ * the three. Opening the drawer is a deliberate act that answers "and then
+ * what?" — which is a different question from "what now?".
+ */
+export const FOCUS_VISIBLE = TODAY_LIMIT;
+export const FOCUS_ON_DECK = 2;
+
+export type FocusList<T> = {
+  /** The three. Never more, whatever the drawer is doing. */
+  visible: T[];
+  /** The next two in the same queue. Behind a closed drawer. */
+  onDeck: T[];
+  /** Everything open, including the five above. The honest total. */
+  openTotal: number;
+  /** Open work beyond the five — what the drawer is NOT showing. */
+  beyond: number;
+};
+
+export function focusList<
+  T extends Pick<Task, "do_date" | "due_date" | "priority" | "status" | "title">
+>(
+  tasks: T[],
+  todayIso: string,
+  visible: number = FOCUS_VISIBLE,
+  onDeck: number = FOCUS_ON_DECK
+): FocusList<T> {
+  const ranked = rankForToday(tasks, todayIso);
+  return {
+    visible: ranked.slice(0, visible),
+    onDeck: ranked.slice(visible, visible + onDeck),
+    openTotal: ranked.length,
+    beyond: Math.max(0, ranked.length - visible - onDeck),
+  };
 }
 
 /** How many are open in total — the honest number beside the three. */
@@ -828,6 +886,55 @@ export function todayProgress<T extends Pick<Task, "do_date" | "status">>(
   const forToday = tasks.filter((t) => t.do_date === todayIso);
   const done = forToday.filter((t) => t.status === "done").length;
   return { done, of: Math.max(limit, forToday.length) };
+}
+
+/* ------------------------------------------------------------------ *
+ * THE BRAIN — four tabs
+ * ------------------------------------------------------------------ */
+
+/**
+ * The command centre asks four questions, and a tab exists only if it
+ * answers one the other three cannot. That rule is the whole design: the
+ * v1 dashboard was one column of eleven panels, so "what am I doing next"
+ * and "what is going wrong" and "am I getting better" all arrived at once
+ * and none of them got answered.
+ *
+ *   now       what am I doing next?      focus, capture, today
+ *   attention what is going wrong?       the watchtower, worst first
+ *   systems   how are LIFE and EMPIRE?   two panels, as doorways
+ *   trend     am I getting better?       the ONLY backward look
+ *
+ * `trend` being the only backward look is what keeps the other three from
+ * filling with history. A streak bar is interesting; it is not a decision,
+ * and it does not belong beside the three things he is about to do.
+ */
+export const BRAIN_TABS = ["now", "attention", "systems", "trend"] as const;
+export type BrainTab = (typeof BRAIN_TABS)[number];
+
+export const BRAIN_TAB_LABEL: Record<BrainTab, string> = {
+  now: "Now",
+  attention: "Attention",
+  systems: "Systems",
+  trend: "Trend",
+};
+
+/** The question each tab exists to answer, shown under the tab bar. */
+export const BRAIN_TAB_QUESTION: Record<BrainTab, string> = {
+  now: "What am I doing next?",
+  attention: "What is going wrong?",
+  systems: "How are LIFE and EMPIRE doing?",
+  trend: "Am I getting better?",
+};
+
+/**
+ * The tab lives in the URL, not in React state, so the page stays a Server
+ * Component and a link into `?tab=attention` lands where it says it does.
+ * Anything unrecognised falls back to `now` rather than rendering nothing —
+ * a mistyped tab should show him his day, not an empty page.
+ */
+export function normaliseTab(raw: string | string[] | null | undefined): BrainTab {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return (BRAIN_TABS as readonly string[]).includes(v ?? "") ? (v as BrainTab) : "now";
 }
 
 /* ------------------------------------------------------------------ *
@@ -2930,4 +3037,1398 @@ export function complianceConcerns(
     .filter((x): x is { question: ComplianceQuestion; answer: string } =>
       isConcerningAnswer(x.question, x.answer)
     );
+}
+
+/* ------------------------------------------------------------------ *
+ * The daily close — check-in and the structured review, one ritual
+ *
+ * These arrived as two items on the v2 list: a "check-in workflow" and a
+ * "structured daily review". They are one thing. Two rituals competing for
+ * the same two minutes at the end of the same day is how both get skipped,
+ * so this is a single flow with a floor and a ceiling.
+ *
+ * FLOOR: mood and energy. Two taps, and the day is logged. That is the
+ * whole obligation, and it is what makes a streak possible on a bad day.
+ *
+ * CEILING: five prompts — wins, friction, gratitude, tomorrow, and the one
+ * area the system picked. Always present, never demanded. Every field is
+ * optional and skipping writes NULL rather than an empty string, because
+ * "I did not answer" and "nothing happened" are different facts and only
+ * one of them should show up in a tally later.
+ * ------------------------------------------------------------------ */
+
+export type CheckinField =
+  | "mood"
+  | "energy"
+  | "wins"
+  | "friction"
+  | "gratitude"
+  | "tomorrow"
+  | "area";
+
+/** The floor: answer these and the day counts as logged. */
+export const CHECKIN_FLOOR: CheckinField[] = ["mood", "energy"];
+
+/** Every field, in the order the flow asks them. */
+export const CHECKIN_FIELDS: CheckinField[] = [
+  "mood",
+  "energy",
+  "wins",
+  "friction",
+  "gratitude",
+  "tomorrow",
+  "area",
+];
+
+export const CHECKIN_PROMPT: Record<CheckinField, string> = {
+  mood: "How was today?",
+  energy: "How much was in the tank?",
+  wins: "What went well?",
+  friction: "What got in the way?",
+  gratitude: "", // rotates weekly — see gratitudePrompt()
+  tomorrow: "What is the one thing for tomorrow?",
+  area: "", // names the area the system picked — see areaToAsk()
+};
+
+/**
+ * The gratitude prompt rotates weekly rather than daily.
+ *
+ * Emmons & McCullough found weekly gratitude practice outperformed daily,
+ * and the mechanism is adaptation: answer the same question every night
+ * and by Thursday you are writing the same three words. A prompt that
+ * changes on Monday and holds for the week gives the novelty without
+ * asking him to invent a new angle every single evening.
+ */
+export const GRATITUDE_PROMPTS = [
+  "Who made this week easier?",
+  "What worked that you did not expect to?",
+  "What do you have now that you once wanted?",
+  "What went wrong and cost you nothing?",
+  "Which small thing would you miss most?",
+  "What did somebody do that they did not have to?",
+];
+
+export function gratitudePrompt(todayIso: string): string {
+  // Keyed to the ISO week so it holds for seven days and moves on Monday.
+  const wk = isoWeekNumber(todayIso);
+  const yr = Number(todayIso.slice(0, 4));
+  const i = (yr * 53 + wk) % GRATITUDE_PROMPTS.length;
+  return GRATITUDE_PROMPTS[i];
+}
+
+/**
+ * Which area the check-in asks about tonight.
+ *
+ * The system chooses, so he never has to. Unscored areas come first —
+ * they are where a single tap buys the most information, and the dashboard
+ * cannot rank an area it has never been told about. After that, the worst
+ * score, because that is where attention is worth spending.
+ *
+ * Note this is the OPPOSITE ordering to `rankAreasByNeed`, and deliberately
+ * so: that function ranks unscored areas LAST because an area you have
+ * never looked at is unknown rather than failing, and the dashboard must
+ * not present a guess as a problem. Here the goal is to close the gap, not
+ * to report it, so unknown is exactly what we want to ask about.
+ *
+ * Ties rotate by date. A fresh account has thirteen unscored areas, and
+ * without rotation it would ask about the same one every night until he
+ * answered it.
+ */
+export function areaToAsk<
+  T extends Pick<Pillar, "id" | "name" | "score" | "sort_order">
+>(areas: T[], todayIso: string): T | null {
+  if (areas.length === 0) return null;
+  const unscored = areas.filter((a) => !isScored(a));
+  if (unscored.length > 0) {
+    const ordered = [...unscored].sort((a, b) => a.sort_order - b.sort_order);
+    return ordered[dayRotation(todayIso, ordered.length)];
+  }
+  const scored = [...areas].sort(
+    (a, b) => (a.score ?? 0) - (b.score ?? 0) || a.sort_order - b.sort_order
+  );
+  const worst = scored[0].score;
+  const tied = scored.filter((a) => a.score === worst);
+  return tied[dayRotation(todayIso, tied.length)];
+}
+
+/** A stable index for a given day. Same day, same answer; next day, next. */
+export function dayRotation(iso: string, n: number): number {
+  if (n <= 0) return 0;
+  const days = Math.floor(Date.parse(`${iso}T00:00:00Z`) / 86_400_000);
+  return ((days % n) + n) % n;
+}
+
+/**
+ * What a saved check-in looks like coming back out of the database.
+ *
+ * `journal.meta` is jsonb, so nothing here is trusted: every field is
+ * validated and anything unrecognised is discarded. A page Jay opened to
+ * read must not throw because a row holds a number where a string was
+ * expected (§A7).
+ */
+export type Checkin = {
+  mood: number | null;
+  energy: number | null;
+  wins: string | null;
+  friction: string | null;
+  gratitude: string | null;
+  tomorrow: string | null;
+  areaId: string | null;
+  areaScore: number | null;
+  /**
+   * Fields he chose to pass on tonight.
+   *
+   * Kept SEPARATE from the answers, which is the whole point: skipping
+   * writes NULL to the answer, exactly as the zero-obligation rule says,
+   * so a skipped gratitude never becomes an empty string that a tally
+   * counts later. But a skip is still information — it means "asked, and
+   * he said no" — and without recording it the flow has no way to stop
+   * asking, so the skip button would visibly do nothing.
+   */
+  skipped: CheckinField[];
+};
+
+export const EMPTY_CHECKIN: Checkin = {
+  mood: null,
+  energy: null,
+  wins: null,
+  friction: null,
+  gratitude: null,
+  tomorrow: null,
+  areaId: null,
+  areaScore: null,
+  skipped: [],
+};
+
+/** Mood and energy are both 1–5. Anything else is not an answer. */
+function scale5(v: unknown): number | null {
+  const n = typeof v === "number" ? v : NaN;
+  return Number.isInteger(n) && n >= 1 && n <= 5 ? n : null;
+}
+
+export function readCheckin(row: {
+  mood?: unknown;
+  energy?: unknown;
+  gratitude?: unknown;
+  meta?: unknown;
+} | null | undefined): Checkin {
+  if (!row) return EMPTY_CHECKIN;
+  const meta =
+    typeof row.meta === "object" && row.meta !== null && !Array.isArray(row.meta)
+      ? (row.meta as Record<string, unknown>)
+      : {};
+  const score = typeof meta.area_score === "number" ? meta.area_score : NaN;
+  return {
+    mood: scale5(row.mood),
+    energy: scale5(row.energy),
+    wins: toTextOrNull(meta.wins),
+    friction: toTextOrNull(meta.friction),
+    gratitude: toTextOrNull(row.gratitude),
+    tomorrow: toTextOrNull(meta.tomorrow),
+    areaId: toTextOrNull(meta.area_id),
+    areaScore: Number.isInteger(score) && score >= 0 && score <= 10 ? score : null,
+    skipped: Array.isArray(meta.skipped)
+      ? (meta.skipped.filter(
+          (f): f is CheckinField =>
+            typeof f === "string" && (CHECKIN_FIELDS as string[]).includes(f)
+        ) as CheckinField[])
+      : [],
+  };
+}
+
+/**
+ * Asked and dealt with — either answered, or passed on.
+ *
+ * The flow resumes on the first UNSETTLED field, not the first unanswered
+ * one, so a skip moves you forward. `isAnswered` stays the narrower test
+ * because that is the one anything measuring the data should use: a skipped
+ * night contributed no mood reading and must not be averaged as though it
+ * did.
+ */
+export function isSettled(c: Checkin, f: CheckinField): boolean {
+  return isAnswered(c, f) || c.skipped.includes(f);
+}
+
+/** Answered means answered — an empty box is a skip, and a skip is NULL. */
+export function isAnswered(c: Checkin, f: CheckinField): boolean {
+  switch (f) {
+    case "mood":
+      return c.mood != null;
+    case "energy":
+      return c.energy != null;
+    case "wins":
+      return c.wins != null;
+    case "friction":
+      return c.friction != null;
+    case "gratitude":
+      return c.gratitude != null;
+    case "tomorrow":
+      return c.tomorrow != null;
+    case "area":
+      return c.areaScore != null;
+  }
+}
+
+export type CheckinProgress = {
+  /** Floor answered — the day is logged and the reflection week counts it. */
+  logged: boolean;
+  /** Answers given. Skips are NOT counted; they are not answers. */
+  answered: number;
+  /** Skips taken, so the page can say "3 answered, 2 passed" honestly. */
+  skipped: number;
+  of: number;
+  /** The next field neither answered nor skipped — where the flow resumes. */
+  next: CheckinField | null;
+  /** Nothing left to ask tonight. */
+  done: boolean;
+};
+
+export function checkinProgress(c: Checkin): CheckinProgress {
+  const next = CHECKIN_FIELDS.find((f) => !isSettled(c, f)) ?? null;
+  return {
+    logged: CHECKIN_FLOOR.every((f) => isAnswered(c, f)),
+    answered: CHECKIN_FIELDS.filter((f) => isAnswered(c, f)).length,
+    skipped: CHECKIN_FIELDS.filter((f) => !isAnswered(c, f) && c.skipped.includes(f))
+      .length,
+    of: CHECKIN_FIELDS.length,
+    next,
+    done: next == null,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * The reflection streak — weeks, not days
+ * ------------------------------------------------------------------ */
+
+/**
+ * How many days a week count as having reflected. Four, not seven.
+ *
+ * A daily streak punishes one missed evening by resetting to zero, and the
+ * retention evidence is that the reset is what ends the habit rather than
+ * the missed day. Counting ENTRIES PER WEEK is streak-tolerant by
+ * construction: miss Tuesday and the week is still good, so Wednesday is
+ * a normal evening rather than a restart.
+ */
+export const REFLECTION_TARGET = 4;
+
+export type ReflectionWeek = {
+  /** Monday of the week. */
+  monday: string;
+  entries: number;
+  met: boolean;
+};
+
+/**
+ * The last `weeks` weeks, oldest first, and the run of consecutive weeks
+ * that met the target counting back from the most recent COMPLETE week.
+ *
+ * The current week is reported but never breaks the run: it is Tuesday and
+ * two entries in, so calling it a failure would be calling it early.
+ */
+export function reflectionWeeks(
+  entryDates: string[],
+  todayIso: string,
+  weeks = 8,
+  target = REFLECTION_TARGET
+): { weeks: ReflectionWeek[]; streak: number } {
+  const seen = new Set(entryDates);
+  const thisMonday = mondayOf(todayIso);
+  const out: ReflectionWeek[] = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const monday = addDays(thisMonday, -7 * i);
+    let entries = 0;
+    for (let d = 0; d < 7; d++) if (seen.has(addDays(monday, d))) entries++;
+    out.push({ monday, entries, met: entries >= target });
+  }
+  // Count back from the last COMPLETE week — the current one is still
+  // being lived and cannot have failed yet.
+  let streak = 0;
+  for (let i = out.length - 2; i >= 0; i--) {
+    if (!out[i].met) break;
+    streak++;
+  }
+  // A complete current week still counts, so a perfect record reads right.
+  if (out.length > 0 && out[out.length - 1].met) streak++;
+  return { weeks: out, streak };
+}
+
+/** Mood or energy averaged over the last `days` days, or null if unasked. */
+export function moodTrend(
+  rows: { entry_date: string; mood?: number | null; energy?: number | null }[],
+  todayIso: string,
+  days = 14
+): { mood: number | null; energy: number | null; of: number } {
+  const from = addDays(todayIso, -(days - 1));
+  const window = rows.filter((r) => r.entry_date >= from && r.entry_date <= todayIso);
+  const mean = (xs: number[]) =>
+    xs.length === 0 ? null : Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10;
+  return {
+    mood: mean(window.map((r) => r.mood).filter((n): n is number => n != null)),
+    energy: mean(window.map((r) => r.energy).filter((n): n is number => n != null)),
+    of: window.length,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * People — cadence, occasions, and the roster
+ *
+ * `people.cadence_days` was already called the highest-value thing in the
+ * schema: it is what lets the system say "you have not spoken to your
+ * brother in 47 days and you said 14". What it lacked was a sane default,
+ * a way to log a conversation in one tap, and a rule about how much of the
+ * backlog to show.
+ * ------------------------------------------------------------------ */
+
+/**
+ * Dunbar's layers, used as the default cadence for a tier.
+ *
+ * The numbers are not arbitrary and not ours: the layers (roughly 5 / 15 /
+ * 50 / 150) fall out of contact-frequency data, including mobile-call
+ * records, and the frequency is what defines the layer in the first place.
+ * So the tier IS the cadence, and asking "how close is this person" is a
+ * question he can answer instantly where "how often should I ring them"
+ * is one he would have to compute.
+ *
+ * Every default is overridable per person. The tier is a starting point,
+ * not a verdict — some people in the outer band get a call every week.
+ */
+export type Tier = "inner" | "close" | "band" | "wider";
+
+export const TIERS: Tier[] = ["inner", "close", "band", "wider"];
+
+export const TIER_CADENCE: Record<Tier, number> = {
+  inner: 7,
+  close: 30,
+  band: 90,
+  wider: 365,
+};
+
+export const TIER_LABEL: Record<Tier, string> = {
+  inner: "Inner five",
+  close: "Close fifteen",
+  band: "The fifty",
+  wider: "Wider circle",
+};
+
+export const TIER_HINT: Record<Tier, string> = {
+  inner: "The handful you would ring at 3am — about weekly",
+  close: "Close friends and family — about monthly",
+  band: "People you genuinely know — about quarterly",
+  wider: "Worth not losing — about yearly",
+};
+
+/** The tier a stored cadence corresponds to, for showing it back to him. */
+export function tierForCadence(days: number | null | undefined): Tier | null {
+  if (days == null) return null;
+  let best: Tier | null = null;
+  let bestGap = Infinity;
+  for (const t of TIERS) {
+    const gap = Math.abs(TIER_CADENCE[t] - days);
+    if (gap < bestGap) {
+      bestGap = gap;
+      best = t;
+    }
+  }
+  return best;
+}
+
+export type PersonRow = {
+  id: string;
+  name: string;
+  relationship: string | null;
+  last_contact: string | null;
+  cadence_days: number | null;
+  birthday: string | null;
+};
+
+export type ContactState = "overdue" | "due" | "ok" | "no_cadence" | "never";
+
+export type PersonStatus = {
+  person: PersonRow;
+  state: ContactState;
+  /** Days since the last logged contact, or null if there has never been one. */
+  since: number | null;
+  /** Days past the cadence. Positive means overdue. Null if not measurable. */
+  over: number | null;
+};
+
+/**
+ * How a person stands against their own cadence.
+ *
+ * Four honest outcomes, and the two that mean "I cannot tell you" are kept
+ * separate from the two that mean "here is the answer". A person with no
+ * cadence is not overdue — nobody has said how often — and a person never
+ * contacted is not overdue either, because there is no clock to be past.
+ * Both are prompts to fill something in, exactly like an unrecorded MOT.
+ */
+export function personStatus(p: PersonRow, todayIso: string): PersonStatus {
+  // `|| 0` rather than a bare negation: negating zero gives -0, which
+  // renders as "-0 days" on the day he actually spoke to somebody.
+  const since =
+    p.last_contact == null ? null : -(daysUntil(p.last_contact, todayIso) ?? 0) || 0;
+  if (p.cadence_days == null) return { person: p, state: "no_cadence", since, over: null };
+  if (since == null) return { person: p, state: "never", since: null, over: null };
+  const over = since - p.cadence_days;
+  // "Due" opens at 80% of the cadence — a weekly person nudges on day six,
+  // a yearly one from ten months out. A fixed window would make the yearly
+  // ones useless and the weekly ones constant.
+  if (over >= 0) return { person: p, state: "overdue", since, over };
+  if (since >= p.cadence_days * 0.8) return { person: p, state: "due", since, over };
+  return { person: p, state: "ok", since, over };
+}
+
+/** How many of the overdue the watchtower will ever show at once. */
+export const CADENCE_SURFACED = 3;
+
+/**
+ * The two or three people actually worth surfacing.
+ *
+ * A personal CRM that lists eleven overdue friends produces guilt, and
+ * guilt produces avoidance — the app gets closed rather than the calls
+ * getting made. So the hero surfaces at most three, worst first, and states
+ * the rest as a number rather than as a list. Three is a thing you can do
+ * something about tonight.
+ *
+ * Ranked by how far past the cadence they are as a PROPORTION of it, not in
+ * raw days: two weeks past a weekly friend is a much louder signal than two
+ * weeks past a yearly one, and sorting on raw days would bury the first
+ * behind the second forever.
+ */
+export function cadenceWatchtower(
+  people: PersonRow[],
+  todayIso: string,
+  limit: number = CADENCE_SURFACED
+): { surfaced: PersonStatus[]; alsoOverdue: number; unset: number } {
+  const statuses = people.map((p) => personStatus(p, todayIso));
+  const overdue = statuses
+    .filter((s) => s.state === "overdue")
+    .sort((a, b) => {
+      const ar = (a.over ?? 0) / (a.person.cadence_days || 1);
+      const br = (b.over ?? 0) / (b.person.cadence_days || 1);
+      if (ar !== br) return br - ar;
+      return a.person.name.localeCompare(b.person.name);
+    });
+  return {
+    surfaced: overdue.slice(0, limit),
+    alsoOverdue: Math.max(0, overdue.length - limit),
+    unset: statuses.filter((s) => s.state === "no_cadence" || s.state === "never").length,
+  };
+}
+
+/* -- occasions ------------------------------------------------------ */
+
+/** How far ahead the occasions strip looks. */
+export const OCCASION_WINDOW_DAYS = 60;
+
+/**
+ * How much warning an occasion needs before it is worth flagging.
+ *
+ * A birthday you learn about on the day is a text; one you learn about a
+ * fortnight out is a present. The lead time is the whole value of the
+ * strip, so it is a stated number rather than a feeling.
+ */
+export const OCCASION_LEAD_DAYS = 14;
+
+export type Occasion = {
+  personId: string;
+  name: string;
+  kind: "birthday";
+  /** The date it falls on THIS time round, not the original year. */
+  on: string;
+  inDays: number;
+  /** Inside the lead time — act now or it becomes a text on the day. */
+  soon: boolean;
+};
+
+export function occasions(
+  people: PersonRow[],
+  todayIso: string,
+  windowDays: number = OCCASION_WINDOW_DAYS,
+  leadDays: number = OCCASION_LEAD_DAYS
+): Occasion[] {
+  const out: Occasion[] = [];
+  for (const p of people) {
+    if (p.birthday == null) continue;
+    const inDays = daysUntilBirthday(p.birthday, todayIso);
+    if (inDays == null || inDays > windowDays) continue;
+    out.push({
+      personId: p.id,
+      name: p.name,
+      kind: "birthday",
+      on: addDays(todayIso, inDays),
+      inDays,
+      soon: inDays <= leadDays,
+    });
+  }
+  return out.sort((a, b) => a.inDays - b.inDays || a.name.localeCompare(b.name));
+}
+
+/* -- seeding the roster --------------------------------------------- */
+
+/**
+ * How many people the seeding session aims at. Fifteen, not a hundred.
+ *
+ * Dunbar's inner two layers are about twenty people, and they are the ones
+ * a cadence is meaningful for. A roster of a hundred is a database; a
+ * roster of fifteen is a relationship practice, and it can be built in one
+ * sitting of one question at a time.
+ */
+export const ROSTER_TARGET = 15;
+
+export type RosterProgress = {
+  named: number;
+  /** How many have a tier, which is what makes the cadence meaningful. */
+  withCadence: number;
+  target: number;
+  /** Done enough to be useful — not "complete", which it never is. */
+  useful: boolean;
+};
+
+export function rosterProgress(
+  people: PersonRow[],
+  target: number = ROSTER_TARGET
+): RosterProgress {
+  const withCadence = people.filter((p) => p.cadence_days != null).length;
+  return {
+    named: people.length,
+    withCadence,
+    target,
+    // Five people with cadences beats fifteen names with none, so the bar
+    // is set on the thing that makes the feature work rather than on the
+    // count. It is a floor, not a finish line.
+    useful: withCadence >= 5,
+  };
+}
+
+/**
+ * The next person to ask about, so the seeding session is one question at
+ * a time rather than a form with fifteen rows.
+ *
+ * Someone with a name and no cadence is the cheapest possible win — one
+ * tap turns a dead row into a live one — so those come first.
+ */
+export function nextToSet(people: PersonRow[]): PersonRow | null {
+  return (
+    [...people]
+      .filter((p) => p.cadence_days == null)
+      .sort((a, b) => a.name.localeCompare(b.name))[0] ?? null
+  );
+}
+
+/* ------------------------------------------------------------------ *
+ * Money — four views of the same question
+ *
+ * Jay wanted all four, so all four exist as tabs on one page rather than
+ * four pages: they answer the same question at four ranges, and splitting
+ * them across routes makes the comparison the point of having them.
+ * ------------------------------------------------------------------ */
+
+export const MONEY_TABS = ["debt", "worth", "cashflow", "buffer"] as const;
+export type MoneyTab = (typeof MONEY_TABS)[number];
+
+export const MONEY_TAB_LABEL: Record<MoneyTab, string> = {
+  debt: "Debt",
+  worth: "Net worth",
+  cashflow: "Cashflow",
+  buffer: "Buffer",
+};
+
+export const MONEY_TAB_QUESTION: Record<MoneyTab, string> = {
+  debt: "What do I owe, and when is it gone?",
+  worth: "What am I actually worth?",
+  cashflow: "Does more come in than goes out?",
+  buffer: "How long could I survive with nothing coming in?",
+};
+
+export function normaliseMoneyTab(raw: string | string[] | null | undefined): MoneyTab {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return (MONEY_TABS as readonly string[]).includes(v ?? "") ? (v as MoneyTab) : "debt";
+}
+
+/* -- strategies ----------------------------------------------------- */
+
+/**
+ * Avalanche pays the highest interest first; snowball pays the smallest
+ * balance first.
+ *
+ * Avalanche is arithmetically better and snowball is behaviourally better,
+ * and the evidence for the second is stronger than people expect: Gal &
+ * McShane, over roughly six thousand debtors, found that the number of
+ * ACCOUNTS CLOSED — independent of how much was repaid — predicted getting
+ * out of debt entirely. Closing a thing is what keeps you going.
+ *
+ * So neither is imposed. Avalanche is the default because it is the one
+ * that costs less, snowball is one tap away, and the price of choosing it
+ * is shown in pounds and months rather than argued about.
+ */
+export type Strategy = "avalanche" | "snowball";
+
+export const STRATEGY_LABEL: Record<Strategy, string> = {
+  avalanche: "Avalanche",
+  snowball: "Snowball",
+};
+
+export const STRATEGY_HINT: Record<Strategy, string> = {
+  avalanche: "Highest interest first — costs the least",
+  snowball: "Smallest balance first — clears accounts fastest",
+};
+
+export function normaliseStrategy(raw: string | string[] | null | undefined): Strategy {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return v === "snowball" ? "snowball" : "avalanche";
+}
+
+export type PayoffDebt = {
+  id: string;
+  creditor: string;
+  status: string;
+  current_balance: number | null;
+  original_amount: number | null;
+  plan_amount: number | null;
+  plan_frequency: string | null;
+  apr: number | null;
+};
+
+/**
+ * Can avalanche even be offered?
+ *
+ * "Highest interest first" is meaningless without interest rates, and a
+ * missing rate must never be read as 0% — that would sort an unrecorded
+ * credit card to the BOTTOM of the queue and cost him real money. So when
+ * no rate is recorded the app says the ordering is not available rather
+ * than quietly producing snowball and calling it avalanche.
+ */
+export function canAvalanche(debts: PayoffDebt[]): boolean {
+  return debts.some((d) => d.status === "active" && d.apr != null);
+}
+
+/**
+ * The order debts get attacked in.
+ *
+ * Debts with no balance sink to the bottom of either ordering: you cannot
+ * queue what you cannot measure, and pretending otherwise would put an
+ * unknown at the front of the plan.
+ */
+export function payoffOrder(debts: PayoffDebt[], strategy: Strategy): PayoffDebt[] {
+  const active = debts.filter((d) => d.status === "active");
+  return [...active].sort((a, b) => {
+    const ab = a.current_balance;
+    const bb = b.current_balance;
+    if (ab == null && bb == null) return a.creditor.localeCompare(b.creditor);
+    if (ab == null) return 1;
+    if (bb == null) return -1;
+    if (strategy === "avalanche") {
+      // An unrecorded rate cannot be ranked, so it falls behind every rate
+      // that IS known rather than being treated as zero.
+      const ar = a.apr ?? -1;
+      const br = b.apr ?? -1;
+      if (ar !== br) return br - ar;
+    }
+    if (ab !== bb) return ab - bb;
+    return a.creditor.localeCompare(b.creditor);
+  });
+}
+
+/** Monthly equivalent of a plan, so frequencies can be added together. */
+export function monthlyPlan(d: Pick<PayoffDebt, "plan_amount" | "plan_frequency">): number {
+  if (d.plan_amount == null || d.plan_amount <= 0 || !d.plan_frequency) return 0;
+  const perYear = PAYMENTS_PER_YEAR[d.plan_frequency as keyof typeof PAYMENTS_PER_YEAR];
+  if (!perYear) return 0;
+  return (d.plan_amount * perYear) / 12;
+}
+
+export type PayoffPlan = {
+  order: PayoffDebt[];
+  /** Months until the last debt clears, or null when it cannot be known. */
+  months: number | null;
+  /** Interest paid along the way, or null when no rate is recorded. */
+  interest: number | null;
+  /** Every active debt has a balance and a plan — the projection is whole. */
+  complete: boolean;
+  /** Debts with a balance but no payment plan: they never clear. */
+  unplanned: number;
+};
+
+/**
+ * Simulate the plan month by month, rolling each cleared debt's payment
+ * into the next one — which is the part that makes either strategy work.
+ *
+ * Returns nulls rather than numbers whenever the answer would be a guess.
+ * A debt-free date is exactly the kind of figure Jay might plan around, so
+ * inventing one is the most damaging thing this function could do.
+ */
+export function payoffPlan(debts: PayoffDebt[], strategy: Strategy): PayoffPlan {
+  const order = payoffOrder(debts, strategy);
+  const measurable = order.filter((d) => d.current_balance != null);
+  const unplanned = measurable.filter((d) => monthlyPlan(d) <= 0).length;
+
+  const complete =
+    measurable.length === order.length && order.length > 0 && unplanned === 0;
+  if (!complete) {
+    return { order, months: null, interest: null, complete: false, unplanned };
+  }
+
+  // Any rate missing means the interest total would understate the truth,
+  // so it is reported as unknown rather than as a smaller number.
+  const ratesKnown = order.every((d) => d.apr != null);
+
+  let balances = order.map((d) => Number(d.current_balance));
+  const budget = order.reduce((sum, d) => sum + monthlyPlan(d), 0);
+  let interest = 0;
+  let months = 0;
+
+  // 600 months is fifty years. A plan that has not cleared by then is not a
+  // plan, and the cap stops a pathological input spinning forever.
+  while (balances.some((b) => b > 0) && months < 600) {
+    months++;
+    let spare = budget;
+    // Interest first, then payments — the order a lender uses.
+    balances = balances.map((b, i) => {
+      if (b <= 0) return 0;
+      const rate = order[i].apr;
+      if (rate == null) return b;
+      const charge = (b * (rate / 100)) / 12;
+      interest += charge;
+      return b + charge;
+    });
+    for (let i = 0; i < balances.length && spare > 0; i++) {
+      if (balances[i] <= 0) continue;
+      const pay = Math.min(spare, balances[i]);
+      balances[i] -= pay;
+      spare -= pay;
+    }
+  }
+
+  return {
+    order,
+    months: months >= 600 ? null : months,
+    interest: ratesKnown ? Math.round(interest) : null,
+    complete: true,
+    unplanned,
+  };
+}
+
+/**
+ * What choosing snowball costs, in the two units that mean something.
+ *
+ * Shown rather than argued: the behavioural case for snowball is real, so
+ * the app's job is to price the choice honestly and then get out of the way.
+ * Nulls all the way through when either plan cannot be computed.
+ */
+export function strategyCost(debts: PayoffDebt[]): {
+  extraMonths: number | null;
+  extraInterest: number | null;
+} {
+  const a = payoffPlan(debts, "avalanche");
+  const s = payoffPlan(debts, "snowball");
+  return {
+    extraMonths: a.months != null && s.months != null ? s.months - a.months : null,
+    extraInterest:
+      a.interest != null && s.interest != null ? s.interest - a.interest : null,
+  };
+}
+
+/* -- thermometers --------------------------------------------------- */
+
+export type Thermometer = {
+  id: string;
+  creditor: string;
+  /** 0–100 paid off, or null when there is nothing to measure against. */
+  percent: number | null;
+  balance: number | null;
+  original: number | null;
+  cleared: boolean;
+  /** The one closest to done — the only place a percentage is emphasised. */
+  nearest: boolean;
+};
+
+/**
+ * One thermometer per debt, and a cleared one visibly disappears.
+ *
+ * This is the Gal & McShane finding built into the UI rather than written
+ * in a doc: accounts closed is what predicts getting out, so the interface
+ * has to make closing an account feel like something. A row that greys out
+ * and strikes through is a row you can see yourself removing.
+ *
+ * Only the debt NEAREST payoff is marked, and only that one leans on its
+ * percentage — the goal-gradient effect is that effort rises as the end
+ * gets visible, and marking all eight of them makes none of them the end.
+ */
+export function thermometers(debts: PayoffDebt[], strategy: Strategy): Thermometer[] {
+  const order = payoffOrder(debts, strategy);
+  const rows: Thermometer[] = order.map((d) => {
+    const balance = d.current_balance;
+    const original = d.original_amount;
+    // A percentage needs something to be a percentage OF. Without the
+    // original amount the bar would be inventing its own denominator.
+    const percent =
+      balance == null || original == null || original <= 0
+        ? null
+        : clampPercent(Math.round(((original - balance) / original) * 100));
+    return {
+      id: d.id,
+      creditor: d.creditor,
+      percent,
+      balance,
+      original,
+      cleared: balance != null && balance <= 0,
+      nearest: false,
+    };
+  });
+
+  // Nearest = furthest along and not already gone. Percentage first, then
+  // smallest remaining balance for anything with no original amount.
+  const live = rows.filter((r) => !r.cleared && r.balance != null);
+  const best = [...live].sort((a, b) => {
+    if (a.percent != null && b.percent != null && a.percent !== b.percent) {
+      return b.percent - a.percent;
+    }
+    if (a.percent != null && b.percent == null) return -1;
+    if (a.percent == null && b.percent != null) return 1;
+    return (a.balance ?? 0) - (b.balance ?? 0);
+  })[0];
+  if (best) {
+    const row = rows.find((r) => r.id === best.id);
+    if (row) row.nearest = true;
+  }
+  return rows;
+}
+
+/* -- the monthly prompt --------------------------------------------- */
+
+/** How stale a balance has to be before the page offers to update it. */
+export const BALANCE_STALE_DAYS = 30;
+
+/**
+ * The next balance worth asking about, one question at a time.
+ *
+ * Never a form of eight rows: a monthly sit-down is the moment the numbers
+ * are actually to hand, and one question with a tappable answer is the only
+ * version of that anybody completes.
+ */
+export function nextBalanceToConfirm(
+  debts: (PayoffDebt & { confirmedOn: string | null })[],
+  todayIso: string,
+  staleDays: number = BALANCE_STALE_DAYS
+): (PayoffDebt & { confirmedOn: string | null }) | null {
+  const active = debts.filter((d) => d.status === "active");
+  // Unknown before stale: a missing balance breaks the total outright,
+  // where a month-old one only blurs it.
+  const missing = active.filter((d) => d.current_balance == null);
+  if (missing.length > 0) {
+    return [...missing].sort((a, b) => a.creditor.localeCompare(b.creditor))[0];
+  }
+  const stale = active.filter(
+    (d) =>
+      d.confirmedOn == null ||
+      -(daysUntil(d.confirmedOn, todayIso) ?? 0) >= staleDays
+  );
+  return (
+    [...stale].sort((a, b) => (a.confirmedOn ?? "").localeCompare(b.confirmedOn ?? ""))[0] ??
+    null
+  );
+}
+
+/* -- net worth, cashflow, buffer ------------------------------------ */
+
+export type NetWorth = {
+  assets: number | null;
+  investments: number | null;
+  debts: number | null;
+  net: number | null;
+  /** Every input is known, so the figure is a fact rather than a floor. */
+  complete: boolean;
+};
+
+/**
+ * Assets plus investments minus debt.
+ *
+ * `complete` is the honest part. With any balance unknown the debt side is
+ * understated, which makes the net worth OVERSTATED — the flattering
+ * direction — so the page has to say the figure is a ceiling rather than a
+ * number. A total that quietly flatters him is worse than no total.
+ */
+export function netWorth(input: {
+  assets: { value: number | null; status: string }[];
+  investments: { current_value: number | null }[];
+  debts: Pick<PayoffDebt, "current_balance" | "status">[];
+}): NetWorth {
+  const held = input.assets.filter((a) => a.status !== "sold");
+  const assetSum = sumKnown(held.map((a) => a.value));
+  const invSum = sumKnown(input.investments.map((i) => i.current_value));
+  const active = input.debts.filter((d) => d.status === "active");
+  const debtSum = sumKnown(active.map((d) => d.current_balance));
+
+  const complete =
+    held.every((a) => a.value != null) &&
+    input.investments.every((i) => i.current_value != null) &&
+    active.every((d) => d.current_balance != null);
+
+  const anything = held.length + input.investments.length + active.length > 0;
+  return {
+    assets: held.length > 0 ? assetSum : null,
+    investments: input.investments.length > 0 ? invSum : null,
+    debts: active.length > 0 ? debtSum : null,
+    net: anything ? assetSum + invSum - debtSum : null,
+    complete: anything && complete,
+  };
+}
+
+function sumKnown(xs: (number | null)[]): number {
+  return xs.reduce<number>((sum, x) => sum + (x == null ? 0 : Number(x)), 0);
+}
+
+export type Cashflow = {
+  income: number | null;
+  costs: number | null;
+  debtPayments: number;
+  net: number | null;
+  /** Income has been recorded, so `net` means something. */
+  measurable: boolean;
+};
+
+/**
+ * In, out, and what is left.
+ *
+ * Income comes from a metric he records; costs come from assets plus the
+ * debt plans, which is the part the system genuinely knows. With no income
+ * reading the net is null rather than negative — "I have not been told what
+ * comes in" is not the same as "nothing comes in", and the second would be
+ * an alarming and wrong thing to show.
+ */
+export function cashflow(input: {
+  incomeMonthly: number | null;
+  assets: { income_monthly: number | null; cost_monthly: number | null; status: string }[];
+  debts: PayoffDebt[];
+}): Cashflow {
+  const held = input.assets.filter((a) => a.status !== "sold");
+  const assetIncome = sumKnown(held.map((a) => a.income_monthly));
+  const assetCosts = sumKnown(held.map((a) => a.cost_monthly));
+  const debtPayments = input.debts
+    .filter((d) => d.status === "active")
+    .reduce((sum, d) => sum + monthlyPlan(d), 0);
+
+  const measurable = input.incomeMonthly != null || assetIncome > 0;
+  const income = measurable ? (input.incomeMonthly ?? 0) + assetIncome : null;
+  const costs = assetCosts + debtPayments;
+  return {
+    income,
+    costs: held.length > 0 || debtPayments > 0 ? costs : null,
+    debtPayments: Math.round(debtPayments),
+    net: income == null ? null : Math.round(income - costs),
+    measurable,
+  };
+}
+
+export type Buffer = {
+  savings: number | null;
+  monthlyOut: number | null;
+  /** Months of cover, one decimal. Null when either input is missing. */
+  months: number | null;
+  /** Three months is the usual floor; below it the page says so. */
+  thin: boolean;
+};
+
+/**
+ * How long he could survive with nothing coming in.
+ *
+ * Both inputs are his own recorded figures. Neither is guessed: a buffer
+ * computed from an invented outgoings number is a number he might trust
+ * with a decision, and it would be the wrong one.
+ */
+export function buffer(savings: number | null, monthlyOut: number | null): Buffer {
+  const months =
+    savings == null || monthlyOut == null || monthlyOut <= 0
+      ? null
+      : Math.round((savings / monthlyOut) * 10) / 10;
+  return {
+    savings,
+    monthlyOut,
+    months,
+    thin: months != null && months < 3,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * Health — readiness, load, the Big 4, and the nutrition ladder
+ * ------------------------------------------------------------------ */
+
+export type HealthDay = {
+  on_date: string;
+  steps: number | null;
+  active_minutes: number | null;
+  rmssd: number | null;
+  resting_hr: number | null;
+  sleep_hours: number | null;
+  weight_kg: number | null;
+  ate_well: boolean | null;
+  protein_g: number | null;
+  calories: number | null;
+  source: string;
+};
+
+/**
+ * How long a personal HRV baseline takes to mean anything.
+ *
+ * Whoop, Oura and Garmin all compare today against a rolling personal
+ * baseline of roughly this length rather than against a population, and
+ * the reason is that absolute HRV is meaningless across people: a genuinely
+ * well-recovered 40-year-old and a genuinely well-recovered 20-year-old can
+ * differ by a factor of three in rMSSD. Only the deviation from your OWN
+ * normal carries information.
+ */
+export const BASELINE_DAYS = 60;
+
+/** Below this many readings the band is not computed at all. */
+export const BASELINE_MIN_READINGS = 14;
+
+export type ReadinessBand = "green" | "amber" | "red";
+
+export type Readiness = {
+  band: ReadinessBand | null;
+  /** Today's rMSSD, and the baseline it is being judged against. */
+  today: number | null;
+  baseline: number | null;
+  /** Standard deviation of the baseline — the width of "normal". */
+  spread: number | null;
+  /** How many readings the baseline rests on. Shown, never hidden. */
+  readings: number;
+  /** Why there is no band, in words the page can print. */
+  reason: string | null;
+};
+
+export const READINESS_LABEL: Record<ReadinessBand, string> = {
+  green: "Ready",
+  amber: "Ease off",
+  red: "Back off",
+};
+
+/**
+ * A traffic-light band around his own rolling baseline — deliberately NOT a
+ * 0–100 score.
+ *
+ * A single number invites precision that is not there. "68 today, 71
+ * yesterday" reads as a meaningful three-point drop when it is noise, and
+ * the arithmetic that produces it is a black box he cannot check. Three
+ * bands and the inputs printed beside them is what the measurement can
+ * actually support.
+ *
+ * The band is one standard deviation of his own baseline: inside it is
+ * normal, one below is worth easing off, well below is worth backing off.
+ * Nothing here works until there is a baseline, and until then it says so
+ * rather than colouring today green by default — a green light computed
+ * from four days of data is worse than no light.
+ */
+export function readinessBand(
+  days: HealthDay[],
+  todayIso: string,
+  baselineDays: number = BASELINE_DAYS,
+  minReadings: number = BASELINE_MIN_READINGS
+): Readiness {
+  const today = days.find((d) => d.on_date === todayIso)?.rmssd ?? null;
+  const from = addDays(todayIso, -baselineDays);
+  // The baseline excludes today: comparing a value against a window that
+  // contains it drags the baseline toward it and flattens the signal.
+  const window = days
+    .filter((d) => d.on_date >= from && d.on_date < todayIso && d.rmssd != null)
+    .map((d) => Number(d.rmssd));
+
+  if (window.length < minReadings) {
+    return {
+      band: null,
+      today,
+      baseline: null,
+      spread: null,
+      readings: window.length,
+      reason: `Needs ${minReadings} days of readings to know what normal looks like for you — there ${
+        window.length === 1 ? "is" : "are"
+      } ${window.length}.`,
+    };
+  }
+
+  const baseline = window.reduce((a, b) => a + b, 0) / window.length;
+  const variance =
+    window.reduce((sum, v) => sum + (v - baseline) ** 2, 0) / window.length;
+  const spread = Math.sqrt(variance);
+
+  if (today == null) {
+    return {
+      band: null,
+      today: null,
+      baseline: round1(baseline),
+      spread: round1(spread),
+      readings: window.length,
+      reason: "No reading today, so there is nothing to compare against.",
+    };
+  }
+
+  // A spread of zero means every reading was identical, which is a sensor
+  // artefact rather than perfect consistency. Banding on it would put every
+  // subsequent day in red.
+  if (spread === 0) {
+    return {
+      band: null,
+      today,
+      baseline: round1(baseline),
+      spread: 0,
+      readings: window.length,
+      reason: "Every reading is identical, which is a sensor problem rather than a result.",
+    };
+  }
+
+  const z = (today - baseline) / spread;
+  const band: ReadinessBand = z >= -1 ? "green" : z >= -2 ? "amber" : "red";
+  return {
+    band,
+    today,
+    baseline: round1(baseline),
+    spread: round1(spread),
+    readings: window.length,
+    reason: null,
+  };
+}
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/* -- load ----------------------------------------------------------- */
+
+export type Workout = {
+  on_date: string;
+  kind: string;
+  minutes: number | null;
+  rpe: number | null;
+};
+
+/** Above this ratio the week is a spike worth naming. */
+export const LOAD_SPIKE_RATIO = 1.3;
+
+export type LoadState = {
+  thisWeek: number | null;
+  /** Mean of the previous four weeks. */
+  average: number | null;
+  ratio: number | null;
+  spike: boolean;
+  reason: string | null;
+};
+
+/**
+ * Session load is minutes × RPE, which is what makes a run and a lifting
+ * session comparable at all.
+ */
+export function sessionLoad(w: Workout): number | null {
+  if (w.minutes == null || w.rpe == null) return null;
+  return w.minutes * w.rpe;
+}
+
+/**
+ * This week's volume against the four-week average — used ONLY as a spike
+ * detector, and labelled as one.
+ *
+ * The acute:chronic workload ratio is widely quoted as an injury predictor
+ * and the 2025 systematic review is blunt about it: the predictive validity
+ * does not hold up, and the arithmetic has known artefacts. What survives
+ * is the uncontroversial part — "this week is a lot more than you have been
+ * doing" is a true and useful sentence. So the ratio is computed, the
+ * threshold is named, and no claim about injury risk is made anywhere.
+ *
+ * Four weeks of history is required before it says anything. Comparing week
+ * one against an average of nothing is how you get a spike warning on the
+ * first week somebody uses the app.
+ */
+export function loadState(
+  workouts: Workout[],
+  todayIso: string,
+  ratio: number = LOAD_SPIKE_RATIO
+): LoadState {
+  const monday = mondayOf(todayIso);
+  const weekLoad = (start: string): number | null => {
+    const end = addDays(start, 7);
+    const inWeek = workouts.filter((w) => w.on_date >= start && w.on_date < end);
+    const loads = inWeek.map(sessionLoad).filter((l): l is number => l != null);
+    return loads.length === 0 ? null : loads.reduce((a, b) => a + b, 0);
+  };
+
+  const thisWeek = weekLoad(monday) ?? 0;
+  const prior = [1, 2, 3, 4]
+    .map((i) => weekLoad(addDays(monday, -7 * i)))
+    .filter((l): l is number => l != null);
+
+  if (prior.length < 4) {
+    return {
+      thisWeek,
+      average: null,
+      ratio: null,
+      spike: false,
+      reason: `Needs four weeks of history before "more than usual" means anything — there ${
+        prior.length === 1 ? "is" : "are"
+      } ${prior.length}.`,
+    };
+  }
+
+  const average = prior.reduce((a, b) => a + b, 0) / prior.length;
+  if (average === 0) {
+    return {
+      thisWeek,
+      average: 0,
+      ratio: null,
+      spike: false,
+      reason: "Nothing logged in the last four weeks, so there is no usual to exceed.",
+    };
+  }
+
+  const r = thisWeek / average;
+  return {
+    thisWeek,
+    average: Math.round(average),
+    ratio: Math.round(r * 100) / 100,
+    spike: r > ratio,
+    reason: null,
+  };
+}
+
+/* -- the Big 4 ------------------------------------------------------ */
+
+export const BIG_FOUR = ["squat", "bench", "deadlift", "press"] as const;
+export type Movement = (typeof BIG_FOUR)[number];
+
+export const MOVEMENT_LABEL: Record<Movement, string> = {
+  squat: "Squat",
+  bench: "Bench",
+  deadlift: "Deadlift",
+  press: "Overhead press",
+};
+
+export type Lift = { on_date: string; movement: string; weight_kg: number; reps: number };
+
+export type LiftBest = {
+  movement: Movement;
+  /** Best estimated one-rep max, or null if this lift has never been logged. */
+  e1rm: number | null;
+  weight: number | null;
+  reps: number | null;
+  on: string | null;
+  /** Change against the best from more than 90 days ago. Null if no history. */
+  change: number | null;
+};
+
+/**
+ * Epley's estimated one-rep max: w × (1 + reps/30).
+ *
+ * Any of the formulas would do; what matters is using ONE consistently, so
+ * that a set of 5 and a set of 3 can be compared at all. It drifts badly
+ * above about ten reps, which is why anything higher is not counted — an
+ * estimate from a set of twenty says more about conditioning than strength.
+ */
+export const E1RM_REP_CEILING = 10;
+
+export function e1rm(weight: number, reps: number): number | null {
+  if (reps < 1 || reps > E1RM_REP_CEILING) return null;
+  return Math.round(weight * (1 + reps / 30) * 10) / 10;
+}
+
+export function bigFourBests(
+  lifts: Lift[],
+  todayIso: string,
+  sinceDays = 90
+): LiftBest[] {
+  const cutoff = addDays(todayIso, -sinceDays);
+  return BIG_FOUR.map((movement) => {
+    const mine = lifts.filter((l) => l.movement === movement);
+    const scored = mine
+      .map((l) => ({ l, e: e1rm(Number(l.weight_kg), l.reps) }))
+      .filter((x): x is { l: Lift; e: number } => x.e != null);
+
+    if (scored.length === 0) {
+      return { movement, e1rm: null, weight: null, reps: null, on: null, change: null };
+    }
+    const best = scored.reduce((a, b) => (b.e > a.e ? b : a));
+    const older = scored.filter((x) => x.l.on_date < cutoff);
+    const oldBest = older.length > 0 ? older.reduce((a, b) => (b.e > a.e ? b : a)).e : null;
+    return {
+      movement,
+      e1rm: best.e,
+      weight: Number(best.l.weight_kg),
+      reps: best.l.reps,
+      on: best.l.on_date,
+      change: oldBest == null ? null : Math.round((best.e - oldBest) * 10) / 10,
+    };
+  });
+}
+
+/* -- the nutrition ladder ------------------------------------------- */
+
+/**
+ * Three rungs, and the first one is the default.
+ *
+ * Weighing food is the single most abandoned habit in this whole domain, so
+ * the floor is a weight and one tap — enough to see a trend, which is the
+ * only thing that actually decides anything. Protein and calories are
+ * optional because some weeks he will care. Macros are the top rung and are
+ * SYNCED, never typed: typing macros is data entry, and data entry is what
+ * kills the habit that was supposed to produce the data.
+ */
+export type NutritionRung = "floor" | "protein" | "macros";
+
+export const NUTRITION_RUNG_LABEL: Record<NutritionRung, string> = {
+  floor: "Weight and one tap",
+  protein: "Protein and calories",
+  macros: "Full macros",
+};
+
+export type NutritionState = {
+  rung: NutritionRung;
+  /** Days in the window with any entry at all. */
+  logged: number;
+  of: number;
+  /** Weight change over the window, or null with fewer than two weigh-ins. */
+  weightChange: number | null;
+  /** Mean protein, or null if he is not on that rung. */
+  protein: number | null;
+};
+
+export function nutritionState(
+  days: HealthDay[],
+  todayIso: string,
+  windowDays = 14
+): NutritionState {
+  const from = addDays(todayIso, -(windowDays - 1));
+  const window = days.filter((d) => d.on_date >= from && d.on_date <= todayIso);
+
+  const weights = window
+    .filter((d) => d.weight_kg != null)
+    .sort((a, b) => a.on_date.localeCompare(b.on_date));
+  const proteins = window
+    .map((d) => d.protein_g)
+    .filter((p): p is number => p != null)
+    .map(Number);
+
+  // The rung is inferred from what he actually logs, not chosen in a
+  // setting: a setting is one more thing to maintain, and the data already
+  // says which rung he is on.
+  const rung: NutritionRung =
+    window.some((d) => d.calories != null && d.protein_g != null && d.source !== "manual")
+      ? "macros"
+      : proteins.length > 0
+        ? "protein"
+        : "floor";
+
+  return {
+    rung,
+    logged: window.filter(
+      (d) => d.weight_kg != null || d.ate_well != null || d.protein_g != null
+    ).length,
+    of: windowDays,
+    weightChange:
+      weights.length < 2
+        ? null
+        : round1(
+            Number(weights[weights.length - 1].weight_kg) - Number(weights[0].weight_kg)
+          ),
+    protein:
+      proteins.length === 0
+        ? null
+        : Math.round(proteins.reduce((a, b) => a + b, 0) / proteins.length),
+  };
 }
