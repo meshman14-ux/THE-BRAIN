@@ -3038,3 +3038,333 @@ export function complianceConcerns(
       isConcerningAnswer(x.question, x.answer)
     );
 }
+
+/* ------------------------------------------------------------------ *
+ * The daily close — check-in and the structured review, one ritual
+ *
+ * These arrived as two items on the v2 list: a "check-in workflow" and a
+ * "structured daily review". They are one thing. Two rituals competing for
+ * the same two minutes at the end of the same day is how both get skipped,
+ * so this is a single flow with a floor and a ceiling.
+ *
+ * FLOOR: mood and energy. Two taps, and the day is logged. That is the
+ * whole obligation, and it is what makes a streak possible on a bad day.
+ *
+ * CEILING: five prompts — wins, friction, gratitude, tomorrow, and the one
+ * area the system picked. Always present, never demanded. Every field is
+ * optional and skipping writes NULL rather than an empty string, because
+ * "I did not answer" and "nothing happened" are different facts and only
+ * one of them should show up in a tally later.
+ * ------------------------------------------------------------------ */
+
+export type CheckinField =
+  | "mood"
+  | "energy"
+  | "wins"
+  | "friction"
+  | "gratitude"
+  | "tomorrow"
+  | "area";
+
+/** The floor: answer these and the day counts as logged. */
+export const CHECKIN_FLOOR: CheckinField[] = ["mood", "energy"];
+
+/** Every field, in the order the flow asks them. */
+export const CHECKIN_FIELDS: CheckinField[] = [
+  "mood",
+  "energy",
+  "wins",
+  "friction",
+  "gratitude",
+  "tomorrow",
+  "area",
+];
+
+export const CHECKIN_PROMPT: Record<CheckinField, string> = {
+  mood: "How was today?",
+  energy: "How much was in the tank?",
+  wins: "What went well?",
+  friction: "What got in the way?",
+  gratitude: "", // rotates weekly — see gratitudePrompt()
+  tomorrow: "What is the one thing for tomorrow?",
+  area: "", // names the area the system picked — see areaToAsk()
+};
+
+/**
+ * The gratitude prompt rotates weekly rather than daily.
+ *
+ * Emmons & McCullough found weekly gratitude practice outperformed daily,
+ * and the mechanism is adaptation: answer the same question every night
+ * and by Thursday you are writing the same three words. A prompt that
+ * changes on Monday and holds for the week gives the novelty without
+ * asking him to invent a new angle every single evening.
+ */
+export const GRATITUDE_PROMPTS = [
+  "Who made this week easier?",
+  "What worked that you did not expect to?",
+  "What do you have now that you once wanted?",
+  "What went wrong and cost you nothing?",
+  "Which small thing would you miss most?",
+  "What did somebody do that they did not have to?",
+];
+
+export function gratitudePrompt(todayIso: string): string {
+  // Keyed to the ISO week so it holds for seven days and moves on Monday.
+  const wk = isoWeekNumber(todayIso);
+  const yr = Number(todayIso.slice(0, 4));
+  const i = (yr * 53 + wk) % GRATITUDE_PROMPTS.length;
+  return GRATITUDE_PROMPTS[i];
+}
+
+/**
+ * Which area the check-in asks about tonight.
+ *
+ * The system chooses, so he never has to. Unscored areas come first —
+ * they are where a single tap buys the most information, and the dashboard
+ * cannot rank an area it has never been told about. After that, the worst
+ * score, because that is where attention is worth spending.
+ *
+ * Note this is the OPPOSITE ordering to `rankAreasByNeed`, and deliberately
+ * so: that function ranks unscored areas LAST because an area you have
+ * never looked at is unknown rather than failing, and the dashboard must
+ * not present a guess as a problem. Here the goal is to close the gap, not
+ * to report it, so unknown is exactly what we want to ask about.
+ *
+ * Ties rotate by date. A fresh account has thirteen unscored areas, and
+ * without rotation it would ask about the same one every night until he
+ * answered it.
+ */
+export function areaToAsk<
+  T extends Pick<Pillar, "id" | "name" | "score" | "sort_order">
+>(areas: T[], todayIso: string): T | null {
+  if (areas.length === 0) return null;
+  const unscored = areas.filter((a) => !isScored(a));
+  if (unscored.length > 0) {
+    const ordered = [...unscored].sort((a, b) => a.sort_order - b.sort_order);
+    return ordered[dayRotation(todayIso, ordered.length)];
+  }
+  const scored = [...areas].sort(
+    (a, b) => (a.score ?? 0) - (b.score ?? 0) || a.sort_order - b.sort_order
+  );
+  const worst = scored[0].score;
+  const tied = scored.filter((a) => a.score === worst);
+  return tied[dayRotation(todayIso, tied.length)];
+}
+
+/** A stable index for a given day. Same day, same answer; next day, next. */
+export function dayRotation(iso: string, n: number): number {
+  if (n <= 0) return 0;
+  const days = Math.floor(Date.parse(`${iso}T00:00:00Z`) / 86_400_000);
+  return ((days % n) + n) % n;
+}
+
+/**
+ * What a saved check-in looks like coming back out of the database.
+ *
+ * `journal.meta` is jsonb, so nothing here is trusted: every field is
+ * validated and anything unrecognised is discarded. A page Jay opened to
+ * read must not throw because a row holds a number where a string was
+ * expected (§A7).
+ */
+export type Checkin = {
+  mood: number | null;
+  energy: number | null;
+  wins: string | null;
+  friction: string | null;
+  gratitude: string | null;
+  tomorrow: string | null;
+  areaId: string | null;
+  areaScore: number | null;
+  /**
+   * Fields he chose to pass on tonight.
+   *
+   * Kept SEPARATE from the answers, which is the whole point: skipping
+   * writes NULL to the answer, exactly as the zero-obligation rule says,
+   * so a skipped gratitude never becomes an empty string that a tally
+   * counts later. But a skip is still information — it means "asked, and
+   * he said no" — and without recording it the flow has no way to stop
+   * asking, so the skip button would visibly do nothing.
+   */
+  skipped: CheckinField[];
+};
+
+export const EMPTY_CHECKIN: Checkin = {
+  mood: null,
+  energy: null,
+  wins: null,
+  friction: null,
+  gratitude: null,
+  tomorrow: null,
+  areaId: null,
+  areaScore: null,
+  skipped: [],
+};
+
+/** Mood and energy are both 1–5. Anything else is not an answer. */
+function scale5(v: unknown): number | null {
+  const n = typeof v === "number" ? v : NaN;
+  return Number.isInteger(n) && n >= 1 && n <= 5 ? n : null;
+}
+
+export function readCheckin(row: {
+  mood?: unknown;
+  energy?: unknown;
+  gratitude?: unknown;
+  meta?: unknown;
+} | null | undefined): Checkin {
+  if (!row) return EMPTY_CHECKIN;
+  const meta =
+    typeof row.meta === "object" && row.meta !== null && !Array.isArray(row.meta)
+      ? (row.meta as Record<string, unknown>)
+      : {};
+  const score = typeof meta.area_score === "number" ? meta.area_score : NaN;
+  return {
+    mood: scale5(row.mood),
+    energy: scale5(row.energy),
+    wins: toTextOrNull(meta.wins),
+    friction: toTextOrNull(meta.friction),
+    gratitude: toTextOrNull(row.gratitude),
+    tomorrow: toTextOrNull(meta.tomorrow),
+    areaId: toTextOrNull(meta.area_id),
+    areaScore: Number.isInteger(score) && score >= 0 && score <= 10 ? score : null,
+    skipped: Array.isArray(meta.skipped)
+      ? (meta.skipped.filter(
+          (f): f is CheckinField =>
+            typeof f === "string" && (CHECKIN_FIELDS as string[]).includes(f)
+        ) as CheckinField[])
+      : [],
+  };
+}
+
+/**
+ * Asked and dealt with — either answered, or passed on.
+ *
+ * The flow resumes on the first UNSETTLED field, not the first unanswered
+ * one, so a skip moves you forward. `isAnswered` stays the narrower test
+ * because that is the one anything measuring the data should use: a skipped
+ * night contributed no mood reading and must not be averaged as though it
+ * did.
+ */
+export function isSettled(c: Checkin, f: CheckinField): boolean {
+  return isAnswered(c, f) || c.skipped.includes(f);
+}
+
+/** Answered means answered — an empty box is a skip, and a skip is NULL. */
+export function isAnswered(c: Checkin, f: CheckinField): boolean {
+  switch (f) {
+    case "mood":
+      return c.mood != null;
+    case "energy":
+      return c.energy != null;
+    case "wins":
+      return c.wins != null;
+    case "friction":
+      return c.friction != null;
+    case "gratitude":
+      return c.gratitude != null;
+    case "tomorrow":
+      return c.tomorrow != null;
+    case "area":
+      return c.areaScore != null;
+  }
+}
+
+export type CheckinProgress = {
+  /** Floor answered — the day is logged and the reflection week counts it. */
+  logged: boolean;
+  /** Answers given. Skips are NOT counted; they are not answers. */
+  answered: number;
+  /** Skips taken, so the page can say "3 answered, 2 passed" honestly. */
+  skipped: number;
+  of: number;
+  /** The next field neither answered nor skipped — where the flow resumes. */
+  next: CheckinField | null;
+  /** Nothing left to ask tonight. */
+  done: boolean;
+};
+
+export function checkinProgress(c: Checkin): CheckinProgress {
+  const next = CHECKIN_FIELDS.find((f) => !isSettled(c, f)) ?? null;
+  return {
+    logged: CHECKIN_FLOOR.every((f) => isAnswered(c, f)),
+    answered: CHECKIN_FIELDS.filter((f) => isAnswered(c, f)).length,
+    skipped: CHECKIN_FIELDS.filter((f) => !isAnswered(c, f) && c.skipped.includes(f))
+      .length,
+    of: CHECKIN_FIELDS.length,
+    next,
+    done: next == null,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * The reflection streak — weeks, not days
+ * ------------------------------------------------------------------ */
+
+/**
+ * How many days a week count as having reflected. Four, not seven.
+ *
+ * A daily streak punishes one missed evening by resetting to zero, and the
+ * retention evidence is that the reset is what ends the habit rather than
+ * the missed day. Counting ENTRIES PER WEEK is streak-tolerant by
+ * construction: miss Tuesday and the week is still good, so Wednesday is
+ * a normal evening rather than a restart.
+ */
+export const REFLECTION_TARGET = 4;
+
+export type ReflectionWeek = {
+  /** Monday of the week. */
+  monday: string;
+  entries: number;
+  met: boolean;
+};
+
+/**
+ * The last `weeks` weeks, oldest first, and the run of consecutive weeks
+ * that met the target counting back from the most recent COMPLETE week.
+ *
+ * The current week is reported but never breaks the run: it is Tuesday and
+ * two entries in, so calling it a failure would be calling it early.
+ */
+export function reflectionWeeks(
+  entryDates: string[],
+  todayIso: string,
+  weeks = 8,
+  target = REFLECTION_TARGET
+): { weeks: ReflectionWeek[]; streak: number } {
+  const seen = new Set(entryDates);
+  const thisMonday = mondayOf(todayIso);
+  const out: ReflectionWeek[] = [];
+  for (let i = weeks - 1; i >= 0; i--) {
+    const monday = addDays(thisMonday, -7 * i);
+    let entries = 0;
+    for (let d = 0; d < 7; d++) if (seen.has(addDays(monday, d))) entries++;
+    out.push({ monday, entries, met: entries >= target });
+  }
+  // Count back from the last COMPLETE week — the current one is still
+  // being lived and cannot have failed yet.
+  let streak = 0;
+  for (let i = out.length - 2; i >= 0; i--) {
+    if (!out[i].met) break;
+    streak++;
+  }
+  // A complete current week still counts, so a perfect record reads right.
+  if (out.length > 0 && out[out.length - 1].met) streak++;
+  return { weeks: out, streak };
+}
+
+/** Mood or energy averaged over the last `days` days, or null if unasked. */
+export function moodTrend(
+  rows: { entry_date: string; mood?: number | null; energy?: number | null }[],
+  todayIso: string,
+  days = 14
+): { mood: number | null; energy: number | null; of: number } {
+  const from = addDays(todayIso, -(days - 1));
+  const window = rows.filter((r) => r.entry_date >= from && r.entry_date <= todayIso);
+  const mean = (xs: number[]) =>
+    xs.length === 0 ? null : Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 10) / 10;
+  return {
+    mood: mean(window.map((r) => r.mood).filter((n): n is number => n != null)),
+    energy: mean(window.map((r) => r.energy).filter((n): n is number => n != null)),
+    of: window.length,
+  };
+}

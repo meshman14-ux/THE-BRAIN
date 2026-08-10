@@ -43,6 +43,8 @@ import {
   cashThisMonth,
   daysUntil,
   isExternal,
+  readCheckin,
+  checkinProgress,
   normaliseTab,
   BRAIN_TABS,
   BRAIN_TAB_LABEL,
@@ -99,6 +101,7 @@ export default async function TheBrain({
     { data: people },
     { data: assets },
     { count: inboxCount },
+    { data: tonight },
     { data: creed },
   ] = await Promise.all([
     supabase
@@ -123,6 +126,7 @@ export default async function TheBrain({
     supabase.from("people").select("id, name, last_contact, cadence_days, birthday"),
     supabase.from("assets").select("id, name, kind, income_monthly, cost_monthly, status"),
     supabase.from("inbox").select("id", { count: "exact", head: true }).eq("status", "open"),
+    supabase.from("journal").select("mood, energy").eq("entry_date", toIso(new Date())).maybeSingle(),
     // The creed only. The principle notes are deliberately NOT read here:
     // they are a place he goes, never something that arrives (§A3, and
     // PRINCIPLES_NEVER_PUSH in types.ts).
@@ -240,6 +244,10 @@ export default async function TheBrain({
   const building = inDevelopment(allVentures);
 
   /* -- header strings ------------------------------------------------ */
+
+  // Logged means the FLOOR is answered — mood and energy. Anything more is
+  // the ceiling, and the dashboard must not imply he owes it.
+  const closed = checkinProgress(readCheckin(tonight)).logged;
 
   const greet = greetingFor(now.getHours());
   const verse = verseOfDay(today);
@@ -471,6 +479,30 @@ export default async function TheBrain({
             style={{ color: "var(--accent)" }}
           >
             {reviewText} · optional depth, today has the essentials
+          </Link>
+
+          {/* -- the daily close ------------------------------------- */}
+          <Link
+            href="/checkin"
+            className="panel card-hover no-underline text-[var(--text)] flex items-center gap-3"
+          >
+            <span className="text-[1.1rem] shrink-0" aria-hidden>
+              ◫
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="label block">The daily close</span>
+              <span className="text-[0.82rem] text-[var(--muted)] block mt-1 leading-snug">
+                {closed
+                  ? "Tonight is logged. The rest is there if you want it."
+                  : "Two taps logs today. Everything under that line is optional."}
+              </span>
+            </span>
+            <span
+              className="mono text-[0.66rem] shrink-0"
+              style={{ color: closed ? "var(--good)" : "var(--faint)" }}
+            >
+              {closed ? "LOGGED" : "→"}
+            </span>
           </Link>
 
           {/* -- FOCUS · three visible, two on deck ------------------ */}

@@ -135,12 +135,25 @@ export const NAV: NavItem[] = [
     phoneModes: ["empire"],
   },
   {
+    key: "checkin",
+    href: "/checkin",
+    label: "Close",
+    icon: "◫",
+    // The daily close asks about whichever area the system picked, which
+    // may be either system's, so it belongs to the command centre too.
+    modes: ["brain", "life"],
+    // It takes the phone slot Week used to hold. The close is the one
+    // thing here you genuinely do one-handed in bed; planning a week is a
+    // desk job, the same reasoning that already keeps Calendar off the bar.
+    phoneModes: ["life"],
+  },
+  {
     key: "week",
     href: "/week",
     label: "Week",
     icon: "▦",
     modes: ["brain", "life"],
-    phoneModes: ["life"],
+    phoneModes: [],
   },
   {
     key: "calendar",
