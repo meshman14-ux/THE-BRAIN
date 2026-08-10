@@ -3614,3 +3614,437 @@ export function nextToSet(people: PersonRow[]): PersonRow | null {
       .sort((a, b) => a.name.localeCompare(b.name))[0] ?? null
   );
 }
+
+/* ------------------------------------------------------------------ *
+ * Money — four views of the same question
+ *
+ * Jay wanted all four, so all four exist as tabs on one page rather than
+ * four pages: they answer the same question at four ranges, and splitting
+ * them across routes makes the comparison the point of having them.
+ * ------------------------------------------------------------------ */
+
+export const MONEY_TABS = ["debt", "worth", "cashflow", "buffer"] as const;
+export type MoneyTab = (typeof MONEY_TABS)[number];
+
+export const MONEY_TAB_LABEL: Record<MoneyTab, string> = {
+  debt: "Debt",
+  worth: "Net worth",
+  cashflow: "Cashflow",
+  buffer: "Buffer",
+};
+
+export const MONEY_TAB_QUESTION: Record<MoneyTab, string> = {
+  debt: "What do I owe, and when is it gone?",
+  worth: "What am I actually worth?",
+  cashflow: "Does more come in than goes out?",
+  buffer: "How long could I survive with nothing coming in?",
+};
+
+export function normaliseMoneyTab(raw: string | string[] | null | undefined): MoneyTab {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return (MONEY_TABS as readonly string[]).includes(v ?? "") ? (v as MoneyTab) : "debt";
+}
+
+/* -- strategies ----------------------------------------------------- */
+
+/**
+ * Avalanche pays the highest interest first; snowball pays the smallest
+ * balance first.
+ *
+ * Avalanche is arithmetically better and snowball is behaviourally better,
+ * and the evidence for the second is stronger than people expect: Gal &
+ * McShane, over roughly six thousand debtors, found that the number of
+ * ACCOUNTS CLOSED — independent of how much was repaid — predicted getting
+ * out of debt entirely. Closing a thing is what keeps you going.
+ *
+ * So neither is imposed. Avalanche is the default because it is the one
+ * that costs less, snowball is one tap away, and the price of choosing it
+ * is shown in pounds and months rather than argued about.
+ */
+export type Strategy = "avalanche" | "snowball";
+
+export const STRATEGY_LABEL: Record<Strategy, string> = {
+  avalanche: "Avalanche",
+  snowball: "Snowball",
+};
+
+export const STRATEGY_HINT: Record<Strategy, string> = {
+  avalanche: "Highest interest first — costs the least",
+  snowball: "Smallest balance first — clears accounts fastest",
+};
+
+export function normaliseStrategy(raw: string | string[] | null | undefined): Strategy {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return v === "snowball" ? "snowball" : "avalanche";
+}
+
+export type PayoffDebt = {
+  id: string;
+  creditor: string;
+  status: string;
+  current_balance: number | null;
+  original_amount: number | null;
+  plan_amount: number | null;
+  plan_frequency: string | null;
+  apr: number | null;
+};
+
+/**
+ * Can avalanche even be offered?
+ *
+ * "Highest interest first" is meaningless without interest rates, and a
+ * missing rate must never be read as 0% — that would sort an unrecorded
+ * credit card to the BOTTOM of the queue and cost him real money. So when
+ * no rate is recorded the app says the ordering is not available rather
+ * than quietly producing snowball and calling it avalanche.
+ */
+export function canAvalanche(debts: PayoffDebt[]): boolean {
+  return debts.some((d) => d.status === "active" && d.apr != null);
+}
+
+/**
+ * The order debts get attacked in.
+ *
+ * Debts with no balance sink to the bottom of either ordering: you cannot
+ * queue what you cannot measure, and pretending otherwise would put an
+ * unknown at the front of the plan.
+ */
+export function payoffOrder(debts: PayoffDebt[], strategy: Strategy): PayoffDebt[] {
+  const active = debts.filter((d) => d.status === "active");
+  return [...active].sort((a, b) => {
+    const ab = a.current_balance;
+    const bb = b.current_balance;
+    if (ab == null && bb == null) return a.creditor.localeCompare(b.creditor);
+    if (ab == null) return 1;
+    if (bb == null) return -1;
+    if (strategy === "avalanche") {
+      // An unrecorded rate cannot be ranked, so it falls behind every rate
+      // that IS known rather than being treated as zero.
+      const ar = a.apr ?? -1;
+      const br = b.apr ?? -1;
+      if (ar !== br) return br - ar;
+    }
+    if (ab !== bb) return ab - bb;
+    return a.creditor.localeCompare(b.creditor);
+  });
+}
+
+/** Monthly equivalent of a plan, so frequencies can be added together. */
+export function monthlyPlan(d: Pick<PayoffDebt, "plan_amount" | "plan_frequency">): number {
+  if (d.plan_amount == null || d.plan_amount <= 0 || !d.plan_frequency) return 0;
+  const perYear = PAYMENTS_PER_YEAR[d.plan_frequency as keyof typeof PAYMENTS_PER_YEAR];
+  if (!perYear) return 0;
+  return (d.plan_amount * perYear) / 12;
+}
+
+export type PayoffPlan = {
+  order: PayoffDebt[];
+  /** Months until the last debt clears, or null when it cannot be known. */
+  months: number | null;
+  /** Interest paid along the way, or null when no rate is recorded. */
+  interest: number | null;
+  /** Every active debt has a balance and a plan — the projection is whole. */
+  complete: boolean;
+  /** Debts with a balance but no payment plan: they never clear. */
+  unplanned: number;
+};
+
+/**
+ * Simulate the plan month by month, rolling each cleared debt's payment
+ * into the next one — which is the part that makes either strategy work.
+ *
+ * Returns nulls rather than numbers whenever the answer would be a guess.
+ * A debt-free date is exactly the kind of figure Jay might plan around, so
+ * inventing one is the most damaging thing this function could do.
+ */
+export function payoffPlan(debts: PayoffDebt[], strategy: Strategy): PayoffPlan {
+  const order = payoffOrder(debts, strategy);
+  const measurable = order.filter((d) => d.current_balance != null);
+  const unplanned = measurable.filter((d) => monthlyPlan(d) <= 0).length;
+
+  const complete =
+    measurable.length === order.length && order.length > 0 && unplanned === 0;
+  if (!complete) {
+    return { order, months: null, interest: null, complete: false, unplanned };
+  }
+
+  // Any rate missing means the interest total would understate the truth,
+  // so it is reported as unknown rather than as a smaller number.
+  const ratesKnown = order.every((d) => d.apr != null);
+
+  let balances = order.map((d) => Number(d.current_balance));
+  const budget = order.reduce((sum, d) => sum + monthlyPlan(d), 0);
+  let interest = 0;
+  let months = 0;
+
+  // 600 months is fifty years. A plan that has not cleared by then is not a
+  // plan, and the cap stops a pathological input spinning forever.
+  while (balances.some((b) => b > 0) && months < 600) {
+    months++;
+    let spare = budget;
+    // Interest first, then payments — the order a lender uses.
+    balances = balances.map((b, i) => {
+      if (b <= 0) return 0;
+      const rate = order[i].apr;
+      if (rate == null) return b;
+      const charge = (b * (rate / 100)) / 12;
+      interest += charge;
+      return b + charge;
+    });
+    for (let i = 0; i < balances.length && spare > 0; i++) {
+      if (balances[i] <= 0) continue;
+      const pay = Math.min(spare, balances[i]);
+      balances[i] -= pay;
+      spare -= pay;
+    }
+  }
+
+  return {
+    order,
+    months: months >= 600 ? null : months,
+    interest: ratesKnown ? Math.round(interest) : null,
+    complete: true,
+    unplanned,
+  };
+}
+
+/**
+ * What choosing snowball costs, in the two units that mean something.
+ *
+ * Shown rather than argued: the behavioural case for snowball is real, so
+ * the app's job is to price the choice honestly and then get out of the way.
+ * Nulls all the way through when either plan cannot be computed.
+ */
+export function strategyCost(debts: PayoffDebt[]): {
+  extraMonths: number | null;
+  extraInterest: number | null;
+} {
+  const a = payoffPlan(debts, "avalanche");
+  const s = payoffPlan(debts, "snowball");
+  return {
+    extraMonths: a.months != null && s.months != null ? s.months - a.months : null,
+    extraInterest:
+      a.interest != null && s.interest != null ? s.interest - a.interest : null,
+  };
+}
+
+/* -- thermometers --------------------------------------------------- */
+
+export type Thermometer = {
+  id: string;
+  creditor: string;
+  /** 0–100 paid off, or null when there is nothing to measure against. */
+  percent: number | null;
+  balance: number | null;
+  original: number | null;
+  cleared: boolean;
+  /** The one closest to done — the only place a percentage is emphasised. */
+  nearest: boolean;
+};
+
+/**
+ * One thermometer per debt, and a cleared one visibly disappears.
+ *
+ * This is the Gal & McShane finding built into the UI rather than written
+ * in a doc: accounts closed is what predicts getting out, so the interface
+ * has to make closing an account feel like something. A row that greys out
+ * and strikes through is a row you can see yourself removing.
+ *
+ * Only the debt NEAREST payoff is marked, and only that one leans on its
+ * percentage — the goal-gradient effect is that effort rises as the end
+ * gets visible, and marking all eight of them makes none of them the end.
+ */
+export function thermometers(debts: PayoffDebt[], strategy: Strategy): Thermometer[] {
+  const order = payoffOrder(debts, strategy);
+  const rows: Thermometer[] = order.map((d) => {
+    const balance = d.current_balance;
+    const original = d.original_amount;
+    // A percentage needs something to be a percentage OF. Without the
+    // original amount the bar would be inventing its own denominator.
+    const percent =
+      balance == null || original == null || original <= 0
+        ? null
+        : clampPercent(Math.round(((original - balance) / original) * 100));
+    return {
+      id: d.id,
+      creditor: d.creditor,
+      percent,
+      balance,
+      original,
+      cleared: balance != null && balance <= 0,
+      nearest: false,
+    };
+  });
+
+  // Nearest = furthest along and not already gone. Percentage first, then
+  // smallest remaining balance for anything with no original amount.
+  const live = rows.filter((r) => !r.cleared && r.balance != null);
+  const best = [...live].sort((a, b) => {
+    if (a.percent != null && b.percent != null && a.percent !== b.percent) {
+      return b.percent - a.percent;
+    }
+    if (a.percent != null && b.percent == null) return -1;
+    if (a.percent == null && b.percent != null) return 1;
+    return (a.balance ?? 0) - (b.balance ?? 0);
+  })[0];
+  if (best) {
+    const row = rows.find((r) => r.id === best.id);
+    if (row) row.nearest = true;
+  }
+  return rows;
+}
+
+/* -- the monthly prompt --------------------------------------------- */
+
+/** How stale a balance has to be before the page offers to update it. */
+export const BALANCE_STALE_DAYS = 30;
+
+/**
+ * The next balance worth asking about, one question at a time.
+ *
+ * Never a form of eight rows: a monthly sit-down is the moment the numbers
+ * are actually to hand, and one question with a tappable answer is the only
+ * version of that anybody completes.
+ */
+export function nextBalanceToConfirm(
+  debts: (PayoffDebt & { confirmedOn: string | null })[],
+  todayIso: string,
+  staleDays: number = BALANCE_STALE_DAYS
+): (PayoffDebt & { confirmedOn: string | null }) | null {
+  const active = debts.filter((d) => d.status === "active");
+  // Unknown before stale: a missing balance breaks the total outright,
+  // where a month-old one only blurs it.
+  const missing = active.filter((d) => d.current_balance == null);
+  if (missing.length > 0) {
+    return [...missing].sort((a, b) => a.creditor.localeCompare(b.creditor))[0];
+  }
+  const stale = active.filter(
+    (d) =>
+      d.confirmedOn == null ||
+      -(daysUntil(d.confirmedOn, todayIso) ?? 0) >= staleDays
+  );
+  return (
+    [...stale].sort((a, b) => (a.confirmedOn ?? "").localeCompare(b.confirmedOn ?? ""))[0] ??
+    null
+  );
+}
+
+/* -- net worth, cashflow, buffer ------------------------------------ */
+
+export type NetWorth = {
+  assets: number | null;
+  investments: number | null;
+  debts: number | null;
+  net: number | null;
+  /** Every input is known, so the figure is a fact rather than a floor. */
+  complete: boolean;
+};
+
+/**
+ * Assets plus investments minus debt.
+ *
+ * `complete` is the honest part. With any balance unknown the debt side is
+ * understated, which makes the net worth OVERSTATED — the flattering
+ * direction — so the page has to say the figure is a ceiling rather than a
+ * number. A total that quietly flatters him is worse than no total.
+ */
+export function netWorth(input: {
+  assets: { value: number | null; status: string }[];
+  investments: { current_value: number | null }[];
+  debts: Pick<PayoffDebt, "current_balance" | "status">[];
+}): NetWorth {
+  const held = input.assets.filter((a) => a.status !== "sold");
+  const assetSum = sumKnown(held.map((a) => a.value));
+  const invSum = sumKnown(input.investments.map((i) => i.current_value));
+  const active = input.debts.filter((d) => d.status === "active");
+  const debtSum = sumKnown(active.map((d) => d.current_balance));
+
+  const complete =
+    held.every((a) => a.value != null) &&
+    input.investments.every((i) => i.current_value != null) &&
+    active.every((d) => d.current_balance != null);
+
+  const anything = held.length + input.investments.length + active.length > 0;
+  return {
+    assets: held.length > 0 ? assetSum : null,
+    investments: input.investments.length > 0 ? invSum : null,
+    debts: active.length > 0 ? debtSum : null,
+    net: anything ? assetSum + invSum - debtSum : null,
+    complete: anything && complete,
+  };
+}
+
+function sumKnown(xs: (number | null)[]): number {
+  return xs.reduce<number>((sum, x) => sum + (x == null ? 0 : Number(x)), 0);
+}
+
+export type Cashflow = {
+  income: number | null;
+  costs: number | null;
+  debtPayments: number;
+  net: number | null;
+  /** Income has been recorded, so `net` means something. */
+  measurable: boolean;
+};
+
+/**
+ * In, out, and what is left.
+ *
+ * Income comes from a metric he records; costs come from assets plus the
+ * debt plans, which is the part the system genuinely knows. With no income
+ * reading the net is null rather than negative — "I have not been told what
+ * comes in" is not the same as "nothing comes in", and the second would be
+ * an alarming and wrong thing to show.
+ */
+export function cashflow(input: {
+  incomeMonthly: number | null;
+  assets: { income_monthly: number | null; cost_monthly: number | null; status: string }[];
+  debts: PayoffDebt[];
+}): Cashflow {
+  const held = input.assets.filter((a) => a.status !== "sold");
+  const assetIncome = sumKnown(held.map((a) => a.income_monthly));
+  const assetCosts = sumKnown(held.map((a) => a.cost_monthly));
+  const debtPayments = input.debts
+    .filter((d) => d.status === "active")
+    .reduce((sum, d) => sum + monthlyPlan(d), 0);
+
+  const measurable = input.incomeMonthly != null || assetIncome > 0;
+  const income = measurable ? (input.incomeMonthly ?? 0) + assetIncome : null;
+  const costs = assetCosts + debtPayments;
+  return {
+    income,
+    costs: held.length > 0 || debtPayments > 0 ? costs : null,
+    debtPayments: Math.round(debtPayments),
+    net: income == null ? null : Math.round(income - costs),
+    measurable,
+  };
+}
+
+export type Buffer = {
+  savings: number | null;
+  monthlyOut: number | null;
+  /** Months of cover, one decimal. Null when either input is missing. */
+  months: number | null;
+  /** Three months is the usual floor; below it the page says so. */
+  thin: boolean;
+};
+
+/**
+ * How long he could survive with nothing coming in.
+ *
+ * Both inputs are his own recorded figures. Neither is guessed: a buffer
+ * computed from an invented outgoings number is a number he might trust
+ * with a decision, and it would be the wrong one.
+ */
+export function buffer(savings: number | null, monthlyOut: number | null): Buffer {
+  const months =
+    savings == null || monthlyOut == null || monthlyOut <= 0
+      ? null
+      : Math.round((savings / monthlyOut) * 10) / 10;
+  return {
+    savings,
+    monthlyOut,
+    months,
+    thin: months != null && months < 3,
+  };
+}

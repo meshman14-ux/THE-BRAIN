@@ -122,7 +122,7 @@ describe("nav by mode", () => {
   it("gives LIFE_OS its own operating system", () => {
     expect(labels("life")).toEqual([
       "Areas",
-      "Debts",
+      "Money",
       "People",
       "Vehicles",
       "Habits",

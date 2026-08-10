@@ -83,10 +83,12 @@ export const NAV: NavItem[] = [
     phoneModes: ["life"],
   },
   {
-    key: "debts",
-    href: "/life/debts",
-    label: "Debts",
+    key: "money",
+    href: "/life/money",
+    label: "Money",
     icon: "£",
+    // The four views are one page, so the nav carries one item. Debts is
+    // reachable from the Debt tab, where the creditor detail belongs.
     modes: ["life"],
     phoneModes: ["life"],
   },

@@ -38,6 +38,22 @@ import {
   rosterProgress,
   nextToSet,
   ROSTER_TARGET,
+  type PayoffDebt,
+  MONEY_TABS,
+  MONEY_TAB_LABEL,
+  MONEY_TAB_QUESTION,
+  normaliseMoneyTab,
+  normaliseStrategy,
+  payoffOrder,
+  canAvalanche,
+  payoffPlan,
+  strategyCost,
+  monthlyPlan,
+  thermometers,
+  nextBalanceToConfirm,
+  netWorth,
+  cashflow,
+  buffer,
 } from "../src/lib/logic";
 import {
   INLINE_FIELDS,
@@ -812,3 +828,370 @@ describe("the roster", () => {
 function shiftYear(iso: string): string {
   return `${Number(iso.slice(0, 4)) - 30}${iso.slice(4)}`;
 }
+
+/* ------------------------------------------------------------------ *
+ * Money
+ * ------------------------------------------------------------------ */
+
+const debt = (over: Partial<PayoffDebt> = {}): PayoffDebt => ({
+  id: over.creditor ?? "d",
+  creditor: "Creditor",
+  status: "active",
+  current_balance: null,
+  original_amount: null,
+  plan_amount: null,
+  plan_frequency: null,
+  apr: null,
+  ...over,
+});
+
+const planned = (over: Partial<PayoffDebt> = {}): PayoffDebt =>
+  debt({ current_balance: 1000, plan_amount: 100, plan_frequency: "monthly", ...over });
+
+describe("money tabs", () => {
+  it("is exactly Debt · Net worth · Cashflow · Buffer", () => {
+    expect(MONEY_TABS).toEqual(["debt", "worth", "cashflow", "buffer"]);
+    for (const t of MONEY_TABS) {
+      expect(MONEY_TAB_LABEL[t]).toBeTruthy();
+      expect(MONEY_TAB_QUESTION[t]).toMatch(/\?$/);
+    }
+  });
+
+  it("falls back to the debt view for anything unrecognised", () => {
+    expect(normaliseMoneyTab("nonsense")).toBe("debt");
+    expect(normaliseMoneyTab(null)).toBe("debt");
+    expect(normaliseMoneyTab("buffer")).toBe("buffer");
+  });
+
+  it("defaults to avalanche, the one that costs less", () => {
+    expect(normaliseStrategy(null)).toBe("avalanche");
+    expect(normaliseStrategy("snowball")).toBe("snowball");
+    expect(normaliseStrategy("Snowball")).toBe("avalanche");
+  });
+});
+
+describe("payoffOrder", () => {
+  it("puts the highest interest first on avalanche", () => {
+    const order = payoffOrder(
+      [
+        planned({ creditor: "low", current_balance: 100, apr: 5 }),
+        planned({ creditor: "high", current_balance: 5000, apr: 29 }),
+      ],
+      "avalanche"
+    );
+    expect(order.map((d) => d.creditor)).toEqual(["high", "low"]);
+  });
+
+  it("puts the smallest balance first on snowball", () => {
+    const order = payoffOrder(
+      [
+        planned({ creditor: "big", current_balance: 5000, apr: 29 }),
+        planned({ creditor: "small", current_balance: 100, apr: 5 }),
+      ],
+      "snowball"
+    );
+    expect(order.map((d) => d.creditor)).toEqual(["small", "big"]);
+  });
+
+  it("never treats an unrecorded rate as zero percent", () => {
+    // Zero would sort an unrecorded credit card to the BOTTOM of the
+    // avalanche and cost him real money. It falls behind every KNOWN rate
+    // instead, which is the honest place for "I cannot rank this".
+    const order = payoffOrder(
+      [
+        planned({ creditor: "unknown", current_balance: 100, apr: null }),
+        planned({ creditor: "known-low", current_balance: 5000, apr: 2 }),
+      ],
+      "avalanche"
+    );
+    expect(order.map((d) => d.creditor)).toEqual(["known-low", "unknown"]);
+  });
+
+  it("sinks debts with no balance to the bottom of either ordering", () => {
+    for (const s of ["avalanche", "snowball"] as const) {
+      const order = payoffOrder(
+        [debt({ creditor: "unmeasured" }), planned({ creditor: "measured" })],
+        s
+      );
+      expect(order[0].creditor, s).toBe("measured");
+    }
+  });
+
+  it("leaves settled debts out entirely", () => {
+    expect(
+      payoffOrder([planned({ creditor: "gone", status: "cleared" })], "snowball")
+    ).toEqual([]);
+  });
+});
+
+describe("canAvalanche", () => {
+  it("refuses the ordering when no rate is recorded anywhere", () => {
+    expect(canAvalanche([planned(), planned()])).toBe(false);
+    expect(canAvalanche([planned(), planned({ apr: 19 })])).toBe(true);
+  });
+
+  it("ignores rates on settled debts", () => {
+    expect(canAvalanche([planned({ status: "cleared", apr: 19 })])).toBe(false);
+  });
+});
+
+describe("payoffPlan", () => {
+  it("rolls a cleared debt's payment into the next one", () => {
+    // Without the roll-over both strategies are just "pay everything at
+    // once" and the ordering would not matter at all.
+    const plan = payoffPlan(
+      [
+        planned({ creditor: "a", current_balance: 100, plan_amount: 100 }),
+        planned({ creditor: "b", current_balance: 300, plan_amount: 100 }),
+      ],
+      "snowball"
+    );
+    // £200/month against £400 total = 2 months, not 3.
+    expect(plan.months).toBe(2);
+    expect(plan.complete).toBe(true);
+  });
+
+  it("refuses a debt-free date when a balance is unconfirmed", () => {
+    // A projected date is exactly what he might plan around, so a guess
+    // here is the most damaging thing this function could return.
+    const plan = payoffPlan([planned(), debt({ creditor: "unknown" })], "snowball");
+    expect(plan.months).toBeNull();
+    expect(plan.complete).toBe(false);
+  });
+
+  it("refuses a date when a debt has a balance but no plan", () => {
+    const plan = payoffPlan(
+      [planned(), debt({ creditor: "no-plan", current_balance: 500 })],
+      "snowball"
+    );
+    expect(plan.months).toBeNull();
+    expect(plan.unplanned).toBe(1);
+  });
+
+  it("reports interest as unknown rather than as a smaller number", () => {
+    // With one rate missing the total would understate the truth, which is
+    // the flattering direction.
+    const some = payoffPlan(
+      [planned({ creditor: "a", apr: 20 }), planned({ creditor: "b", apr: null })],
+      "avalanche"
+    );
+    expect(some.interest).toBeNull();
+    const all = payoffPlan(
+      [planned({ creditor: "a", apr: 20 }), planned({ creditor: "b", apr: 10 })],
+      "avalanche"
+    );
+    expect(all.interest).toBeGreaterThan(0);
+  });
+
+  it("charges no interest when every rate is genuinely zero", () => {
+    const plan = payoffPlan([planned({ apr: 0 })], "avalanche");
+    expect(plan.interest).toBe(0);
+    expect(plan.months).toBe(10);
+  });
+
+  it("converts a weekly plan to its monthly equivalent", () => {
+    expect(
+      Math.round(monthlyPlan({ plan_amount: 100, plan_frequency: "weekly" }))
+    ).toBe(433);
+    expect(monthlyPlan({ plan_amount: 100, plan_frequency: null })).toBe(0);
+    expect(monthlyPlan({ plan_amount: 0, plan_frequency: "monthly" })).toBe(0);
+  });
+});
+
+describe("strategyCost", () => {
+  it("prices snowball in months and pounds rather than arguing about it", () => {
+    const debts = [
+      planned({ creditor: "small-cheap", current_balance: 500, apr: 3, plan_amount: 50 }),
+      planned({ creditor: "big-dear", current_balance: 4000, apr: 30, plan_amount: 150 }),
+    ];
+    const cost = strategyCost(debts);
+    expect(cost.extraInterest).not.toBeNull();
+    // Snowball pays the cheap one first, so it can never cost LESS interest.
+    expect(cost.extraInterest!).toBeGreaterThanOrEqual(0);
+  });
+
+  it("prices nothing when either plan cannot be computed", () => {
+    expect(strategyCost([debt()])).toEqual({ extraMonths: null, extraInterest: null });
+  });
+});
+
+describe("thermometers", () => {
+  it("gives each debt its own bar rather than one total bar", () => {
+    // Gal & McShane: accounts CLOSED predicts getting out, independent of
+    // amount. One total bar hides the only progress that predicts finishing.
+    const bars = thermometers(
+      [planned({ creditor: "a" }), planned({ creditor: "b" })],
+      "snowball"
+    );
+    expect(bars).toHaveLength(2);
+  });
+
+  it("marks a cleared debt so it visibly goes away", () => {
+    const [bar] = thermometers([planned({ current_balance: 0 })], "snowball");
+    expect(bar.cleared).toBe(true);
+  });
+
+  it("marks exactly one as nearest, and never a cleared one", () => {
+    const bars = thermometers(
+      [
+        planned({ creditor: "done", current_balance: 0, original_amount: 100 }),
+        planned({ creditor: "close", current_balance: 10, original_amount: 100 }),
+        planned({ creditor: "far", current_balance: 90, original_amount: 100 }),
+      ],
+      "snowball"
+    );
+    expect(bars.filter((b) => b.nearest)).toHaveLength(1);
+    expect(bars.find((b) => b.nearest)?.creditor).toBe("close");
+  });
+
+  it("refuses a percentage with no original amount to measure against", () => {
+    const [bar] = thermometers([planned({ original_amount: null })], "snowball");
+    expect(bar.percent).toBeNull();
+  });
+
+  it("computes the percentage paid off, not the percentage remaining", () => {
+    const [bar] = thermometers(
+      [planned({ current_balance: 250, original_amount: 1000 })],
+      "snowball"
+    );
+    expect(bar.percent).toBe(75);
+  });
+
+  it("marks nothing when every debt is cleared", () => {
+    const bars = thermometers([planned({ current_balance: 0 })], "snowball");
+    expect(bars.some((b) => b.nearest)).toBe(false);
+  });
+});
+
+describe("nextBalanceToConfirm", () => {
+  const withDate = (d: PayoffDebt, on: string | null) => ({ ...d, confirmedOn: on });
+
+  it("asks about a missing balance before a stale one", () => {
+    // A missing balance breaks the total outright; a month-old one only
+    // blurs it.
+    const next = nextBalanceToConfirm(
+      [
+        withDate(planned({ creditor: "stale" }), addDays(TODAY, -90)),
+        withDate(debt({ creditor: "missing" }), TODAY),
+      ],
+      TODAY
+    );
+    expect(next?.creditor).toBe("missing");
+  });
+
+  it("asks about the oldest confirmation once nothing is missing", () => {
+    const next = nextBalanceToConfirm(
+      [
+        withDate(planned({ creditor: "older" }), addDays(TODAY, -120)),
+        withDate(planned({ creditor: "newer" }), addDays(TODAY, -40)),
+      ],
+      TODAY
+    );
+    expect(next?.creditor).toBe("older");
+  });
+
+  it("stays quiet when everything was confirmed recently", () => {
+    expect(
+      nextBalanceToConfirm([withDate(planned(), addDays(TODAY, -3))], TODAY)
+    ).toBeNull();
+  });
+
+  it("ignores settled debts", () => {
+    expect(
+      nextBalanceToConfirm([withDate(debt({ status: "cleared" }), null)], TODAY)
+    ).toBeNull();
+  });
+});
+
+describe("netWorth", () => {
+  it("calls the figure incomplete when any debt balance is unknown", () => {
+    // An unknown debt understates the debt side, which OVERSTATES net worth
+    // — the flattering direction, and the one worth refusing to imply.
+    const w = netWorth({
+      assets: [{ value: 10000, status: "held" }],
+      investments: [],
+      debts: [debt({ current_balance: null })],
+    });
+    expect(w.complete).toBe(false);
+    expect(w.net).toBe(10000);
+  });
+
+  it("is complete when every input is confirmed", () => {
+    const w = netWorth({
+      assets: [{ value: 10000, status: "held" }],
+      investments: [{ current_value: 2000 }],
+      debts: [debt({ current_balance: 3000 })],
+    });
+    expect(w.complete).toBe(true);
+    expect(w.net).toBe(9000);
+  });
+
+  it("returns nulls rather than zero when nothing has been recorded", () => {
+    // £0 net worth and "not yet told" are different facts.
+    expect(netWorth({ assets: [], investments: [], debts: [] })).toEqual({
+      assets: null,
+      investments: null,
+      debts: null,
+      net: null,
+      complete: false,
+    });
+  });
+
+  it("leaves sold assets out", () => {
+    const w = netWorth({
+      assets: [
+        { value: 100, status: "held" },
+        { value: 900, status: "sold" },
+      ],
+      investments: [],
+      debts: [],
+    });
+    expect(w.assets).toBe(100);
+  });
+});
+
+describe("cashflow", () => {
+  it("returns null for what is left when no income has been recorded", () => {
+    // "Not told what comes in" is not "nothing comes in", and showing the
+    // second as a big negative would be alarming and wrong.
+    const f = cashflow({
+      incomeMonthly: null,
+      assets: [{ income_monthly: null, cost_monthly: 400, status: "held" }],
+      debts: [planned()],
+    });
+    expect(f.measurable).toBe(false);
+    expect(f.net).toBeNull();
+    expect(f.income).toBeNull();
+  });
+
+  it("adds asset income to the recorded income and subtracts both costs", () => {
+    const f = cashflow({
+      incomeMonthly: 2000,
+      assets: [{ income_monthly: 500, cost_monthly: 300, status: "held" }],
+      debts: [planned({ plan_amount: 200, plan_frequency: "monthly" })],
+    });
+    expect(f.income).toBe(2500);
+    expect(f.debtPayments).toBe(200);
+    expect(f.net).toBe(2000);
+  });
+});
+
+describe("buffer", () => {
+  it("refuses to compute months from a guessed outgoing", () => {
+    // A buffer built on an invented denominator is a number he might trust
+    // with a decision.
+    expect(buffer(6000, null).months).toBeNull();
+    expect(buffer(null, 2000).months).toBeNull();
+    expect(buffer(6000, 0).months).toBeNull();
+  });
+
+  it("flags under three months as thin, and says so rather than colouring it", () => {
+    expect(buffer(4000, 2000).months).toBe(2);
+    expect(buffer(4000, 2000).thin).toBe(true);
+    expect(buffer(8000, 2000).thin).toBe(false);
+  });
+
+  it("never calls a missing buffer thin", () => {
+    expect(buffer(null, null).thin).toBe(false);
+  });
+});
