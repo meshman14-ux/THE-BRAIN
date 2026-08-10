@@ -27,10 +27,13 @@ a green build is not a rendered page.
 pushes and posts a `Vercel – the-brain-os` **failure** status on every commit, on `main`
 and on every branch. It fails with `Couldn't find any pages or app directory`, because it
 has no Root Directory set and the app lives in `web/`. **No code change can fix that**, and
-a permanently red check nobody trusts is worse than no check — delete the project, or
-disconnect its Git integration (Vercel → the-brain-os → Settings → Git → Disconnect).
+a permanently red check nobody trusts is worse than no check.
 
-Read the two statuses separately when judging a PR: `Vercel – the-brain` is the real one.
+**Resolved 2026-08-10: its Git integration was disconnected.** From this commit on, a PR
+should carry ONE Vercel status — `Vercel – the-brain` — and any `Vercel – the-brain-os`
+status you see on an older commit is frozen history rather than a live failure, because
+GitHub commit statuses cannot be retracted once written. If a second status ever reappears
+on a NEW commit, something has been reconnected.
 
 **Never deploy to `the-brain-os` and never point anything at it.** Its URL
 (`the-brain-os-meshman14-uxs-projects.vercel.app`) is not the app. The 2026-07-30
