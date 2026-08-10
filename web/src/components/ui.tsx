@@ -30,7 +30,10 @@ export function Panel({
     // so a panel holding something wide (the month grid, a code block) would
     // otherwise push the whole page wider than the phone and take every
     // other panel with it.
-    <section className={`card p-4 sm:p-5 flex flex-col gap-3.5 min-w-0 ${className}`}>
+    // `.panel` rather than `.card p-4` because padding is part of the machine:
+    // EMPIRE tightens --pad along with --radius, and a hardcoded p-5 would
+    // keep the roomy LIFE spacing on a page that is meant to feel terser.
+    <section className={`panel flex flex-col gap-3.5 min-w-0 ${className}`}>
       <div className="flex items-baseline gap-3 flex-wrap">
         <h2 className="label">{title}</h2>
         {hint && (
@@ -125,13 +128,41 @@ export function Kpi({
     return (
       <Link
         href={href}
-        className="card card-hover p-4 no-underline text-[var(--text)] block transition-colors"
+        className="panel card-hover no-underline text-[var(--text)] block transition-colors"
       >
         {body}
       </Link>
     );
   }
-  return <div className="card p-4">{body}</div>;
+  return <div className="panel">{body}</div>;
+}
+
+/* ------------------------------------------------------------------ *
+ * Priority — channel 3
+ * ------------------------------------------------------------------ */
+
+/**
+ * Urgency, drawn as weight rather than colour.
+ *
+ * Priority may not have a hue: red is already "something is wrong" and the
+ * accent is already "the system you are wearing", so a red High task and an
+ * overdue task would be the same mark. `.prio` thickens a left bar and
+ * `.prio-mark` fills a dot, both from `currentColor`, so a row can carry a
+ * status colour and a priority at once without either becoming ambiguous.
+ *
+ * The mark is decoration; `title` carries the word for anyone reading with
+ * their ears rather than their eyes.
+ */
+export function PriorityMark({ priority }: { priority: "High" | "Med" | "Low" }) {
+  return (
+    <span
+      className="prio-mark"
+      data-p={priority}
+      title={`${priority} priority`}
+      aria-label={`${priority} priority`}
+      role="img"
+    />
+  );
 }
 
 /* ------------------------------------------------------------------ *
