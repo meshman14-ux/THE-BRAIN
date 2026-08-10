@@ -22,8 +22,17 @@ a green build is not a rendered page.
 
 ## The old project
 
-`the-brain-os` still exists in the account, is failing, and is scheduled for deletion.
-**Never deploy to it and never point anything at it.** Its URL
+`the-brain-os` still exists in the account, is failing, and was scheduled for deletion —
+**it never was.** Confirmed 2026-08-10 on PR #7: it is still subscribed to this repo's
+pushes and posts a `Vercel – the-brain-os` **failure** status on every commit, on `main`
+and on every branch. It fails with `Couldn't find any pages or app directory`, because it
+has no Root Directory set and the app lives in `web/`. **No code change can fix that**, and
+a permanently red check nobody trusts is worse than no check — delete the project, or
+disconnect its Git integration (Vercel → the-brain-os → Settings → Git → Disconnect).
+
+Read the two statuses separately when judging a PR: `Vercel – the-brain` is the real one.
+
+**Never deploy to `the-brain-os` and never point anything at it.** Its URL
 (`the-brain-os-meshman14-uxs-projects.vercel.app`) is not the app. The 2026-07-30
 connector permission saga that created it is preserved in this file's git history if it
 is ever needed again.
