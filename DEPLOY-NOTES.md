@@ -29,11 +29,23 @@ and on every branch. It fails with `Couldn't find any pages or app directory`, b
 has no Root Directory set and the app lives in `web/`. **No code change can fix that**, and
 a permanently red check nobody trusts is worse than no check.
 
-**Resolved 2026-08-10: its Git integration was disconnected.** From this commit on, a PR
-should carry ONE Vercel status — `Vercel – the-brain` — and any `Vercel – the-brain-os`
-status you see on an older commit is frozen history rather than a live failure, because
-GitHub commit statuses cannot be retracted once written. If a second status ever reappears
-on a NEW commit, something has been reconnected.
+**Attempted 2026-08-10: the Git integration was disconnected in the Vercel UI, and it did
+NOT take.** The very next commit (`a6f4117`) still triggered a fresh `the-brain-os` build
+— deployment `295FRqcEzCq5mYA3bWWS3fh6mDux`, failing as always. So a disconnect that looks
+successful in the dashboard is not proof; **the only proof is a new commit carrying one
+Vercel status instead of two.** Check that before believing it is fixed.
+
+Two things make the check trustworthy. GitHub commit statuses are immutable, so a red
+`the-brain-os` on an OLD commit is frozen history and will never clear — judge only the
+newest commit. And a *fresh deployment id* on a new commit means the link is live,
+whatever the settings page says.
+
+What is left to try, roughly in order of how conclusive it is: delete the project
+outright; or revoke the Vercel GitHub App's access to this repository
+(GitHub → Settings → Applications → Vercel → Repository access), which cuts it off at the
+source rather than per project; or re-check that the disconnect was done on `the-brain-os`
+and not on `the-brain`, since disconnecting the wrong one would break real deploys while
+leaving this failure exactly where it is.
 
 **Never deploy to `the-brain-os` and never point anything at it.** Its URL
 (`the-brain-os-meshman14-uxs-projects.vercel.app`) is not the app. The 2026-07-30
