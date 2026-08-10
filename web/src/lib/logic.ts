@@ -797,21 +797,79 @@ const PRI_RANK: Record<Priority, number> = { High: 0, Med: 1, Low: 2 };
 export function pickThree<
   T extends Pick<Task, "do_date" | "due_date" | "priority" | "status" | "title">
 >(tasks: T[], todayIso: string, limit: number = TODAY_LIMIT): T[] {
-  return [...tasks]
-    .filter(isOpenWork)
-    .sort((a, b) => {
-      const ar = REASON_RANK[todayReason(a, todayIso)];
-      const br = REASON_RANK[todayReason(b, todayIso)];
-      if (ar !== br) return ar - br;
-      const ap = PRI_RANK[a.priority] ?? 1;
-      const bp = PRI_RANK[b.priority] ?? 1;
-      if (ap !== bp) return ap - bp;
-      const ad = a.do_date ?? a.due_date ?? "9999-12-31";
-      const bd = b.do_date ?? b.due_date ?? "9999-12-31";
-      if (ad !== bd) return ad.localeCompare(bd);
-      return a.title.localeCompare(b.title);
-    })
-    .slice(0, limit);
+  return rankForToday(tasks, todayIso).slice(0, limit);
+}
+
+/**
+ * The one ordering. Extracted so `pickThree` and `focusList` cannot drift:
+ * the drawer's two are literally the next two of the same queue, not a
+ * second opinion about what matters.
+ */
+export function rankForToday<
+  T extends Pick<Task, "do_date" | "due_date" | "priority" | "status" | "title">
+>(tasks: T[], todayIso: string): T[] {
+  return [...tasks].filter(isOpenWork).sort((a, b) => {
+    const ar = REASON_RANK[todayReason(a, todayIso)];
+    const br = REASON_RANK[todayReason(b, todayIso)];
+    if (ar !== br) return ar - br;
+    const ap = PRI_RANK[a.priority] ?? 1;
+    const bp = PRI_RANK[b.priority] ?? 1;
+    if (ap !== bp) return ap - bp;
+    const ad = a.do_date ?? a.due_date ?? "9999-12-31";
+    const bd = b.do_date ?? b.due_date ?? "9999-12-31";
+    if (ad !== bd) return ad.localeCompare(bd);
+    return a.title.localeCompare(b.title);
+  });
+}
+
+/* ------------------------------------------------------------------ *
+ * Focus — three visible, two on deck
+ * ------------------------------------------------------------------ */
+
+/**
+ * How many the drawer holds. Three plus two, and the two are a drawer for a
+ * reason that matters more than it looks.
+ *
+ * `pickThree` exists to stop Jay scrolling his own life, and "just show five
+ * then" would quietly undo it — five is a list, and a list is the thing the
+ * dashboard was built to not be. But three with nothing behind them makes
+ * the next decision invisible: finish one and you are back at a blank slot
+ * with no idea what was queued.
+ *
+ * So the two are PLANNING SPACE, not more today. They are closed by default,
+ * they are not counted by `todayProgress`, and they never render alongside
+ * the three. Opening the drawer is a deliberate act that answers "and then
+ * what?" — which is a different question from "what now?".
+ */
+export const FOCUS_VISIBLE = TODAY_LIMIT;
+export const FOCUS_ON_DECK = 2;
+
+export type FocusList<T> = {
+  /** The three. Never more, whatever the drawer is doing. */
+  visible: T[];
+  /** The next two in the same queue. Behind a closed drawer. */
+  onDeck: T[];
+  /** Everything open, including the five above. The honest total. */
+  openTotal: number;
+  /** Open work beyond the five — what the drawer is NOT showing. */
+  beyond: number;
+};
+
+export function focusList<
+  T extends Pick<Task, "do_date" | "due_date" | "priority" | "status" | "title">
+>(
+  tasks: T[],
+  todayIso: string,
+  visible: number = FOCUS_VISIBLE,
+  onDeck: number = FOCUS_ON_DECK
+): FocusList<T> {
+  const ranked = rankForToday(tasks, todayIso);
+  return {
+    visible: ranked.slice(0, visible),
+    onDeck: ranked.slice(visible, visible + onDeck),
+    openTotal: ranked.length,
+    beyond: Math.max(0, ranked.length - visible - onDeck),
+  };
 }
 
 /** How many are open in total — the honest number beside the three. */
@@ -828,6 +886,55 @@ export function todayProgress<T extends Pick<Task, "do_date" | "status">>(
   const forToday = tasks.filter((t) => t.do_date === todayIso);
   const done = forToday.filter((t) => t.status === "done").length;
   return { done, of: Math.max(limit, forToday.length) };
+}
+
+/* ------------------------------------------------------------------ *
+ * THE BRAIN — four tabs
+ * ------------------------------------------------------------------ */
+
+/**
+ * The command centre asks four questions, and a tab exists only if it
+ * answers one the other three cannot. That rule is the whole design: the
+ * v1 dashboard was one column of eleven panels, so "what am I doing next"
+ * and "what is going wrong" and "am I getting better" all arrived at once
+ * and none of them got answered.
+ *
+ *   now       what am I doing next?      focus, capture, today
+ *   attention what is going wrong?       the watchtower, worst first
+ *   systems   how are LIFE and EMPIRE?   two panels, as doorways
+ *   trend     am I getting better?       the ONLY backward look
+ *
+ * `trend` being the only backward look is what keeps the other three from
+ * filling with history. A streak bar is interesting; it is not a decision,
+ * and it does not belong beside the three things he is about to do.
+ */
+export const BRAIN_TABS = ["now", "attention", "systems", "trend"] as const;
+export type BrainTab = (typeof BRAIN_TABS)[number];
+
+export const BRAIN_TAB_LABEL: Record<BrainTab, string> = {
+  now: "Now",
+  attention: "Attention",
+  systems: "Systems",
+  trend: "Trend",
+};
+
+/** The question each tab exists to answer, shown under the tab bar. */
+export const BRAIN_TAB_QUESTION: Record<BrainTab, string> = {
+  now: "What am I doing next?",
+  attention: "What is going wrong?",
+  systems: "How are LIFE and EMPIRE doing?",
+  trend: "Am I getting better?",
+};
+
+/**
+ * The tab lives in the URL, not in React state, so the page stays a Server
+ * Component and a link into `?tab=attention` lands where it says it does.
+ * Anything unrecognised falls back to `now` rather than rendering nothing —
+ * a mistyped tab should show him his day, not an empty page.
+ */
+export function normaliseTab(raw: string | string[] | null | undefined): BrainTab {
+  const v = Array.isArray(raw) ? raw[0] : raw;
+  return (BRAIN_TABS as readonly string[]).includes(v ?? "") ? (v as BrainTab) : "now";
 }
 
 /* ------------------------------------------------------------------ *
