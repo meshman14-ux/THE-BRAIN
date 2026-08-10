@@ -395,10 +395,36 @@ Verified in this repo: **625/625 tests pass** (`tests/logic.test.ts` + `stage3` 
 **`npm run build` produces exactly 35 routes** (28 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
 
-> **Not yet checked in a browser.** The v2 pass was built, typechecked, unit-tested and
-> built for production, but no page of it has been opened — not the four dashboard tabs,
-> not the check-in, not the money hub, not health. The 390×844 device sweep described
-> below predates all of it. Treat "renders correctly" as unverified until somebody looks.
+**Partly checked in a browser, 2026-08-10 — and the boundary matters.**
+
+A 390×844 Chromium sweep did run over the v2 components, rendered with realistic
+fixture data through a temporary harness route, across **six grounds** (paper and
+dark × brain, life and empire). What it established:
+
+- **No horizontal page overflow in any of the six.** `scrollWidth − clientWidth` is
+  0 everywhere.
+- **Exactly five phone-bar items in every mode**, the grid rule holding.
+- **The two machines are real at runtime, not just in the stylesheet:** brain and
+  life render `--radius 13px · --pad 18px · Source Serif`, EMPIRE renders
+  `5px · 13px · IBM Plex Mono` with the cyan accent and the graphite ground — in
+  BOTH themes, which is the whole of decision 11.
+- **Priority is shape:** the three `.prio` bars measure 4px / 2px / 1px live.
+- Every element was checked against its OWN box, per §A7 rule 2, not just the page.
+
+It found one real defect, now fixed: **the phone-bar label overflowed its column.**
+`Opportunities` rendered 2px wider than its fifth of the bar with `overflow: visible`,
+so it leaned on its neighbours in EMPIRE mode. Cause is the same one §A7 rule 1 is
+about — a grid child defaults to `min-width: auto`, so it refuses to shrink. Fixed
+with `min-w-0` + `truncate`; the re-run shows no unclipped overflow anywhere.
+
+**What this sweep did NOT do, and cannot from a sandboxed session:** it never
+rendered a signed-in page against real data. This environment's egress policy
+blocks both `qttroyuajpyelfrbxzzt.supabase.co` and `*.vercel.app` — the local
+server logged `Host not in allowlist: qttroyuajpyelfrbxzzt.supabase.co` — so no
+session can be established and no page can load a row. Composition, empty states,
+and anything depending on real row counts are still unverified. To finish the job,
+allow those two hosts in the environment's network egress settings, or run the
+sweep from a machine that can reach them.
 
 **Phone is checked at a real 390×844, not by eye.** The claude-in-chrome tab renders at a
 fixed ~1526px viewport that `resize_window` cannot change, so phone work has to be driven
