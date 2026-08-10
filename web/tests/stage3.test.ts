@@ -713,8 +713,11 @@ describe("a branch that graduated to a real route", () => {
   });
 
   it("still names and routes an ordinary placeholder", () => {
-    expect(branchName("finance")).toBe("Finance");
-    expect(branchHref("finance")).toBe("/finance");
+    // "finance" used to be the example here and graduated on 2026-08-10 —
+    // its four views are built at /life/money. "food" is genuinely still
+    // unbuilt, which is what this test needs.
+    expect(branchName("food")).toBe("Food");
+    expect(branchHref("food")).toBe("/food");
     expect(branchName("nothing-like-this")).toBe("nothing-like-this");
   });
 });

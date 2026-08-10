@@ -93,6 +93,14 @@ export const NAV: NavItem[] = [
     phoneModes: ["life"],
   },
   {
+    key: "health",
+    href: "/life/health",
+    label: "Health",
+    icon: "◍",
+    modes: ["life"],
+    phoneModes: [],
+  },
+  {
     key: "people",
     href: "/life/people",
     label: "People",

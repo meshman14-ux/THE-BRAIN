@@ -44,18 +44,12 @@ export const PLACEHOLDERS: Placeholder[] = [
     what: "Imports: Samsung Health screenshots, bill photos, bank statements. The OCR parsers from the old app get ported here.",
     phase: "Phase 4 · LIFE_OS",
   },
-  {
-    slug: "finance",
-    name: "Finance",
-    what: "Debt payoff engine, bills, income vs outgoings. The debt number on the dashboard already comes from the metrics that will power this.",
-    phase: "Phase 4 · LIFE_OS",
-  },
-  {
-    slug: "health",
-    name: "Health",
-    what: "Training, nutrition and recovery in one place — habits, streaks, imported health data.",
-    phase: "Phase 4 · LIFE_OS",
-  },
+  // "finance" left 2026-08-10: the four money views are built at
+  // /life/money. "debt-payoff" went with it — the pinned plan it promised
+  // IS the Debt tab, order of attack and projected clear date included.
+  // "health" left 2026-08-10: the hub is built at /life/health — readiness
+  // band, load spike detector, the Big 4 and the nutrition ladder. It is in
+  // BUILT_BRANCHES below, so /health forwards there.
   {
     slug: "food",
     name: "Food",
@@ -66,12 +60,8 @@ export const PLACEHOLDERS: Placeholder[] = [
   // cockpit is built at /empire/kathleen-st.
   // "vehicles" was retired 2026-08-01: the view it promised is built at
   // /life/vehicles. BRANCH_ALIASES redirects the old slug there.
-  {
-    slug: "family",
-    name: "Family",
-    what: "The people ledger — cadences like \"you said 14 days, it has been 47\". The schema for this already exists.",
-    phase: "Phase 4 · LIFE_OS",
-  },
+  // "family" left 2026-08-10: the people ledger it promised — cadences,
+  // occasions and the one-tap contact log — is built at /life/people.
   {
     slug: "opportunities",
     name: "Opportunities",
@@ -116,12 +106,6 @@ export const PLACEHOLDERS: Placeholder[] = [
     name: "Me",
     what: "Profile and settings — who the system is for, and how it should behave.",
     phase: "Phase 6+",
-  },
-  {
-    slug: "debt-payoff",
-    name: "Debt payoff plan",
-    what: "The pinned plan: order of attack, monthly payment, projected clear date. The engine exists in the old app and gets ported onto the Debt remaining metric.",
-    phase: "Phase 4 · LIFE_OS",
   },
 
   /* -- EMPIRE_OS divisions are no longer placeholders ---------------
@@ -183,6 +167,10 @@ export const BUILT_BRANCHES: Record<string, { name: string; href: string }> = {
   reviews: { name: "Reviews", href: "/reviews" },
   calendar: { name: "Calendar", href: "/calendar" },
   advisor: { name: "Advisor", href: "/advisor" },
+  health: { name: "Health", href: "/life/health" },
+  finance: { name: "Finance", href: "/life/money" },
+  "debt-payoff": { name: "Debt payoff plan", href: "/life/money" },
+  family: { name: "Family", href: "/life/people" },
   ...Object.fromEntries(
     DIVISION_NAMES.map((name) => [
       ventureSlug(name),

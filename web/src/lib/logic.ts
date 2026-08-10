@@ -4048,3 +4048,387 @@ export function buffer(savings: number | null, monthlyOut: number | null): Buffe
     thin: months != null && months < 3,
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * Health — readiness, load, the Big 4, and the nutrition ladder
+ * ------------------------------------------------------------------ */
+
+export type HealthDay = {
+  on_date: string;
+  steps: number | null;
+  active_minutes: number | null;
+  rmssd: number | null;
+  resting_hr: number | null;
+  sleep_hours: number | null;
+  weight_kg: number | null;
+  ate_well: boolean | null;
+  protein_g: number | null;
+  calories: number | null;
+  source: string;
+};
+
+/**
+ * How long a personal HRV baseline takes to mean anything.
+ *
+ * Whoop, Oura and Garmin all compare today against a rolling personal
+ * baseline of roughly this length rather than against a population, and
+ * the reason is that absolute HRV is meaningless across people: a genuinely
+ * well-recovered 40-year-old and a genuinely well-recovered 20-year-old can
+ * differ by a factor of three in rMSSD. Only the deviation from your OWN
+ * normal carries information.
+ */
+export const BASELINE_DAYS = 60;
+
+/** Below this many readings the band is not computed at all. */
+export const BASELINE_MIN_READINGS = 14;
+
+export type ReadinessBand = "green" | "amber" | "red";
+
+export type Readiness = {
+  band: ReadinessBand | null;
+  /** Today's rMSSD, and the baseline it is being judged against. */
+  today: number | null;
+  baseline: number | null;
+  /** Standard deviation of the baseline — the width of "normal". */
+  spread: number | null;
+  /** How many readings the baseline rests on. Shown, never hidden. */
+  readings: number;
+  /** Why there is no band, in words the page can print. */
+  reason: string | null;
+};
+
+export const READINESS_LABEL: Record<ReadinessBand, string> = {
+  green: "Ready",
+  amber: "Ease off",
+  red: "Back off",
+};
+
+/**
+ * A traffic-light band around his own rolling baseline — deliberately NOT a
+ * 0–100 score.
+ *
+ * A single number invites precision that is not there. "68 today, 71
+ * yesterday" reads as a meaningful three-point drop when it is noise, and
+ * the arithmetic that produces it is a black box he cannot check. Three
+ * bands and the inputs printed beside them is what the measurement can
+ * actually support.
+ *
+ * The band is one standard deviation of his own baseline: inside it is
+ * normal, one below is worth easing off, well below is worth backing off.
+ * Nothing here works until there is a baseline, and until then it says so
+ * rather than colouring today green by default — a green light computed
+ * from four days of data is worse than no light.
+ */
+export function readinessBand(
+  days: HealthDay[],
+  todayIso: string,
+  baselineDays: number = BASELINE_DAYS,
+  minReadings: number = BASELINE_MIN_READINGS
+): Readiness {
+  const today = days.find((d) => d.on_date === todayIso)?.rmssd ?? null;
+  const from = addDays(todayIso, -baselineDays);
+  // The baseline excludes today: comparing a value against a window that
+  // contains it drags the baseline toward it and flattens the signal.
+  const window = days
+    .filter((d) => d.on_date >= from && d.on_date < todayIso && d.rmssd != null)
+    .map((d) => Number(d.rmssd));
+
+  if (window.length < minReadings) {
+    return {
+      band: null,
+      today,
+      baseline: null,
+      spread: null,
+      readings: window.length,
+      reason: `Needs ${minReadings} days of readings to know what normal looks like for you — there ${
+        window.length === 1 ? "is" : "are"
+      } ${window.length}.`,
+    };
+  }
+
+  const baseline = window.reduce((a, b) => a + b, 0) / window.length;
+  const variance =
+    window.reduce((sum, v) => sum + (v - baseline) ** 2, 0) / window.length;
+  const spread = Math.sqrt(variance);
+
+  if (today == null) {
+    return {
+      band: null,
+      today: null,
+      baseline: round1(baseline),
+      spread: round1(spread),
+      readings: window.length,
+      reason: "No reading today, so there is nothing to compare against.",
+    };
+  }
+
+  // A spread of zero means every reading was identical, which is a sensor
+  // artefact rather than perfect consistency. Banding on it would put every
+  // subsequent day in red.
+  if (spread === 0) {
+    return {
+      band: null,
+      today,
+      baseline: round1(baseline),
+      spread: 0,
+      readings: window.length,
+      reason: "Every reading is identical, which is a sensor problem rather than a result.",
+    };
+  }
+
+  const z = (today - baseline) / spread;
+  const band: ReadinessBand = z >= -1 ? "green" : z >= -2 ? "amber" : "red";
+  return {
+    band,
+    today,
+    baseline: round1(baseline),
+    spread: round1(spread),
+    readings: window.length,
+    reason: null,
+  };
+}
+
+function round1(n: number): number {
+  return Math.round(n * 10) / 10;
+}
+
+/* -- load ----------------------------------------------------------- */
+
+export type Workout = {
+  on_date: string;
+  kind: string;
+  minutes: number | null;
+  rpe: number | null;
+};
+
+/** Above this ratio the week is a spike worth naming. */
+export const LOAD_SPIKE_RATIO = 1.3;
+
+export type LoadState = {
+  thisWeek: number | null;
+  /** Mean of the previous four weeks. */
+  average: number | null;
+  ratio: number | null;
+  spike: boolean;
+  reason: string | null;
+};
+
+/**
+ * Session load is minutes × RPE, which is what makes a run and a lifting
+ * session comparable at all.
+ */
+export function sessionLoad(w: Workout): number | null {
+  if (w.minutes == null || w.rpe == null) return null;
+  return w.minutes * w.rpe;
+}
+
+/**
+ * This week's volume against the four-week average — used ONLY as a spike
+ * detector, and labelled as one.
+ *
+ * The acute:chronic workload ratio is widely quoted as an injury predictor
+ * and the 2025 systematic review is blunt about it: the predictive validity
+ * does not hold up, and the arithmetic has known artefacts. What survives
+ * is the uncontroversial part — "this week is a lot more than you have been
+ * doing" is a true and useful sentence. So the ratio is computed, the
+ * threshold is named, and no claim about injury risk is made anywhere.
+ *
+ * Four weeks of history is required before it says anything. Comparing week
+ * one against an average of nothing is how you get a spike warning on the
+ * first week somebody uses the app.
+ */
+export function loadState(
+  workouts: Workout[],
+  todayIso: string,
+  ratio: number = LOAD_SPIKE_RATIO
+): LoadState {
+  const monday = mondayOf(todayIso);
+  const weekLoad = (start: string): number | null => {
+    const end = addDays(start, 7);
+    const inWeek = workouts.filter((w) => w.on_date >= start && w.on_date < end);
+    const loads = inWeek.map(sessionLoad).filter((l): l is number => l != null);
+    return loads.length === 0 ? null : loads.reduce((a, b) => a + b, 0);
+  };
+
+  const thisWeek = weekLoad(monday) ?? 0;
+  const prior = [1, 2, 3, 4]
+    .map((i) => weekLoad(addDays(monday, -7 * i)))
+    .filter((l): l is number => l != null);
+
+  if (prior.length < 4) {
+    return {
+      thisWeek,
+      average: null,
+      ratio: null,
+      spike: false,
+      reason: `Needs four weeks of history before "more than usual" means anything — there ${
+        prior.length === 1 ? "is" : "are"
+      } ${prior.length}.`,
+    };
+  }
+
+  const average = prior.reduce((a, b) => a + b, 0) / prior.length;
+  if (average === 0) {
+    return {
+      thisWeek,
+      average: 0,
+      ratio: null,
+      spike: false,
+      reason: "Nothing logged in the last four weeks, so there is no usual to exceed.",
+    };
+  }
+
+  const r = thisWeek / average;
+  return {
+    thisWeek,
+    average: Math.round(average),
+    ratio: Math.round(r * 100) / 100,
+    spike: r > ratio,
+    reason: null,
+  };
+}
+
+/* -- the Big 4 ------------------------------------------------------ */
+
+export const BIG_FOUR = ["squat", "bench", "deadlift", "press"] as const;
+export type Movement = (typeof BIG_FOUR)[number];
+
+export const MOVEMENT_LABEL: Record<Movement, string> = {
+  squat: "Squat",
+  bench: "Bench",
+  deadlift: "Deadlift",
+  press: "Overhead press",
+};
+
+export type Lift = { on_date: string; movement: string; weight_kg: number; reps: number };
+
+export type LiftBest = {
+  movement: Movement;
+  /** Best estimated one-rep max, or null if this lift has never been logged. */
+  e1rm: number | null;
+  weight: number | null;
+  reps: number | null;
+  on: string | null;
+  /** Change against the best from more than 90 days ago. Null if no history. */
+  change: number | null;
+};
+
+/**
+ * Epley's estimated one-rep max: w × (1 + reps/30).
+ *
+ * Any of the formulas would do; what matters is using ONE consistently, so
+ * that a set of 5 and a set of 3 can be compared at all. It drifts badly
+ * above about ten reps, which is why anything higher is not counted — an
+ * estimate from a set of twenty says more about conditioning than strength.
+ */
+export const E1RM_REP_CEILING = 10;
+
+export function e1rm(weight: number, reps: number): number | null {
+  if (reps < 1 || reps > E1RM_REP_CEILING) return null;
+  return Math.round(weight * (1 + reps / 30) * 10) / 10;
+}
+
+export function bigFourBests(
+  lifts: Lift[],
+  todayIso: string,
+  sinceDays = 90
+): LiftBest[] {
+  const cutoff = addDays(todayIso, -sinceDays);
+  return BIG_FOUR.map((movement) => {
+    const mine = lifts.filter((l) => l.movement === movement);
+    const scored = mine
+      .map((l) => ({ l, e: e1rm(Number(l.weight_kg), l.reps) }))
+      .filter((x): x is { l: Lift; e: number } => x.e != null);
+
+    if (scored.length === 0) {
+      return { movement, e1rm: null, weight: null, reps: null, on: null, change: null };
+    }
+    const best = scored.reduce((a, b) => (b.e > a.e ? b : a));
+    const older = scored.filter((x) => x.l.on_date < cutoff);
+    const oldBest = older.length > 0 ? older.reduce((a, b) => (b.e > a.e ? b : a)).e : null;
+    return {
+      movement,
+      e1rm: best.e,
+      weight: Number(best.l.weight_kg),
+      reps: best.l.reps,
+      on: best.l.on_date,
+      change: oldBest == null ? null : Math.round((best.e - oldBest) * 10) / 10,
+    };
+  });
+}
+
+/* -- the nutrition ladder ------------------------------------------- */
+
+/**
+ * Three rungs, and the first one is the default.
+ *
+ * Weighing food is the single most abandoned habit in this whole domain, so
+ * the floor is a weight and one tap — enough to see a trend, which is the
+ * only thing that actually decides anything. Protein and calories are
+ * optional because some weeks he will care. Macros are the top rung and are
+ * SYNCED, never typed: typing macros is data entry, and data entry is what
+ * kills the habit that was supposed to produce the data.
+ */
+export type NutritionRung = "floor" | "protein" | "macros";
+
+export const NUTRITION_RUNG_LABEL: Record<NutritionRung, string> = {
+  floor: "Weight and one tap",
+  protein: "Protein and calories",
+  macros: "Full macros",
+};
+
+export type NutritionState = {
+  rung: NutritionRung;
+  /** Days in the window with any entry at all. */
+  logged: number;
+  of: number;
+  /** Weight change over the window, or null with fewer than two weigh-ins. */
+  weightChange: number | null;
+  /** Mean protein, or null if he is not on that rung. */
+  protein: number | null;
+};
+
+export function nutritionState(
+  days: HealthDay[],
+  todayIso: string,
+  windowDays = 14
+): NutritionState {
+  const from = addDays(todayIso, -(windowDays - 1));
+  const window = days.filter((d) => d.on_date >= from && d.on_date <= todayIso);
+
+  const weights = window
+    .filter((d) => d.weight_kg != null)
+    .sort((a, b) => a.on_date.localeCompare(b.on_date));
+  const proteins = window
+    .map((d) => d.protein_g)
+    .filter((p): p is number => p != null)
+    .map(Number);
+
+  // The rung is inferred from what he actually logs, not chosen in a
+  // setting: a setting is one more thing to maintain, and the data already
+  // says which rung he is on.
+  const rung: NutritionRung =
+    window.some((d) => d.calories != null && d.protein_g != null && d.source !== "manual")
+      ? "macros"
+      : proteins.length > 0
+        ? "protein"
+        : "floor";
+
+  return {
+    rung,
+    logged: window.filter(
+      (d) => d.weight_kg != null || d.ate_well != null || d.protein_g != null
+    ).length,
+    of: windowDays,
+    weightChange:
+      weights.length < 2
+        ? null
+        : round1(
+            Number(weights[weights.length - 1].weight_kg) - Number(weights[0].weight_kg)
+          ),
+    protein:
+      proteins.length === 0
+        ? null
+        : Math.round(proteins.reduce((a, b) => a + b, 0) / proteins.length),
+  };
+}

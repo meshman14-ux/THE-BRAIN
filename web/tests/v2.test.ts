@@ -54,6 +54,16 @@ import {
   netWorth,
   cashflow,
   buffer,
+  type HealthDay,
+  readinessBand,
+  loadState,
+  sessionLoad,
+  LOAD_SPIKE_RATIO,
+  bigFourBests,
+  BIG_FOUR,
+  e1rm,
+  E1RM_REP_CEILING,
+  nutritionState,
 } from "../src/lib/logic";
 import {
   INLINE_FIELDS,
@@ -1193,5 +1203,255 @@ describe("buffer", () => {
 
   it("never calls a missing buffer thin", () => {
     expect(buffer(null, null).thin).toBe(false);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Health
+ * ------------------------------------------------------------------ */
+
+const day = (on_date: string, over: Partial<HealthDay> = {}): HealthDay => ({
+  on_date,
+  steps: null,
+  active_minutes: null,
+  rmssd: null,
+  resting_hr: null,
+  sleep_hours: null,
+  weight_kg: null,
+  ate_well: null,
+  protein_g: null,
+  calories: null,
+  source: "manual",
+  ...over,
+});
+
+/** `n` days of baseline ending the day before TODAY, all at `value`. */
+function baseline(n: number, value: (i: number) => number): HealthDay[] {
+  return Array.from({ length: n }, (_, i) =>
+    day(addDays(TODAY, -(i + 1)), { rmssd: value(i) })
+  );
+}
+
+describe("readinessBand", () => {
+  it("says nothing at all until there is enough history", () => {
+    // A green light computed from four days is worse than no light: it
+    // looks like an answer and is not one.
+    const r = readinessBand([...baseline(5, () => 50), day(TODAY, { rmssd: 50 })], TODAY);
+    expect(r.band).toBeNull();
+    expect(r.reason).toContain("normal looks like");
+    expect(r.readings).toBe(5);
+  });
+
+  it("bands against his own baseline, never an absolute scale", () => {
+    // The same rMSSD is green for one person and red for another, which is
+    // exactly why a 0-100 score across people is meaningless.
+    const low = readinessBand(
+      [...baseline(30, (i) => 20 + (i % 3)), day(TODAY, { rmssd: 21 })],
+      TODAY
+    );
+    const high = readinessBand(
+      [...baseline(30, (i) => 90 + (i % 3)), day(TODAY, { rmssd: 91 })],
+      TODAY
+    );
+    expect(low.band).toBe("green");
+    expect(high.band).toBe("green");
+    // And 21 against the HIGH baseline is a different story entirely.
+    const crossed = readinessBand(
+      [...baseline(30, (i) => 90 + (i % 3)), day(TODAY, { rmssd: 21 })],
+      TODAY
+    );
+    expect(crossed.band).toBe("red");
+  });
+
+  it("puts one standard deviation below into amber and two into red", () => {
+    // A spread of about 5 around 50.
+    const days = Array.from({ length: 30 }, (_, i) =>
+      day(addDays(TODAY, -(i + 1)), { rmssd: i % 2 === 0 ? 45 : 55 })
+    );
+    expect(readinessBand([...days, day(TODAY, { rmssd: 50 })], TODAY).band).toBe("green");
+    expect(readinessBand([...days, day(TODAY, { rmssd: 43 })], TODAY).band).toBe("amber");
+    expect(readinessBand([...days, day(TODAY, { rmssd: 30 })], TODAY).band).toBe("red");
+  });
+
+  it("excludes today from its own baseline", () => {
+    // Comparing a value against a window containing it drags the baseline
+    // toward it and flattens the signal. A very low today must not pull
+    // the baseline down and talk itself back into green.
+    const days = Array.from({ length: 30 }, (_, i) =>
+      day(addDays(TODAY, -(i + 1)), { rmssd: i % 2 === 0 ? 48 : 52 })
+    );
+    const r = readinessBand([...days, day(TODAY, { rmssd: 10 })], TODAY);
+    expect(r.baseline).toBe(50);
+    expect(r.band).toBe("red");
+  });
+
+  it("has no band on a day with no reading, and says why", () => {
+    const r = readinessBand(baseline(30, () => 50), TODAY);
+    expect(r.band).toBeNull();
+    expect(r.today).toBeNull();
+    expect(r.reason).toContain("No reading today");
+  });
+
+  it("calls an identical-reading baseline a sensor problem, not perfection", () => {
+    // Zero spread would otherwise put every subsequent day into red.
+    const r = readinessBand(
+      [...baseline(30, () => 50), day(TODAY, { rmssd: 49 })],
+      TODAY
+    );
+    expect(r.band).toBeNull();
+    expect(r.spread).toBe(0);
+    expect(r.reason).toContain("sensor");
+  });
+
+  it("shows how many readings the baseline rests on rather than hiding it", () => {
+    const r = readinessBand(
+      [...baseline(20, (i) => 40 + (i % 5)), day(TODAY, { rmssd: 42 })],
+      TODAY
+    );
+    expect(r.readings).toBe(20);
+    expect(r.baseline).not.toBeNull();
+  });
+});
+
+describe("loadState", () => {
+  const monday = "2026-08-10"; // TODAY is a Monday
+  const w = (on_date: string, minutes: number, rpe: number) => ({
+    on_date,
+    kind: "session",
+    minutes,
+    rpe,
+  });
+
+  it("says nothing until there are four weeks to compare against", () => {
+    // Otherwise week one is a spike against an average of nothing.
+    const l = loadState([w(monday, 60, 7)], monday);
+    expect(l.ratio).toBeNull();
+    expect(l.spike).toBe(false);
+    expect(l.reason).toContain("four weeks");
+  });
+
+  it("computes session load as minutes times RPE", () => {
+    expect(sessionLoad(w("x", 60, 7))).toBe(420);
+    expect(sessionLoad({ on_date: "x", kind: "s", minutes: null, rpe: 7 })).toBeNull();
+    expect(sessionLoad({ on_date: "x", kind: "s", minutes: 60, rpe: null })).toBeNull();
+  });
+
+  it("flags this week only when it exceeds the average by the named ratio", () => {
+    const prior = [1, 2, 3, 4].flatMap((i) => [w(addDays(monday, -7 * i), 60, 5)]);
+    // 300 a week for four weeks. 360 is 1.2x — not a spike.
+    expect(loadState([...prior, w(monday, 60, 6)], monday).spike).toBe(false);
+    // 500 is 1.67x — a spike.
+    const spiked = loadState([...prior, w(monday, 100, 5)], monday);
+    expect(spiked.spike).toBe(true);
+    expect(spiked.ratio).toBeGreaterThan(LOAD_SPIKE_RATIO);
+  });
+
+  it("never spikes against four empty weeks", () => {
+    // Zero history and a big week is a first week, not a warning.
+    const l = loadState([w(monday, 120, 9)], monday);
+    expect(l.spike).toBe(false);
+  });
+});
+
+describe("bigFourBests", () => {
+  const lift = (movement: string, weight_kg: number, reps: number, on_date = TODAY) => ({
+    on_date,
+    movement,
+    weight_kg,
+    reps,
+  });
+
+  it("returns all four whether or not they have been logged", () => {
+    const bests = bigFourBests([lift("squat", 100, 5)], TODAY);
+    expect(bests.map((b) => b.movement)).toEqual(BIG_FOUR);
+    expect(bests.find((b) => b.movement === "bench")?.e1rm).toBeNull();
+  });
+
+  it("uses one formula consistently so different rep counts compare", () => {
+    // Epley: w x (1 + reps/30). The point is not which formula — it is that
+    // a set of five and a set of three can be ranked against each other.
+    expect(e1rm(100, 5)).toBe(116.7);
+    expect(e1rm(110, 1)).toBe(113.7);
+    const best = bigFourBests(
+      [lift("squat", 100, 5), lift("squat", 110, 1)],
+      TODAY
+    ).find((b) => b.movement === "squat");
+    expect(best?.e1rm).toBe(116.7);
+  });
+
+  it("refuses an estimate from a set long enough to be conditioning", () => {
+    expect(e1rm(60, 20)).toBeNull();
+    expect(e1rm(60, E1RM_REP_CEILING)).not.toBeNull();
+    expect(e1rm(60, 0)).toBeNull();
+  });
+
+  it("reports change against a best from outside the window, or null", () => {
+    const bests = bigFourBests(
+      [lift("deadlift", 140, 3), lift("deadlift", 120, 3, addDays(TODAY, -200))],
+      TODAY
+    );
+    const dl = bests.find((b) => b.movement === "deadlift");
+    // Epley puts 140x3 at 154.0 and 120x3 at 132.0.
+    expect(dl?.change).toBe(22);
+    // With no older history there is no change to report — not a zero.
+    const fresh = bigFourBests([lift("bench", 80, 5)], TODAY).find(
+      (b) => b.movement === "bench"
+    );
+    expect(fresh?.change).toBeNull();
+  });
+});
+
+describe("nutritionState", () => {
+  it("reads the rung off what he logs rather than off a setting", () => {
+    // A setting is one more thing to maintain, and the data already says.
+    expect(nutritionState([day(TODAY, { weight_kg: 82 })], TODAY).rung).toBe("floor");
+    expect(nutritionState([day(TODAY, { protein_g: 150 })], TODAY).rung).toBe("protein");
+    expect(
+      nutritionState(
+        [day(TODAY, { protein_g: 150, calories: 2400, source: "samsung" })],
+        TODAY
+      ).rung
+    ).toBe("macros");
+  });
+
+  it("does not call typed protein and calories a macro sync", () => {
+    // Macros are synced, never typed — typing them is data entry, and data
+    // entry is what kills the habit that was meant to produce the data.
+    expect(
+      nutritionState(
+        [day(TODAY, { protein_g: 150, calories: 2400, source: "manual" })],
+        TODAY
+      ).rung
+    ).toBe("protein");
+  });
+
+  it("counts a weight-only day as a logged day", () => {
+    // The floor has to be reachable, or a day with one number becomes a day
+    // with none.
+    const n = nutritionState([day(TODAY, { weight_kg: 82 })], TODAY);
+    expect(n.logged).toBe(1);
+  });
+
+  it("refuses a weight change from a single weigh-in", () => {
+    expect(nutritionState([day(TODAY, { weight_kg: 82 })], TODAY).weightChange).toBeNull();
+    const two = nutritionState(
+      [day(addDays(TODAY, -7), { weight_kg: 84 }), day(TODAY, { weight_kg: 82 })],
+      TODAY
+    );
+    expect(two.weightChange).toBe(-2);
+  });
+
+  it("returns null protein rather than zero when none was logged", () => {
+    expect(nutritionState([day(TODAY, { weight_kg: 82 })], TODAY).protein).toBeNull();
+  });
+
+  it("ignores days outside the window", () => {
+    const n = nutritionState(
+      [day(addDays(TODAY, -60), { weight_kg: 90 }), day(TODAY, { weight_kg: 82 })],
+      TODAY,
+      14
+    );
+    expect(n.logged).toBe(1);
+    expect(n.weightChange).toBeNull();
   });
 });
