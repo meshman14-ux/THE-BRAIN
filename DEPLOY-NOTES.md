@@ -20,42 +20,38 @@ history, kept only in git.*
 After pushing, confirm the deployment went **READY** and the pages actually render —
 a green build is not a rendered page.
 
-## The old project
+## The old project — deleted 2026-08-10
 
-`the-brain-os` still exists in the account, is failing, and was scheduled for deletion —
-**it never was.** Confirmed 2026-08-10 on PR #7: it is still subscribed to this repo's
-pushes and posts a `Vercel – the-brain-os` **failure** status on every commit, on `main`
-and on every branch. It fails with `Couldn't find any pages or app directory`, because it
-has no Root Directory set and the app lives in `web/`. **No code change can fix that**, and
-a permanently red check nobody trusts is worse than no check.
+`the-brain-os` is **gone.** It was created by the 2026-07-30 connector permission saga,
+never worked, and was described here as "scheduled for deletion" for ten days while
+quietly failing on every single push.
 
-**Attempted 2026-08-10: the Git integration was disconnected in the Vercel UI, and it did
-NOT take.** The very next commit (`a6f4117`) still triggered a fresh `the-brain-os` build
-— deployment `295FRqcEzCq5mYA3bWWS3fh6mDux`, failing as always. So a disconnect that looks
-successful in the dashboard is not proof; **the only proof is a new commit carrying one
-Vercel status instead of two.** Check that before believing it is fixed.
+It is worth keeping why, because the failure mode is easy to recreate. It had **no Root
+Directory set**, so it built at the repo root, found no `app/` — the app lives in `web/` —
+and failed with `Couldn't find any pages or app directory`. That put a red
+`Vercel – the-brain-os` status on every commit on every branch, on a repo whose actual
+deploys were green the whole time. **No code change could ever have fixed it**, and a
+permanently red check nobody trusts is worse than no check: it trains you to ignore the
+one signal that might one day be real.
 
-Two things make the check trustworthy. GitHub commit statuses are immutable, so a red
-`the-brain-os` on an OLD commit is frozen history and will never clear — judge only the
-newest commit. And a *fresh deployment id* on a new commit means the link is live,
-whatever the settings page says.
+Two things learned getting rid of it, both worth knowing before you trust any similar fix:
 
-What is left to try, roughly in order of how conclusive it is: delete the project
-outright; or revoke the Vercel GitHub App's access to this repository
-(GitHub → Settings → Applications → Vercel → Repository access), which cuts it off at the
-source rather than per project; or re-check that the disconnect was done on `the-brain-os`
-and not on `the-brain`, since disconnecting the wrong one would break real deploys while
-leaving this failure exactly where it is.
+- **Disconnecting the Git integration in the Vercel UI did not take.** The very next
+  commit still triggered a fresh build (deployment `295FRqcEzCq5mYA3bWWS3fh6mDux`), and so
+  did the two after it. A settings page that looks saved is not evidence.
+- **The only evidence is a new commit carrying one Vercel status instead of two.** A fresh
+  *deployment id* against a new SHA means the link is live whatever the dashboard says. And
+  because GitHub commit statuses are immutable, every commit up to and including
+  `1863357` keeps its red `the-brain-os` mark forever — that is frozen history, not a live
+  failure. Judge the newest commit only.
 
-**Never deploy to `the-brain-os` and never point anything at it.** Its URL
-(`the-brain-os-meshman14-uxs-projects.vercel.app`) is not the app. The 2026-07-30
-connector permission saga that created it is preserved in this file's git history if it
-is ever needed again.
+If a second Vercel status ever appears again on a new commit, something has been
+reconnected; deleting the project is what finally settled it, rather than disconnecting.
 
 | What | URL | State |
 |---|---|---|
 | **THE BRAIN** | https://the-brain-meshman14-uxs-projects.vercel.app | **live — the real one** |
-| the-brain-os | the-brain-os-…vercel.app | failing, delete it |
+| ~~the-brain-os~~ | — | **deleted 2026-08-10** |
 | Old prototype | https://the-brain-pi.vercel.app | domain now attached to `the-brain` |
 | **MAINFRAME** | https://mainfram-4.vercel.app | **live, do not touch** |
 
