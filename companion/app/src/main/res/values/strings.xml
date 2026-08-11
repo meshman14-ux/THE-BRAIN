@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">THE BRAIN · Companion</string>
+    <string name="tagline">Health Connect → your own database. Zero taps after setup.</string>
+    <string name="email_hint">Email</string>
+    <string name="send_link">Send magic link</string>
+    <string name="grant">Grant Health Connect access</string>
+    <string name="sync_now">Sync now</string>
+</resources>

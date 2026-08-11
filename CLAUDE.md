@@ -423,11 +423,19 @@ no-clobber guarantee: a hand-typed weight survives an import that only brought s
 `source = 'samsung'` at last has a writer. Deliberate refusals, tested: resting HR is
 never derived from raw samples (a day's minimum is not a resting rate), and rMSSD is not
 invented — Samsung's export does not contain it, so readiness stays honestly waiting.
-**Stage two — zero taps — is a Health Connect companion app on the phone** (Samsung
-Health syncs into Health Connect on-device; an Android app with read permission can
-upsert `health_days` through Jay's own Supabase session, RLS intact, no service key).
-The `android/` directory holds an UNRELATED older standalone app (local Room DB, no
-Supabase) — do not mistake it for that companion; the companion does not exist yet.
+**Stage two — zero taps — is BUILT at `companion/`** (2026-08-11, same evening): a
+minimal Android app reading Health Connect (which Samsung Health syncs into on-device)
+and upserting `health_days` twice a day through **Jay's own Supabase session — magic
+link via `thebrain://auth` deep link, refresh token in EncryptedSharedPreferences, RLS
+intact, no service key anywhere**. `source = 'health_connect'`, and it is the first
+writer of `rmssd` — the field the readiness band has been waiting for. Aggregation
+rules mirror `samsung.ts` and are JVM-unit-tested (11 tests); compile-verified on this
+machine with the `android/` app's own toolchain (Gradle 8.9 · AGP 8.6.1 · Kotlin
+2.0.20); **never yet run on a phone — that first run is the remaining verification**,
+and `companion/README.md` carries the one-time setup, including the `thebrain://auth`
+Supabase redirect-URL entry only Jay can add. The `android/` directory remains an
+UNRELATED older standalone app (local Room DB, no Supabase) — do not mistake one for
+the other.
 
 **Division months + the exit-gate watchtower rule landed 2026-08-11.** Every division
 dashboard carries a "This month" panel capturing the three numbers a division is judged
