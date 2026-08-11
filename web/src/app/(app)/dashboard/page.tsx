@@ -1,6 +1,13 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import SeasonSwitch from "@/components/SeasonSwitch";
+import Finishes from "@/components/Finishes";
+import {
+  collectFinishes,
+  currentMonthNudge,
+  momentum,
+  monthsCounted,
+} from "@/lib/finishes";
 import { type Season, daysInSeason, seasonKind } from "@/lib/season";
 import {
   type Metric,
@@ -245,6 +252,61 @@ export default async function TheBrain({
   const seasons = (seasonRows ?? []) as Season[];
   const season = seasonKind(seasons);
   const seasonDays = daysInSeason(seasons, today);
+
+  /* -- finishes: the momentum test, made failable --------------------- *
+   *
+   * Mostly derived — completed High tasks and completed diagnostics count
+   * themselves, so the measure fills without being fed. The `finishes`
+   * table holds only what has no timestamp anywhere else.
+   * -------------------------------------------------------------------- */
+
+  const [{ data: doneTasks }, { data: doneRuns }, { data: recorded }] =
+    await Promise.all([
+      supabase
+        .from("tasks")
+        .select("id, title, priority, status, completed_at")
+        .eq("status", "done")
+        .not("completed_at", "is", null)
+        .order("completed_at", { ascending: false })
+        .limit(400),
+      supabase
+        .from("diagnostic_runs")
+        .select("id, kind, completed_at, subject_id")
+        .not("completed_at", "is", null)
+        .order("completed_at", { ascending: false })
+        .limit(200),
+      supabase
+        .from("finishes")
+        .select("id, title, happened_on, kind")
+        .order("happened_on", { ascending: false })
+        .limit(200),
+    ]);
+
+  const ventureName = new Map(allVentures.map((v) => [v.id, v.name]));
+  const finishes = collectFinishes(
+    (doneTasks ?? []) as {
+      id: string;
+      title: string;
+      priority: string;
+      status: string;
+      completed_at: string | null;
+    }[],
+    ((doneRuns ?? []) as {
+      id: string;
+      kind: string;
+      completed_at: string | null;
+      subject_id: string;
+    }[]).map((r) => ({ ...r, subject_name: ventureName.get(r.subject_id) ?? null })),
+    (recorded ?? []) as {
+      id: string;
+      title: string;
+      happened_on: string;
+      kind: string;
+    }[]
+  );
+  const tallies = monthsCounted(finishes, today);
+  const momentumNow = momentum(tallies);
+  const finishNudge = currentMonthNudge(tallies, today);
 
   /* -- the watchtower ----------------------------------------------- */
 
@@ -970,6 +1032,19 @@ export default async function TheBrain({
            */}
           {tab === "trend" && (
             <>
+          {/* -- MONTHS THAT COUNTED --------------------------------- *
+           *
+           * The answer to the only measure his own twelve-month test was
+           * missing: a version of "momentum" that can be failed. It leads
+           * the Trend tab because it is the longest-horizon thing here.
+           * -------------------------------------------------------- */}
+          <Finishes
+            tallies={tallies}
+            momentum={momentumNow}
+            recent={finishes}
+            nudge={finishNudge}
+          />
+
           {/* -- PRODUCTIVITY · at a glance -------------------------- */}
           <Panel title="Productivity · at a glance">
             <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr_0.9fr] items-center">
