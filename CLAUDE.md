@@ -421,7 +421,38 @@ dark × brain, life and empire). What it established:
 - **Priority is shape:** the three `.prio` bars measure 4px / 2px / 1px live.
 - Every element was checked against its OWN box, per §A7 rule 2, not just the page.
 
-It found one real defect, now fixed: **the phone-bar label overflowed its column.**
+**Re-swept 2026-08-11 over the v2 components**, same rig, same six grounds, driven through
+`puppeteer-core` against the pre-installed Chromium with a throwaway `(app)/sweep` harness so
+the components wore the **real** layout rather than a copy of it. All six grounds now report
+`scrollWidth − clientWidth` of **0**, exactly five phone-bar items, and the two machines live:
+brain/life at `13px · 18px · Source Serif` on the theme's own ground, EMPIRE at
+`5px · 13px · IBM Plex Mono` with `#3ac9e0` on graphite — **in the paper theme as well as
+dark**, which is the whole of decision 11. With the on-deck drawer open the three `.prio` bars
+measure **4px / 2px / 1px**, and their colour comes from `currentColor` — the same 4px bar
+renders indigo on a LIFE row and cyan on an EMPIRE one, so width carries priority and hue
+carries system, with neither borrowing the other's channel.
+
+That sweep found one real defect, now fixed. **The occasions row overflowed the page by 15px,
+and `min-w-0` on the truncating name did not prevent it.** `truncate` sets
+`white-space: nowrap`, and a nowrap child still contributes its whole unbroken string to its
+row's *min-content* — so the row's min-content was the full name plus the date and the
+`w-[4.5rem]` day count, about 347px. That row is a grid item of its `ul`, and a grid item
+defaults to `min-width: auto`, so the track could not shrink below it and the panel pushed the
+page sideways. The fix is `min-w-0` on the **row**, not the text: capping the name's used size
+does nothing about the row's contribution to the track. **The tell is the arithmetic** — page
+overflow was 15px in paper and 5px in EMPIRE, a difference of exactly 10px, which is
+`2 × (18 − 13)`, the two themes' `--pad`. A defect that scales with a token is a container
+problem, not a content one.
+
+Method note worth keeping: the page-level number named the symptom and nothing else — 73
+elements reported "past the edge" and all but one were simply inheriting a container that was
+already too wide. What located the cause was cloning each panel into a fixed-width box and
+squeezing it to 250px until only one panel still overflowed, then reading `grid-template-columns`
+on it: `346.641px` inside a 250px box is a track that has refused to shrink, and that is the
+whole diagnosis. Measure intrinsic sizing, don't reason about it.
+
+The earlier 2026-08-10 sweep found one real defect, also fixed: **the phone-bar label
+overflowed its column.**
 `Opportunities` rendered 2px wider than its fifth of the bar with `overflow: visible`,
 so it leaned on its neighbours in EMPIRE mode. Cause is the same one §A7 rule 1 is
 about — a grid child defaults to `min-width: auto`, so it refuses to shrink. Fixed
@@ -662,6 +693,14 @@ Public paths: `/login`, `/auth`, `/manifest.webmanifest`, `/sw.js`.
      gets instead — the calendar now has `monthAgenda` — and only fall back to a scroll
      container when the wide thing genuinely is the only honest view. Checking overflow
      means checking the container, not just `document.documentElement`.
+  3. **`truncate` does not make a row shrinkable — it makes the row rigid.** Learned
+     2026-08-11. `truncate` is `white-space: nowrap`, and a nowrap child contributes its
+     entire unbroken string to its parent's **min-content**. Put that row in a grid or flex
+     parent, where items default to `min-width: auto`, and the track cannot shrink below the
+     full string however narrow the screen gets. `min-w-0` on the text itself does not help:
+     it caps that element's *used* size, not the row's contribution to the track. **The
+     `min-w-0` belongs on the row**, beside the `truncate`, every time. Both existing uses of
+     this pattern in the layout and in `People.tsx` needed it.
 
 - **CSS that hides things must fail closed.** The nav is filtered by hiding what does *not*
   belong to the current mode, so anything the selectors fail to match stays visible. A rule
@@ -779,12 +818,13 @@ Open items:
    **The model call has never been executed against the real API** — retrieval, citation
    checking, the brief and the evidence assembly are all tested and were exercised end to
    end against his real eleven notes, but the request to Claude itself has not run.
-14. **Nothing from the v2 pass has been opened in a browser.** It is typechecked,
-   unit-tested and production-built, and that is genuinely all: the four dashboard tabs,
-   `/checkin`, `/life/money`, `/life/health` and `/life/people` have never been rendered.
-   The 390×844 device sweep in §A5 predates every one of them, so the five-item phone bar
-   and the no-horizontal-overflow claims are unverified for the new routes. Run the sweep
-   again before trusting them.
+14. ~~Nothing from the v2 pass has been opened in a browser.~~ **Swept 2026-08-11** at
+   390×844 across all six grounds — see §A5. The v2 *components* are now verified
+   (composition, overflow, the two machines, priority-as-shape, the five-item bar) and one
+   real defect was found and fixed. What is still unverified is anything that needs a
+   signed-in page against real rows: the four dashboard tabs' own composition, the empty
+   states, and every row count. Egress still blocks `*.vercel.app` and the Supabase host,
+   so that half cannot be done from a sandboxed session.
 15. **The health tables are empty and nothing writes `source = 'samsung'` yet.** The
    readiness band therefore says "needs 14 days of readings" and the load panel says "needs
    four weeks", which is the intended first-run state rather than a fault. Porting the

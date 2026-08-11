@@ -203,7 +203,17 @@ export default function People({
             {occasionList.map((o) => (
               <li
                 key={`${o.personId}-${o.on}`}
-                className="flex items-center gap-3 text-[0.85rem]"
+                // `min-w-0` on the ROW, not just on the name inside it.
+                // `truncate` sets `white-space: nowrap`, and a nowrap child
+                // still contributes its whole unbroken string to the row's
+                // min-content — so the row's min-content is the full name
+                // plus the two rigid columns, ~347px. The row is a grid item
+                // of the `ul`, and a grid item defaults to `min-width: auto`,
+                // so the track could not shrink below that and the panel
+                // pushed the whole page 15px sideways at 390. `min-w-0` on
+                // the name alone does not help: it caps the name's used size,
+                // not the row's contribution to the track.
+                className="min-w-0 flex items-center gap-3 text-[0.85rem]"
               >
                 <span
                   aria-hidden
