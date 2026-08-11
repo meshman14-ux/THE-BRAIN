@@ -804,9 +804,44 @@ export function pickThree<
  * The one ordering. Extracted so `pickThree` and `focusList` cannot drift:
  * the drawer's two are literally the next two of the same queue, not a
  * second opinion about what matters.
+ *
+ * **The last tie-break is `created_at`, and it used to be `title`.** That
+ * looked harmless until there was real data in the table. The first seven
+ * tasks ever written here included three at High priority sharing a due
+ * date, so they tied on reason, on priority AND on date, and fell through
+ * to the alphabet: "Check the empty-homes…" and "Confirm Rent Smart Wales…"
+ * took the two remaining visible slots and "Ring Advantis and Marstons…"
+ * was pushed into the drawer, because R sorts after C.
+ *
+ * Three visible slots mean the final tie-break decides what Jay sees, so it
+ * has to carry meaning rather than merely be stable. Oldest-first does: the
+ * thing written down first has been waiting longest, and among items the
+ * system genuinely cannot otherwise separate, waiting longest is the only
+ * honest reason to go first. A title is not a claim about importance and
+ * must never behave like one.
+ *
+ * `created_at` is optional on `Task`, so a caller that did not select it
+ * still sorts deterministically — the title remains as the last resort, and
+ * a row with no timestamp sorts after one that has one rather than jumping
+ * the queue on a missing value.
+ *
+ * **What this does NOT fix, stated plainly because it is the case that
+ * prompted it:** those seven tasks were written in a single statement, so
+ * `now()` gave all seven the *same* transaction timestamp and they still
+ * fall through to the alphabet. Rows captured one at a time — which is
+ * every row the app itself writes — get distinct timestamps and separate
+ * correctly. So this is right for the normal path and inert for a bulk
+ * insert, and no sort can do better: when three tasks are identical on
+ * every signal the system holds, the system genuinely does not know which
+ * matters more. **The way to say so is to give one a `do_date`**, which
+ * promotes it to `do-today` at the top of the ordering. The drawer exists
+ * for the same reason — "and then what" is a real question when the queue
+ * cannot rank itself.
  */
 export function rankForToday<
-  T extends Pick<Task, "do_date" | "due_date" | "priority" | "status" | "title">
+  T extends Pick<Task, "do_date" | "due_date" | "priority" | "status" | "title"> & {
+    created_at?: string | null;
+  }
 >(tasks: T[], todayIso: string): T[] {
   return [...tasks].filter(isOpenWork).sort((a, b) => {
     const ar = REASON_RANK[todayReason(a, todayIso)];
@@ -818,6 +853,11 @@ export function rankForToday<
     const ad = a.do_date ?? a.due_date ?? "9999-12-31";
     const bd = b.do_date ?? b.due_date ?? "9999-12-31";
     if (ad !== bd) return ad.localeCompare(bd);
+    // Oldest first. A missing timestamp sorts last, never first — an unknown
+    // wait is not a long one.
+    const ac = a.created_at ?? "9999-12-31T23:59:59Z";
+    const bc = b.created_at ?? "9999-12-31T23:59:59Z";
+    if (ac !== bc) return ac.localeCompare(bc);
     return a.title.localeCompare(b.title);
   });
 }

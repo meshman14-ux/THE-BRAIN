@@ -73,7 +73,7 @@ export default async function LifeOs() {
       .order("sort_order"),
     supabase
       .from("tasks")
-      .select("id, title, pillar_id, do_date, due_date, priority, status"),
+      .select("id, title, pillar_id, do_date, due_date, priority, status, created_at"),
     // Every goal, not just the active ones: the bucket list is
     // status = 'someday', and filtering it out here would hide it.
     supabase

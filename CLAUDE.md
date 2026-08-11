@@ -240,6 +240,16 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 ### Schema choices worth preserving
 - **`tasks.do_date` is separate from `tasks.due_date`.** Due is a fact about the world; *do* is a
   decision. Today/Week views are built from `do_date`. This keeps the list honest.
+- **`rankForToday` breaks its last tie on `created_at`, not on the title.** With three visible
+  slots the final tie-break decides what Jay actually sees, so it has to mean something. The
+  first seven real tasks tied on reason, priority AND due date, and the alphabet then pushed
+  *"Ring Advantis and Marstons"* into the drawer because R sorts after C. Oldest-first is the
+  only honest ordering left at that point: among items the system cannot otherwise separate,
+  the one written down first has waited longest. **Any query feeding `/dashboard`, `/life` or
+  `/empire` must select `created_at`** or the tie-break silently reverts to the title.
+  Its documented limit: a bulk insert gives every row the same transaction timestamp, so the
+  seven remain tied — **the way to break a tie the system cannot see is to give one a
+  `do_date`**, which promotes it to `do-today` at the head of the ordering.
 - **`tasks.energy`** (`low|medium|deep`) so work can be matched to state, not dumped in one list.
 - **`tasks.priority`** is text `High|Med|Low` (Jay's vocabulary, from his blueprint).
 - **`tasks.status`**: `open → doing → done` drives the Kanban lanes (plus `dropped`, `waiting`).
@@ -390,7 +400,7 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-10)
 
-Verified in this repo: **625/625 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **631/631 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + **`palette`** + **`v2`**, vitest) and
 **`npm run build` produces exactly 35 routes** (28 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
@@ -790,6 +800,18 @@ Open items:
    "spent so far" is `£—`. That is honest rather than missing: budget-versus-spend is
    `unbudgeted`/`unspent`/`unknown` until Phase 5 builds the assets view, and a null budget
    with real spend is deliberately **not** an overspend (there is a test).
+19. **Auth email runs on Supabase's built-in sender, which is throttled to roughly one
+   message an hour.** It is not intended for production and it locked sign-in out on
+   2026-08-10 (`over_email_send_rate_limit`). **The fix is custom SMTP** — Authentication →
+   Settings → SMTP Settings, any transactional provider. DEPLOY-NOTES has the full trap,
+   including how to tell a genuine failure from a link you had already used successfully.
+20. **First real user data arrived 2026-08-10/11.** `tasks` went 0 → 8: seven from triaging
+   the inbox (`inbox` is now 0 open, every row `routed` rather than deleted) and **one Jay
+   wrote himself** on 11 Aug — the first row he has created since 5 August. Ten tables are
+   still empty: `habit_logs`, `people_contacts`, `health_days`, `workouts`, `lifts`,
+   `reviews`, `goals`, `projects`, `metric_readings`, and `pillars.score` on all 13. The
+   empty states on those are still the only thing anybody has seen, so they remain
+   load-bearing.
 
 ## A9. Commands
 
@@ -799,7 +821,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 625 tests — must be green before build
+npm test                       # 631 tests — must be green before build
 npm run build                  # 35 routes — green before you push
 ```
 

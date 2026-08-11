@@ -156,6 +156,12 @@ export type Task = {
   /** The one-line why, shown under a task on the priorities panel. */
   notes?: string | null;
   project_id?: string | null;
+  /**
+   * When it was written down. Optional because most screens have no use for
+   * it — but `rankForToday` breaks its final tie on it, so any query feeding
+   * the dashboard or Focus must select it. See `rankForToday`.
+   */
+  created_at?: string | null;
 };
 
 /* ------------------------------------------------------------------ *
