@@ -388,12 +388,25 @@ reviews and the inbox start empty — the first-run empty states are load-bearin
 (`meshman14@gmail.com`). Supabase Site URL and redirect allow-list point at the live Vercel
 URL and a magic-link round trip has been completed against it.
 
-## A5. Build state (as of 2026-08-10)
+## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **625/625 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
-+ `divisions` + `calendar` + `advisor` + **`palette`** + **`v2`**, vitest) and
-**`npm run build` produces exactly 35 routes** (28 pages + 7 API routes).
+Verified in this repo: **642/642 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
++ `divisions` + `calendar` + `advisor` + `palette` + `v2` + **`diagnostics`**, vitest) and
+**`npm run build` produces exactly 37 routes** (30 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
+
+**The diagnostic module landed 2026-08-11** at `/diagnose` — the cloud session's third patch,
+ported onto `1eec0a5` (PR #7 rebuilt patches 1–2 from the spec; this one arrived as `git am`).
+One picker over the 17 eligible ventures and the 8 life areas (MAINFRAME excluded — a pointer,
+never a subject), worst-first once scored, the two worst carrying a deep-dive nudge. Triage is
+ten questions with pure-CSS hover hints; the run row is created on the first answer, every
+answer writes on tap into `diagnostic_runs.answers` jsonb, skip writes nothing, reopening
+resumes. The health score is arithmetic — five equal signals, skipped signals excluded, basis
+always shown ("62 · 4 of 5 signals"); hours are deliberately unscored so hard work can never
+mask a sick venture. Venture triages fold onto `ventures.health`. The finish screen offers
+text answers back as High tasks — one tap each, never automatic. The `diagnostic_runs`
+migration (RLS owner-only) is applied to the live project; **do not re-apply it**. Nav carries
+Diagnose in brain + empire, desk job, no phone slot.
 
 **Partly checked in a browser, 2026-08-10 — and the boundary matters.**
 
@@ -599,6 +612,13 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /api/calendar/sync         POST, one two-way pass
 /api/calendar/resolve      POST, settles ONE conflict the way he chose
 /api/calendar/disconnect   POST, revokes and forgets. Touches nothing in Google
+/(app)/diagnose        the diagnostic module: one picker over the 17 eligible
+                       ventures and the 8 life areas, worst-first once scored.
+                       MAINFRAME never appears (§A1 — a pointer, never a subject)
+/(app)/diagnose/[type]/[id]
+                       one triage or deep dive. `[type]` is venture|area; the run
+                       writes on tap into diagnostic_runs.answers and resumes at
+                       the first unanswered question
 /(app)/advisor         the advisor (§A3 decision 6): the morning brief assembled
                        from his own data, ask-anything over the vault with
                        citations, and a weekly-review draft. Reads only
@@ -799,8 +819,8 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 625 tests — must be green before build
-npm run build                  # 35 routes — green before you push
+npm test                       # 642 tests — must be green before build
+npm run build                  # 37 routes — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from
