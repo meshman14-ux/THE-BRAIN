@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { PriorityMark } from "./ui";
+import HowLong from "./HowLong";
 
 /** Everything a row needs, resolved server-side — no lookups here. */
 export type FocusItem = {
@@ -15,6 +16,7 @@ export type FocusItem = {
   reason: string;
   priority: "High" | "Med" | "Low";
   done: boolean;
+  durationMin: number | null;
 };
 
 /**
@@ -44,6 +46,9 @@ export default function Focus({
 }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+  // The task whose "how long?" ask is showing. One at a time: finishing a
+  // second task moves the ask rather than stacking prompts.
+  const [asking, setAsking] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -53,11 +58,14 @@ export default function Focus({
       .from("tasks")
       .update(
         t.done
-          ? { status: "open", completed_at: null }
+          ? // Reopening un-finishes the task, so the recorded time goes with
+            // it — a partial figure would poison the multiplier.
+            { status: "open", completed_at: null, actual_min: null }
           : { status: "done", completed_at: new Date().toISOString() }
       )
       .eq("id", t.id);
     setBusy(null);
+    setAsking(t.done ? null : t.id);
     router.refresh();
   }
 
@@ -80,8 +88,8 @@ export default function Focus({
   }
 
   const row = (t: FocusItem, dim: boolean) => (
+    <div key={t.id} className="grid gap-1.5">
     <div
-      key={t.id}
       data-p={t.priority}
       className={`prio flex items-start gap-3 rounded-[10px] border border-[var(--border)] pr-3.5 py-3 ${
         t.system === "empire" ? "sys-empire" : "sys-life"
@@ -115,6 +123,14 @@ export default function Focus({
           </span>
         </p>
       </div>
+    </div>
+    {asking === t.id && t.done && (
+      <HowLong
+        taskId={t.id}
+        durationMin={t.durationMin}
+        onSettled={() => setAsking(null)}
+      />
+    )}
     </div>
   );
 

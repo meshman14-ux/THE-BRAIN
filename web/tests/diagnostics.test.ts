@@ -5,7 +5,10 @@ import {
   VENTURE_TRIAGE,
   areaTriageScore,
   bankFor,
+  dismissedKeys,
   healthFromScore,
+  seedSuggestions,
+  type SeedRun,
   marginSignal,
   scoreBasisLine,
   taskCandidates,
@@ -175,5 +178,110 @@ describe("taskCandidates", () => {
 
   it("offers nothing when nothing task-shaped was answered", () => {
     expect(taskCandidates(VENTURE_TRIAGE, { trend: "flat" })).toHaveLength(0);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Seeding — the answers become the backlog
+ * ------------------------------------------------------------------ */
+
+describe("seedSuggestions", () => {
+  const ventures = [{ id: "v1", name: "A to Z Traderz", pillar_id: "p-vent" }];
+  const pillars = [{ id: "p-life", name: "Money & Security" }];
+
+  const run = (over: Partial<SeedRun> = {}): SeedRun => ({
+    id: "r1",
+    subject_type: "venture",
+    subject_id: "v1",
+    kind: "triage",
+    answers: { bottleneck: "No stock system" },
+    meta: {},
+    completed_at: "2026-08-11T14:49:00Z",
+    ...over,
+  });
+
+  it("offers a completed run's answers with the subject named", () => {
+    const out = seedSuggestions([run()], ventures, pillars, []);
+    expect(out).toHaveLength(1);
+    expect(out[0].title).toBe(
+      "A to Z Traderz — Fix the bottleneck: No stock system"
+    );
+    expect(out[0].pillarId).toBe("p-vent");
+  });
+
+  it("an incomplete run offers nothing", () => {
+    expect(
+      seedSuggestions([run({ completed_at: null })], ventures, pillars, [])
+    ).toHaveLength(0);
+  });
+
+  it("a suggestion whose task already exists is silently satisfied", () => {
+    const out = seedSuggestions([run()], ventures, pillars, [
+      "A to Z Traderz — Fix the bottleneck: No stock system",
+    ]);
+    expect(out).toHaveLength(0);
+  });
+
+  it("a dismissal in the run's meta is durable", () => {
+    const out = seedSuggestions(
+      [run({ meta: { dismissed_suggestions: ["bottleneck"] } })],
+      ventures,
+      pillars,
+      []
+    );
+    expect(out).toHaveLength(0);
+  });
+
+  it("only the latest run per subject-and-kind speaks", () => {
+    const out = seedSuggestions(
+      [
+        run({ id: "old", answers: { bottleneck: "Old answer" }, completed_at: "2026-08-01T10:00:00Z" }),
+        run({ id: "new", answers: { bottleneck: "New answer" }, completed_at: "2026-08-11T10:00:00Z" }),
+      ],
+      ventures,
+      pillars,
+      []
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].runId).toBe("new");
+    expect(out[0].title).toContain("New answer");
+  });
+
+  it("an area run resolves against pillars and carries its own id as the area", () => {
+    const out = seedSuggestions(
+      [
+        run({
+          subject_type: "area",
+          subject_id: "p-life",
+          answers: { friction: "Too many logins" },
+        }),
+      ],
+      ventures,
+      pillars,
+      []
+    );
+    expect(out).toHaveLength(1);
+    expect(out[0].title).toBe(
+      "Money & Security — Remove the friction: Too many logins"
+    );
+    expect(out[0].pillarId).toBe("p-life");
+  });
+
+  it("a run whose subject is gone offers nothing rather than a nameless task", () => {
+    expect(
+      seedSuggestions([run({ subject_id: "vanished" })], ventures, pillars, [])
+    ).toHaveLength(0);
+  });
+});
+
+describe("dismissedKeys", () => {
+  it("validates the jsonb rather than trusting it", () => {
+    expect(dismissedKeys(null)).toEqual([]);
+    expect(dismissedKeys("junk")).toEqual([]);
+    expect(dismissedKeys({ dismissed_suggestions: "not-a-list" })).toEqual([]);
+    expect(dismissedKeys({ dismissed_suggestions: ["a", 7, "b"] })).toEqual([
+      "a",
+      "b",
+    ]);
   });
 });

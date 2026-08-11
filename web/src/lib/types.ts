@@ -88,6 +88,13 @@ export type Priority = "High" | "Med" | "Low";
 export type TaskStatus = "open" | "doing" | "done" | "dropped" | "waiting";
 
 /**
+ * What a task costs to do well — so work can be matched to state instead of
+ * dumped in one undifferentiated list (locked decision: the schema has
+ * carried this column since v1; the planner finally reads it).
+ */
+export type TaskEnergy = "low" | "medium" | "deep";
+
+/**
  * Goals and projects share a lifecycle: live, parked, finished, abandoned.
  *
  * Unlike `tasks.status`, the database does NOT constrain these columns — they
@@ -168,6 +175,14 @@ export type Task = {
    * without it, the planning fallacy is invisible and permanent.
    */
   actual_min?: number | null;
+  /**
+   * When the row was captured. The only evidence of silence dormancy has —
+   * `tasks` carries no `updated_at` — so a row read without it can never
+   * be hidden (`isDormant` fails closed).
+   */
+  created_at?: string | null;
+  /** Null is "not tagged" — an untagged task appears under every filter. */
+  energy?: TaskEnergy | null;
   /** jsonb. Carries `time: {start, end}` once the task has a slot. */
   meta?: unknown;
 };

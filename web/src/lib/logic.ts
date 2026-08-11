@@ -877,6 +877,100 @@ export function openCount<T extends Pick<Task, "status">>(tasks: T[]): number {
   return tasks.filter(isOpenWork).length;
 }
 
+/* ------------------------------------------------------------------ *
+ * Dormancy — the one rule that makes the system lighter over time
+ * ------------------------------------------------------------------ */
+
+/**
+ * Days of silence before an intention stops counting against you.
+ */
+export const DORMANT_AFTER_DAYS = 30;
+
+/**
+ * Whether a task has gone dormant: open work that nothing has touched in
+ * `DORMANT_AFTER_DAYS`. Dormant tasks leave the counts, the focus queue and
+ * the default lanes — every other feature makes the system heavier, and
+ * this is the one that makes it lighter. Nothing is deleted and nothing is
+ * written: dormancy is DERIVED at read time, so waking a task is starting
+ * it, scheduling it, or giving it a deadline — not un-setting a flag.
+ *
+ * Four rules keep it honest:
+ *
+ * - **Only `open` tasks sleep.** `tasks` has no `updated_at`, so the row
+ *   itself cannot say when it was last touched — but a task in `doing` has
+ *   been started, and started work is touched work by definition. This is
+ *   also what makes waking mechanical: moving a dormant task to Start is
+ *   the wake.
+ * - **A task with a `due_date` never sleeps.** Due is a fact about the
+ *   world, and the world does not care that the row went quiet — hiding a
+ *   real deadline because it is ALSO stale would be the system lying in
+ *   the flattering direction, the exact thing §A3 decision 12 forbids.
+ *   This is also why the watchtower needs no dormancy check: it only ever
+ *   alerts on deadlines, and deadlines are exempt.
+ * - **A future or recent `do_date` keeps it awake.** A decision about when
+ *   to do it is a touch.
+ * - **A task that cannot be dated cannot be hidden.** No `created_at` in
+ *   the row means no evidence of silence, and hiding must fail closed —
+ *   the same reasoning as the nav's missing-attribute rule (§A7).
+ */
+export function isDormant(
+  t: Pick<Task, "status" | "created_at" | "do_date" | "due_date">,
+  todayIso: string,
+  afterDays: number = DORMANT_AFTER_DAYS
+): boolean {
+  if (t.status !== "open") return false;
+  if (t.due_date) return false;
+  if (!t.created_at) return false;
+  const created = daysUntil(t.created_at.slice(0, 10), todayIso);
+  if (created == null) return false;
+  // "Days since" flips the sign: a future date is negative-since and keeps
+  // the task awake through Math.min.
+  const since = [-created];
+  if (t.do_date) {
+    const d = daysUntil(t.do_date, todayIso);
+    if (d == null) return false;
+    since.push(-d);
+  }
+  return Math.min(...since) > afterDays;
+}
+
+/** One pass, both halves — so a screen cannot count a task twice or lose one. */
+export function splitDormant<
+  T extends Pick<Task, "status" | "created_at" | "do_date" | "due_date">
+>(tasks: T[], todayIso: string): { live: T[]; dormant: T[] } {
+  const live: T[] = [];
+  const dormant: T[] = [];
+  for (const t of tasks) (isDormant(t, todayIso) ? dormant : live).push(t);
+  return { live, dormant };
+}
+
+/* ------------------------------------------------------------------ *
+ * Rollover — the day's leftovers, settled at the close
+ * ------------------------------------------------------------------ */
+
+/**
+ * Open work that was scheduled for today or earlier and did not happen.
+ * The daily close offers each one three exits — tomorrow, back to the
+ * pool, or dropped — because a `do_date` left in the past is the start of
+ * backlog rot: the task is neither planned nor unplanned, it is just old.
+ * Oldest first, so what has been slipping longest is settled first.
+ *
+ * Offering is the whole of the force. The close never gates on it —
+ * skipping the panel leaves the tasks exactly as they were, and they will
+ * be offered again tomorrow. Nudge, never gate.
+ */
+export function leftovers<
+  T extends Pick<Task, "status" | "do_date" | "priority">
+>(tasks: T[], todayIso: string): T[] {
+  return tasks
+    .filter((t) => isOpenWork(t) && t.do_date != null && t.do_date <= todayIso)
+    .sort((a, b) => {
+      const d = (a.do_date as string).localeCompare(b.do_date as string);
+      if (d !== 0) return d;
+      return (PRI_RANK[a.priority] ?? 1) - (PRI_RANK[b.priority] ?? 1);
+    });
+}
+
 /** Of today's three, how many are finished. Drives the `TODAY 0/3` counter. */
 export function todayProgress<T extends Pick<Task, "do_date" | "status">>(
   tasks: T[],

@@ -390,10 +390,41 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **680/680 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
-+ `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + **`planner`**,
+Verified in this repo: **711/711 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
++ `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
 vitest) and **`npm run build` produces exactly 39 routes** (32 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
+
+**The maintenance-cost pass landed 2026-08-11** — five features from the improvement
+research (`claude/` doc, evidence-led), all read-side or one-tap, no migration needed:
+
+- **`actual_min` capture.** Marking a task done (Focus, Planner) asks "how long?" —
+  chips bracket the estimate (half · as planned · 1.5× · 2×, `actualOptions()`), one tap
+  writes, skip writes NULL. Reopening clears `actual_min` — a partial figure would poison
+  the multiplier. This is the capture path `calibration()` was waiting for.
+- **Dormancy** (`isDormant`/`splitDormant`, `DORMANT_AFTER_DAYS = 30`). Open work
+  untouched 30 days leaves the counts, focus queue and default lanes — derived at read
+  time, nothing written, nothing deleted. Four rules: only `open` sleeps (started work is
+  touched by definition — `tasks` has no `updated_at`); **a task with a `due_date` never
+  sleeps** (due is a fact about the world, which is also why the watchtower needs no
+  check); a future/recent `do_date` keeps it awake; a row without `created_at` cannot be
+  hidden (fails closed, §A7). Dashboard shows "N dormant" honestly; the Planner keeps
+  them behind a `Dormant · N` chip. Waking is mechanical: Start it, schedule it, or give
+  it a deadline.
+- **Rollover in the daily close** (`leftovers()`, `Rollover.tsx` on `/checkin`). Open
+  tasks with `do_date <= today` are each offered three one-tap exits — tomorrow, back to
+  pool, dropped — oldest slip first. Rolling clears the time slot (the slot belonged to a
+  day that is over). Nudge, never gate: unsettled tasks are simply offered again.
+- **Energy** (`cycleEnergy`/`byEnergy`). The column the schema always carried is finally
+  read and written: pool cards on `/day` tag in one tap (low → medium → deep → off), and
+  filter chips match work to state. An untagged task passes every filter — tagging is a
+  ceiling, never a gate — and the filter row only appears once tagging has started.
+- **Seeding** (`seedSuggestions()` in `diagnostics.ts`, `SeededTasks.tsx` on `/planner`).
+  The diagnostic finish screen's offer made standing: every completed run's text answers
+  are offered as High tasks, one tap each, across all runs. Only the latest run per
+  subject-and-kind speaks; a dismissal is durable in the run's `meta`
+  (`dismissed_suggestions`); an exact-title task existing is the dedup — creating the
+  task satisfies the suggestion, no bookkeeping table.
 
 **The day planner landed 2026-08-11** — `/day`, the reworked `/week`, and `/week/print`.
 `tasks.duration_min` and `tasks.actual_min` (both nullable, both refusing zero — the
@@ -842,7 +873,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 680 tests — must be green before build
+npm test                       # 711 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 

@@ -3,15 +3,18 @@
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { Pillar, Task } from "@/lib/types";
+import type { Pillar, Task, TaskEnergy } from "@/lib/types";
 import {
   DAY_END_MIN,
   DAY_START_MIN,
+  ENERGY_LEVELS,
   SLOT_MIN,
   type Calibration,
+  byEnergy,
   capacityOf,
   clashing,
   correctedEstimate,
+  cycleEnergy,
   dayLayout,
   dayLoad,
   durationOf,
@@ -62,6 +65,9 @@ export default function DayPlanner({
   const [picked, setPicked] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState("");
+  // Match work to state: null shows everything. Untagged tasks pass every
+  // filter — tagging is a ceiling, never a gate.
+  const [energyFilter, setEnergyFilter] = useState<TaskEnergy | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
@@ -77,9 +83,19 @@ export default function DayPlanner({
   const cap = useMemo(() => capacityOf(load.totalMin), [load.totalMin]);
 
   /** The pool: this day's untimed work, plus anything with no day at all. */
-  const pool = useMemo(
+  const wholePool = useMemo(
     () => [...unplaced, ...tasks.filter((t) => t.do_date == null)],
     [unplaced, tasks]
+  );
+  const pool = useMemo(
+    () => byEnergy(wholePool, energyFilter),
+    [wholePool, energyFilter]
+  );
+  // The filter only appears once tagging has started — before that it would
+  // be three chips that do nothing.
+  const anyTagged = useMemo(
+    () => wholePool.some((t) => t.energy != null),
+    [wholePool]
   );
 
   const pickedTask = picked ? tasks.find((t) => t.id === picked) ?? null : null;
@@ -102,6 +118,18 @@ export default function DayPlanner({
       .eq("id", taskId);
     setBusy(false);
     setPicked(null);
+    if (error) setNote("That didn't save — try again.");
+    else router.refresh();
+  }
+
+  /** One tap up the effort ladder; the step past deep clears the tag. */
+  async function setEnergy(t: Task) {
+    setBusy(true);
+    const { error } = await supabase
+      .from("tasks")
+      .update({ energy: cycleEnergy(t.energy) })
+      .eq("id", t.id);
+    setBusy(false);
     if (error) setNote("That didn't save — try again.");
     else router.refresh();
   }
@@ -328,9 +356,35 @@ export default function DayPlanner({
           <p className="text-[0.7rem] text-[var(--faint)] mt-1.5 mb-3 leading-relaxed">
             Tap one, then tap a slot. Drag works too, if you have a mouse.
           </p>
+          {anyTagged && (
+            <div className="flex gap-1 mb-3">
+              <button
+                className="chip"
+                data-active={energyFilter == null}
+                disabled={busy}
+                onClick={() => setEnergyFilter(null)}
+              >
+                all
+              </button>
+              {ENERGY_LEVELS.map((e) => (
+                <button
+                  key={e}
+                  className="chip"
+                  data-active={energyFilter === e}
+                  disabled={busy}
+                  onClick={() => setEnergyFilter(energyFilter === e ? null : e)}
+                  title={`Show ${e}-energy work (untagged tasks always show)`}
+                >
+                  {e}
+                </button>
+              ))}
+            </div>
+          )}
           {pool.length === 0 ? (
             <p className="text-[0.76rem] text-[var(--muted)] leading-relaxed">
-              Nothing waiting. Every task with this day on it has a time.
+              {wholePool.length === 0
+                ? "Nothing waiting. Every task with this day on it has a time."
+                : "Nothing at this energy. The rest of the pool is behind the other chips."}
             </p>
           ) : (
             <div className="grid gap-1.5">
@@ -380,6 +434,16 @@ export default function DayPlanner({
                           {m < 60 ? `${m}m` : `${m / 60}h`}
                         </button>
                       ))}
+                      <button
+                        disabled={busy}
+                        onClick={() => setEnergy(t)}
+                        className="chip flex-1 text-center px-0"
+                        data-active={t.energy != null}
+                        title="What this costs to do well — tap to cycle low, medium, deep, off"
+                        aria-label={`Energy: ${t.energy ?? "not tagged"} — tap to change`}
+                      >
+                        {t.energy ?? "energy"}
+                      </button>
                     </div>
                   </div>
                 );

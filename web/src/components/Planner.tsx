@@ -10,30 +10,40 @@ import {
   LANES,
   PRIORITY_COLOUR,
 } from "@/lib/types";
-import { LANE_ORDER, nextStatus, laneTasks } from "@/lib/logic";
+import { LANE_ORDER, nextStatus, laneTasks, splitDormant } from "@/lib/logic";
+import HowLong from "./HowLong";
 
 export default function Planner({
   tasks,
   pillars,
+  today,
 }: {
   tasks: Task[];
   pillars: Pillar[];
+  today: string;
 }) {
   const [filter, setFilter] = useState<string>("all");
+  // Dormant work is out of the lanes by default and behind this chip — never
+  // deleted, never silently lost, just no longer counting against the day.
+  const [showDormant, setShowDormant] = useState(false);
   const [title, setTitle] = useState("");
   const [area, setArea] = useState<string>("");
   const [prio, setPrio] = useState<Priority>("Med");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // The card whose "how long?" ask is showing — one at a time.
+  const [asking, setAsking] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
 
   const byId = Object.fromEntries(pillars.map((p) => [p.id, p]));
+  const { live, dormant } = splitDormant(tasks, today);
+  const pool = showDormant ? dormant : live;
   const visible =
-    filter === "all" ? tasks : tasks.filter((t) => t.pillar_id === filter);
+    filter === "all" ? pool : pool.filter((t) => t.pillar_id === filter);
 
   // Only offer area chips for areas that actually have tasks — keeps it quiet.
-  const used = pillars.filter((p) => tasks.some((t) => t.pillar_id === p.id));
+  const used = pillars.filter((p) => pool.some((t) => t.pillar_id === p.id));
 
   async function move(t: Task, dir: 1 | -1) {
     const next = nextStatus(t.status, dir);
@@ -44,9 +54,15 @@ export default function Planner({
       .update({
         status: next,
         completed_at: next === "done" ? new Date().toISOString() : null,
+        // Leaving "done" un-finishes the task, so the recorded time goes
+        // with it — a partial figure would poison the multiplier.
+        ...(t.status === "done" && next !== "done"
+          ? { actual_min: null }
+          : {}),
       })
       .eq("id", t.id);
     setBusy(false);
+    setAsking(next === "done" ? t.id : null);
     router.refresh();
   }
 
@@ -107,9 +123,9 @@ export default function Planner({
       </form>
       {err && <p className="text-sm text-[var(--bad)]">⚠ {err}</p>}
 
-      {/* area filter */}
-      {used.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+      {/* area filter + the dormant drawer */}
+      {(used.length > 0 || dormant.length > 0) && (
+        <div className="flex flex-wrap gap-1.5 items-center">
           <button
             className="chip"
             data-active={filter === "all"}
@@ -127,7 +143,27 @@ export default function Planner({
               {p.emoji} {p.name}
             </button>
           ))}
+          {dormant.length > 0 && (
+            <button
+              className="chip ml-auto"
+              data-active={showDormant}
+              onClick={() => {
+                setShowDormant((s) => !s);
+                setFilter("all");
+              }}
+              title="Open tasks nothing has touched in 30 days. They left the counts; starting or scheduling one wakes it."
+            >
+              Dormant · {dormant.length}
+            </button>
+          )}
         </div>
+      )}
+
+      {showDormant && (
+        <p className="text-[0.74rem] text-[var(--faint)] leading-relaxed">
+          Untouched for 30 days, so out of every count. Nothing here is lost —
+          Start one, schedule it, or give it a deadline and it wakes.
+        </p>
       )}
 
       {/* three lanes */}
@@ -209,6 +245,16 @@ export default function Planner({
                           {i === 0 ? "Start ›" : i === 1 ? "Done ›" : "✓ Done"}
                         </button>
                       </div>
+
+                      {asking === t.id && done && (
+                        <div className="mt-2">
+                          <HowLong
+                            taskId={t.id}
+                            durationMin={t.duration_min}
+                            onSettled={() => setAsking(null)}
+                          />
+                        </div>
+                      )}
                     </div>
                   );
                 })}

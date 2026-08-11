@@ -12,6 +12,10 @@ import {
   unscheduled,
   countsByPillar,
   isUntouched,
+  DORMANT_AFTER_DAYS,
+  isDormant,
+  splitDormant,
+  leftovers,
   areasFor,
   noteFromCapture,
   taskTitleFromCapture,
@@ -1803,5 +1807,139 @@ describe("sortDebts", () => {
       debt({ id: "active", current_balance: 1 }),
     ];
     expect(sortDebts(ds).map((d) => d.id)).toEqual(["active", "cleared"]);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Dormancy — untouched 30 days leaves the counts
+ * ------------------------------------------------------------------ */
+
+describe("dormancy", () => {
+  const TODAY = "2026-08-11";
+  // 40 days before TODAY — comfortably past the threshold.
+  const OLD = "2026-07-02T09:00:00+00:00";
+  // 10 days before TODAY — recent.
+  const RECENT = "2026-08-01T09:00:00+00:00";
+
+  it("is 30 days, and the constant is load-bearing", () => {
+    expect(DORMANT_AFTER_DAYS).toBe(30);
+  });
+
+  it("puts an old untouched open task to sleep", () => {
+    expect(isDormant(task({ created_at: OLD }), TODAY)).toBe(true);
+  });
+
+  it("keeps a recent task awake", () => {
+    expect(isDormant(task({ created_at: RECENT }), TODAY)).toBe(false);
+  });
+
+  it("never sleeps a task with a due_date, however stale", () => {
+    // Due is a fact about the world. 40 days old AND 35 days overdue — the
+    // exact task the wall-of-red instinct wants hidden, and the exact task
+    // that must not be.
+    const t = task({ created_at: OLD, due_date: "2026-07-07" });
+    expect(isDormant(t, TODAY)).toBe(false);
+  });
+
+  it("a future or recent do_date keeps it awake", () => {
+    expect(
+      isDormant(task({ created_at: OLD, do_date: "2026-08-20" }), TODAY)
+    ).toBe(false);
+    expect(
+      isDormant(task({ created_at: OLD, do_date: "2026-08-01" }), TODAY)
+    ).toBe(false);
+  });
+
+  it("an old do_date does not keep it awake", () => {
+    expect(
+      isDormant(task({ created_at: OLD, do_date: "2026-07-03" }), TODAY)
+    ).toBe(true);
+  });
+
+  it("only open tasks sleep — started work is touched work", () => {
+    expect(isDormant(task({ created_at: OLD, status: "doing" }), TODAY)).toBe(
+      false
+    );
+    expect(isDormant(task({ created_at: OLD, status: "done" }), TODAY)).toBe(
+      false
+    );
+    expect(isDormant(task({ created_at: OLD, status: "waiting" }), TODAY)).toBe(
+      false
+    );
+  });
+
+  it("a task that cannot be dated cannot be hidden", () => {
+    // No created_at → no evidence of silence → hiding fails closed.
+    expect(isDormant(task({}), TODAY)).toBe(false);
+  });
+
+  it("day 30 is awake, day 31 is asleep — the boundary is exact", () => {
+    expect(isDormant(task({ created_at: "2026-07-12T00:00:00Z" }), TODAY)).toBe(
+      false
+    ); // exactly 30 days
+    expect(isDormant(task({ created_at: "2026-07-11T00:00:00Z" }), TODAY)).toBe(
+      true
+    ); // 31 days
+  });
+
+  it("splitDormant loses nothing and counts nothing twice", () => {
+    const rows = [
+      task({ id: "old", created_at: OLD }),
+      task({ id: "fresh", created_at: RECENT }),
+      task({ id: "deadline", created_at: OLD, due_date: "2026-07-01" }),
+    ];
+    const { live, dormant } = splitDormant(rows, TODAY);
+    expect(dormant.map((t) => t.id)).toEqual(["old"]);
+    expect(live.map((t) => t.id)).toEqual(["fresh", "deadline"]);
+    expect(live.length + dormant.length).toBe(rows.length);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Rollover — the day's leftovers
+ * ------------------------------------------------------------------ */
+
+describe("leftovers", () => {
+  const TODAY = "2026-08-11";
+
+  it("collects open work scheduled for today or earlier", () => {
+    const rows = [
+      task({ id: "today", do_date: TODAY }),
+      task({ id: "slipped", do_date: "2026-08-05" }),
+      task({ id: "tomorrow", do_date: "2026-08-12" }),
+      task({ id: "unscheduled" }),
+    ];
+    expect(leftovers(rows, TODAY).map((t) => t.id)).toEqual([
+      "slipped",
+      "today",
+    ]);
+  });
+
+  it("oldest slip first — what has waited longest is settled first", () => {
+    const rows = [
+      task({ id: "recent", do_date: "2026-08-10" }),
+      task({ id: "ancient", do_date: "2026-07-20" }),
+    ];
+    expect(leftovers(rows, TODAY).map((t) => t.id)).toEqual([
+      "ancient",
+      "recent",
+    ]);
+  });
+
+  it("breaks a same-day tie by priority", () => {
+    const rows = [
+      task({ id: "low", do_date: TODAY, priority: "Low" }),
+      task({ id: "high", do_date: TODAY, priority: "High" }),
+    ];
+    expect(leftovers(rows, TODAY).map((t) => t.id)).toEqual(["high", "low"]);
+  });
+
+  it("finished and dropped work is not a leftover", () => {
+    const rows = [
+      task({ id: "done", do_date: TODAY, status: "done" }),
+      task({ id: "dropped", do_date: TODAY, status: "dropped" }),
+      task({ id: "waiting", do_date: TODAY, status: "waiting" }),
+    ];
+    expect(leftovers(rows, TODAY)).toHaveLength(0);
   });
 });

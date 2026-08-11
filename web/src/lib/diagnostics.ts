@@ -556,3 +556,103 @@ export function bankFor(
   if (subject === "area") return AREA_TRIAGE; // deep bank for areas: later, content not migration
   return kind === "deep" ? VENTURE_DEEP : VENTURE_TRIAGE;
 }
+
+/* ------------------------------------------------------------------ *
+ * Seeding — the answers become the backlog
+ * ------------------------------------------------------------------ */
+
+/** The finish screen's shape, carried across runs. */
+export type SeedSuggestion = {
+  runId: string;
+  key: string;
+  /** Exactly the title the Add tap will create — dedup depends on it. */
+  title: string;
+  pillarId: string | null;
+  subjectName: string;
+};
+
+export type SeedRun = {
+  id: string;
+  subject_type: "venture" | "area";
+  subject_id: string;
+  kind: "triage" | "deep";
+  answers: unknown;
+  meta: unknown;
+  completed_at: string | null;
+};
+
+/** `meta` is jsonb — validate, never trust (§A7). */
+export function dismissedKeys(meta: unknown): string[] {
+  if (typeof meta !== "object" || meta == null) return [];
+  const d = (meta as { dismissed_suggestions?: unknown }).dismissed_suggestions;
+  if (!Array.isArray(d)) return [];
+  return d.filter((k): k is string => typeof k === "string");
+}
+
+/**
+ * Every task the completed diagnostics are still offering, across all runs.
+ *
+ * The finish screen already offers one run's answers back as tasks; this is
+ * that same offer made standing. The endowed-progress evidence (Nunes &
+ * Drèze) is the why: confirming a pre-made row populates a system roughly
+ * ten times faster than a blank form, and the diagnostic answers are the
+ * best pre-made rows the system holds — Jay already said these things are
+ * wrong, in his own words.
+ *
+ * Discipline unchanged from the finish screen: every suggestion is one tap,
+ * nothing is created automatically, and a dismissal is remembered in the
+ * run's own `meta` so declining is as durable as accepting. Only the LATEST
+ * completed run per subject-and-kind speaks — a re-triage supersedes its
+ * predecessor's opinions rather than stacking with them. A suggestion whose
+ * exact title already exists as a task is silently satisfied: creating the
+ * task IS the dedup, so nothing needs a second bookkeeping table.
+ */
+export function seedSuggestions(
+  runs: SeedRun[],
+  ventures: { id: string; name: string; pillar_id: string | null }[],
+  pillars: { id: string; name: string; emoji?: string | null }[],
+  existingTaskTitles: string[]
+): SeedSuggestion[] {
+  const ventureById = new Map(ventures.map((v) => [v.id, v]));
+  const pillarById = new Map(pillars.map((p) => [p.id, p]));
+  const existing = new Set(existingTaskTitles);
+
+  // Latest completed run per subject+kind.
+  const latest = new Map<string, SeedRun>();
+  for (const r of runs) {
+    if (!r.completed_at) continue;
+    const slot = `${r.subject_type}:${r.subject_id}:${r.kind}`;
+    const held = latest.get(slot);
+    if (!held || r.completed_at > (held.completed_at ?? "")) latest.set(slot, r);
+  }
+
+  const out: SeedSuggestion[] = [];
+  for (const r of latest.values()) {
+    const subject =
+      r.subject_type === "venture"
+        ? ventureById.get(r.subject_id)
+        : pillarById.get(r.subject_id);
+    if (!subject) continue; // a run whose subject is gone offers nothing
+    const answers =
+      typeof r.answers === "object" && r.answers != null
+        ? (r.answers as DiagAnswers)
+        : {};
+    const dismissed = new Set(dismissedKeys(r.meta));
+    for (const c of taskCandidates(bankFor(r.subject_type, r.kind), answers)) {
+      if (dismissed.has(c.key)) continue;
+      const title = `${subject.name} — ${c.title}`;
+      if (existing.has(title)) continue;
+      out.push({
+        runId: r.id,
+        key: c.key,
+        title,
+        pillarId:
+          r.subject_type === "venture"
+            ? (subject as { pillar_id: string | null }).pillar_id
+            : r.subject_id,
+        subjectName: subject.name,
+      });
+    }
+  }
+  return out;
+}

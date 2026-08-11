@@ -32,7 +32,7 @@ export default async function DayPage({
     supabase
       .from("tasks")
       .select(
-        "id, title, pillar_id, do_date, due_date, priority, status, notes, duration_min, actual_min, meta"
+        "id, title, pillar_id, do_date, due_date, priority, status, notes, duration_min, actual_min, energy, meta"
       )
       .in("status", ["open", "doing"])
       .or(`do_date.eq.${day},do_date.is.null`),

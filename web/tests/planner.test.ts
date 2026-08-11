@@ -6,7 +6,10 @@ import {
   DEFAULT_DURATION_MIN,
   PRIORITY_SLOTS_PER_SYSTEM,
   SLOT_MIN,
+  actualOptions,
+  byEnergy,
   calibration,
+  cycleEnergy,
   capacityOf,
   clashing,
   correctedEstimate,
@@ -39,6 +42,7 @@ const task = (o: Record<string, unknown> = {}) => ({
   status: (o.status ?? "open") as "open" | "doing" | "done" | "dropped" | "waiting",
   duration_min: (o.duration_min ?? null) as number | null,
   actual_min: (o.actual_min ?? null) as number | null,
+  energy: (o.energy ?? null) as "low" | "medium" | "deep" | null,
   meta: o.meta ?? {},
 });
 
@@ -433,5 +437,82 @@ describe("systemPriorities", () => {
     expect(systemPriorities(rows, pillars, WEEK).life.map((t) => t.id)).toEqual([
       "open",
     ]);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * actualOptions — the "how long?" chips
+ * ------------------------------------------------------------------ */
+
+describe("actualOptions", () => {
+  it("brackets an estimate: half, as planned, 1.5x, 2x", () => {
+    expect(actualOptions(60)).toEqual([30, 60, 90, 120]);
+  });
+
+  it("rounds every chip to five minutes", () => {
+    // 22 → 11/22/33/44 raw → 10/20/35/45 rounded
+    expect(actualOptions(22)).toEqual([10, 20, 35, 45]);
+    for (const m of actualOptions(22)) expect(m % 5).toBe(0);
+  });
+
+  it("never offers zero and deduplicates a tiny estimate", () => {
+    // 5 → 2.5/5/7.5/10 → 5/5/10/10 → [5, 10]. A finished task took time.
+    expect(actualOptions(5)).toEqual([5, 10]);
+    expect(actualOptions(5)).not.toContain(0);
+  });
+
+  it("falls back to plain durations without an estimate", () => {
+    const plain = [15, 30, 60, 120];
+    expect(actualOptions(null)).toEqual(plain);
+    expect(actualOptions(undefined)).toEqual(plain);
+  });
+
+  it("treats zero and negative estimates as no estimate", () => {
+    // Zero refuses to mean anything here, exactly as the columns refuse it.
+    expect(actualOptions(0)).toEqual([15, 30, 60, 120]);
+    expect(actualOptions(-30)).toEqual([15, 30, 60, 120]);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Energy — matching work to state
+ * ------------------------------------------------------------------ */
+
+describe("cycleEnergy", () => {
+  it("climbs the ladder and the step past deep clears", () => {
+    expect(cycleEnergy(null)).toBe("low");
+    expect(cycleEnergy("low")).toBe("medium");
+    expect(cycleEnergy("medium")).toBe("deep");
+    expect(cycleEnergy("deep")).toBe(null);
+  });
+
+  it("resets an unrecognised value instead of throwing", () => {
+    // The column is free text to the database — treat it like meta.
+    expect(cycleEnergy("HIGH" as never)).toBe("low");
+  });
+});
+
+describe("byEnergy", () => {
+  const rows = [
+    task({ id: "deep", energy: "deep" }),
+    task({ id: "low", energy: "low" }),
+    task({ id: "untagged" }),
+  ];
+
+  it("null filter shows everything", () => {
+    expect(byEnergy(rows, null).map((t) => t.id)).toEqual([
+      "deep",
+      "low",
+      "untagged",
+    ]);
+  });
+
+  it("an untagged task passes every filter — tagging is a ceiling, not a gate", () => {
+    expect(byEnergy(rows, "deep").map((t) => t.id)).toEqual([
+      "deep",
+      "untagged",
+    ]);
+    expect(byEnergy(rows, "low").map((t) => t.id)).toEqual(["low", "untagged"]);
+    expect(byEnergy(rows, "medium").map((t) => t.id)).toEqual(["untagged"]);
   });
 });

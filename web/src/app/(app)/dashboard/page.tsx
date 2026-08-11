@@ -21,6 +21,7 @@ import {
   dueWithin,
   focusList,
   openCount,
+  splitDormant,
   todayProgress,
   todayReason,
   type TodayReason,
@@ -113,7 +114,7 @@ export default async function TheBrain({
       .order("sort_order"),
     supabase
       .from("tasks")
-      .select("id, title, pillar_id, project_id, do_date, due_date, priority, status"),
+      .select("id, title, pillar_id, project_id, do_date, due_date, priority, status, duration_min, created_at"),
     supabase.from("projects").select("pillar_id, due_date, status").eq("status", "active"),
     supabase
       .from("ventures")
@@ -180,8 +181,14 @@ export default async function TheBrain({
 
   /* -- work --------------------------------------------------------- */
 
-  const open = openCount(allTasks);
-  const split = taskSplit(allTasks, allPillars);
+  // Dormant work leaves every count and queue on this page. Deadlines are
+  // exempt inside isDormant, so nothing the watchtower cares about is here.
+  const { live: liveTasks, dormant: dormantTasks } = splitDormant(
+    allTasks,
+    today
+  );
+  const open = openCount(liveTasks);
+  const split = taskSplit(liveTasks, allPillars);
   const dueSoon = dueWithin(
     [
       ...allTasks,
@@ -190,11 +197,11 @@ export default async function TheBrain({
     today
   );
 
-  const progress = todayProgress(allTasks, today);
+  const progress = todayProgress(liveTasks, today);
   // Three visible, two on deck. `todayProgress` deliberately still counts
   // only what is set for today: the drawer is planning space, so opening it
   // must never move the TODAY n/3 counter.
-  const focus = focusList(allTasks, today);
+  const focus = focusList(liveTasks, today);
   const toFocusItem = (t: Task): FocusItem => {
     const p = t.pillar_id ? pillarById.get(t.pillar_id) : null;
     return {
@@ -205,15 +212,16 @@ export default async function TheBrain({
       reason: REASON_TEXT[todayReason(t, today)],
       priority: t.priority,
       done: t.status === "done",
+      durationMin: t.duration_min ?? null,
     };
   };
-  const todayCount = allTasks.filter(
+  const todayCount = liveTasks.filter(
     (t) => isOpenWork(t) && t.do_date != null && t.do_date <= today
   ).length;
 
   const bySystem = (sys: "life" | "empire") => {
     const ids = new Set(areasFor(allPillars, sys).map((p) => p.id));
-    return allTasks
+    return liveTasks
       .filter((t) => isOpenWork(t) && t.pillar_id != null && ids.has(t.pillar_id))
       .slice(0, 5);
   };
@@ -561,6 +569,20 @@ export default async function TheBrain({
                 {split.unassigned} open task
                 {split.unassigned === 1 ? "" : "s"} with no area — real work, but
                 it has not been told which life it belongs to.
+              </p>
+            )}
+            {dormantTasks.length > 0 && (
+              <p className="text-[0.7rem] text-[var(--faint)] leading-relaxed">
+                {dormantTasks.length} dormant — untouched for 30 days, so
+                {dormantTasks.length === 1 ? " it has" : " they have"} left the
+                counts. Still in{" "}
+                <Link
+                  href="/planner"
+                  className="font-semibold no-underline"
+                  style={{ color: "var(--accent)" }}
+                >
+                  Tasks →
+                </Link>
               </p>
             )}
           </Panel>

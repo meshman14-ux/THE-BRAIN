@@ -1,4 +1,4 @@
-import type { Pillar, SystemKey, Task } from "./types";
+import type { Pillar, SystemKey, Task, TaskEnergy } from "./types";
 import { readTaskTime, type TaskTime } from "./calendar";
 import { isOpenWork } from "./logic";
 
@@ -347,6 +347,78 @@ export function correctedEstimate(
 ): number | null {
   if (!cal.reliable || cal.multiplier == null) return null;
   return Math.round(estimateMin * cal.multiplier);
+}
+
+/**
+ * The chips offered by the "how long?" ask when a task is finished.
+ *
+ * `actual_min` only ever arrives through this ask, and the ask must cost one
+ * tap — Buehler's planning-fallacy correction is statistical, so the capture
+ * path has to be cheap enough to actually run. With an estimate the chips
+ * bracket it (half · as planned · 1.5× · 2×), because the interesting fact is
+ * the *ratio*, and those four cover "quicker than I thought" through the
+ * two-thirds overrun the literature says to expect. Without an estimate the
+ * chips are plain durations.
+ *
+ * Values are rounded to 5 minutes and deduplicated — a 5-minute estimate must
+ * not offer "3 minutes" twice. Zero never appears: a finished task took time,
+ * and skip already exists for "don't record". Skip writes NULL, never zero.
+ */
+export function actualOptions(
+  durationMin: number | null | undefined
+): number[] {
+  const round5 = (n: number) => Math.max(5, Math.round(n / 5) * 5);
+  if (typeof durationMin !== "number" || durationMin <= 0)
+    return [15, 30, 60, 120];
+  const raw = [
+    durationMin / 2,
+    durationMin,
+    durationMin * 1.5,
+    durationMin * 2,
+  ].map(round5);
+  return [...new Set(raw)];
+}
+
+/* ------------------------------------------------------------------ *
+ * Energy — matching work to state
+ * ------------------------------------------------------------------ */
+
+/** In effort order — the cycle and the filter chips both follow it. */
+export const ENERGY_LEVELS: TaskEnergy[] = ["low", "medium", "deep"];
+
+export const ENERGY_LABEL: Record<TaskEnergy, string> = {
+  low: "low",
+  medium: "medium",
+  deep: "deep",
+};
+
+/**
+ * The one-tap tagger: each tap moves a task one step up the effort ladder,
+ * and the step past `deep` clears it. Cycling through null is what makes
+ * tagging cost one tap and UN-tagging possible from the same control —
+ * there is no separate clear button to build or find.
+ */
+export function cycleEnergy(e: TaskEnergy | null | undefined): TaskEnergy | null {
+  if (e == null) return "low";
+  const i = ENERGY_LEVELS.indexOf(e);
+  // An unrecognised value resets to the start rather than throwing — the
+  // column is free text to the database, so treat it like meta (§A7).
+  if (i === -1) return "low";
+  return i === ENERGY_LEVELS.length - 1 ? null : ENERGY_LEVELS[i + 1];
+}
+
+/**
+ * The pool under an energy filter. An UNTAGGED task passes every filter:
+ * hiding it would punish exactly the zero-obligation floor the system
+ * promises — tagging is a ceiling, and skipping a ceiling never costs
+ * visibility.
+ */
+export function byEnergy<T extends Pick<Task, "energy">>(
+  tasks: T[],
+  filter: TaskEnergy | null
+): T[] {
+  if (filter == null) return tasks;
+  return tasks.filter((t) => t.energy == null || t.energy === filter);
 }
 
 /* ------------------------------------------------------------------ *

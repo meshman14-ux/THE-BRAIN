@@ -1,18 +1,20 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { type Pillar } from "@/lib/types";
+import { type Pillar, type Task } from "@/lib/types";
 import {
   toIso,
   formatDayLong,
   areaToAsk,
   readCheckin,
   gratitudePrompt,
+  leftovers,
   reflectionWeeks,
   moodTrend,
   checkinProgress,
   REFLECTION_TARGET,
 } from "@/lib/logic";
 import CheckinFlow from "@/components/Checkin";
+import Rollover from "@/components/Rollover";
 import { Panel, Empty } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -35,23 +37,30 @@ export default async function CheckinPage() {
   const supabase = await createClient();
   const today = toIso(new Date());
 
-  const [{ data: pillars }, { data: todayRow }, { data: history }] = await Promise.all([
-    supabase
-      .from("pillars")
-      .select("id, system, name, emoji, sort_order, active, score")
-      .eq("active", true)
-      .order("sort_order"),
-    supabase
-      .from("journal")
-      .select("mood, energy, gratitude, meta")
-      .eq("entry_date", today)
-      .maybeSingle(),
-    supabase
-      .from("journal")
-      .select("entry_date, mood, energy")
-      .order("entry_date", { ascending: false })
-      .limit(120),
-  ]);
+  const [{ data: pillars }, { data: todayRow }, { data: history }, { data: openToday }] =
+    await Promise.all([
+      supabase
+        .from("pillars")
+        .select("id, system, name, emoji, sort_order, active, score")
+        .eq("active", true)
+        .order("sort_order"),
+      supabase
+        .from("journal")
+        .select("mood, energy, gratitude, meta")
+        .eq("entry_date", today)
+        .maybeSingle(),
+      supabase
+        .from("journal")
+        .select("entry_date, mood, energy")
+        .order("entry_date", { ascending: false })
+        .limit(120),
+      supabase
+        .from("tasks")
+        .select("id, title, pillar_id, do_date, due_date, priority, status, meta")
+        .in("status", ["open", "doing"])
+        .not("do_date", "is", null)
+        .lte("do_date", today),
+    ]);
 
   const areas = (pillars ?? []) as Pillar[];
   const area = areaToAsk(areas, today);
@@ -88,6 +97,9 @@ export default async function CheckinPage() {
         gratitudePrompt={gratitudePrompt(today)}
         dayLabel={formatDayLong(today)}
       />
+
+      {/* -- the day's leftovers, settled one tap each --------------- */}
+      <Rollover tasks={leftovers((openToday ?? []) as Task[], today)} today={today} />
 
       {progress.done && (
         <p
