@@ -390,10 +390,24 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **642/642 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
-+ `divisions` + `calendar` + `advisor` + `palette` + `v2` + **`diagnostics`**, vitest) and
-**`npm run build` produces exactly 37 routes** (30 pages + 7 API routes).
+Verified in this repo: **680/680 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
++ `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + **`planner`**,
+vitest) and **`npm run build` produces exactly 39 routes** (32 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
+
+**The day planner landed 2026-08-11** — `/day`, the reworked `/week`, and `/week/print`.
+`tasks.duration_min` and `tasks.actual_min` (both nullable, both refusing zero — the
+migration was applied to the live project before the code landed; do not re-apply).
+Dropping a task on a slot writes `meta.time`, the exact field the calendar sync already
+reads, so a slot chosen here leaves as a timed event through the sync that exists — no
+second source of truth. Tap-then-tap is primary (HTML5 drag does not fire on touch);
+drag is the enhancement. Clashes draw side by side in lanes, outlined, never resolved.
+The capacity meter stops at 65% of the visible day; once eight finished tasks carry both
+duration numbers, `calibration()` shows the personal multiplier beside the estimate,
+never substituted for it. `/week` shows five priorities per machine, LIFE and EMPIRE
+side by side. `/week/print` is browser print-to-PDF over live data — hour rows as the
+spine, unslotted work listed under its day rather than dropped, colour never
+load-bearing.
 
 **The diagnostic module landed 2026-08-11** at `/diagnose` — the cloud session's third patch,
 ported onto `1eec0a5` (PR #7 rebuilt patches 1–2 from the spec; this one arrived as `git am`).
@@ -601,7 +615,16 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
                        an INBOX item, never a task
 /(app)/goals           goals → projects, with unattached projects listed separately
 /(app)/planner         Kanban
-/(app)/week            7-day scheduler + hour purpose (journal.meta.hours)
+/(app)/day             the day planner: tasks with durations dropped on hour
+                       slots (writes meta.time — the field the calendar sync
+                       reads), clash lanes, the 65% capacity meter, and the
+                       calibration multiplier once 8 finished tasks carry
+                       both duration_min and actual_min
+/(app)/week            7-day scheduler + hour purpose (journal.meta.hours);
+                       five priorities per machine, LIFE and EMPIRE side by side
+/(app)/week/print      the printable week — browser print-to-PDF over live
+                       data, hour rows as the spine, unslotted work listed
+                       under its day rather than dropped
 /(app)/calendar        two-way Google Calendar sync: the month, the connection,
                        and any conflict waiting on a decision. Writes only ever
                        to THE BRAIN's own calendar (§A3 decision 8). The month
@@ -819,8 +842,8 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 642 tests — must be green before build
-npm run build                  # 37 routes — green before you push
+npm test                       # 680 tests — must be green before build
+npm run build                  # 39 routes — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from
