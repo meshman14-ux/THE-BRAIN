@@ -184,6 +184,18 @@ export const NAV: NavItem[] = [
     phoneModes: [],
   },
   {
+    key: "diagnose",
+    href: "/diagnose",
+    label: "Diagnose",
+    icon: "⌖",
+    // Brain and Empire: it reads across ventures AND life areas, so the
+    // command centre carries it; Empire carries it because that is where
+    // the ritual usually starts. A desk job — no phone slot, same
+    // reasoning as Calendar.
+    modes: ["brain", "empire"],
+    phoneModes: [],
+  },
+  {
     key: "advisor",
     href: "/advisor",
     label: "Advisor",

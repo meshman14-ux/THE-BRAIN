@@ -439,6 +439,37 @@ h2.serif,
   display: none;
 }
 
+/* ------------------------------------------------------------------ *
+ * Hover hints — the ⓘ beside a diagnostic question.
+ * Pure CSS: shows on hover and on keyboard focus, so it works without
+ * JavaScript and without a mouse. On touch, focus does the job.
+ * ------------------------------------------------------------------ */
+.hintwrap {
+  position: relative;
+  display: inline-block;
+}
+.hintpop {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 40;
+  width: min(300px, 78vw);
+  background: var(--card);
+  border: 1px solid var(--border-bright);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 10px 12px;
+  font-size: 0.76rem;
+  line-height: 1.5;
+  color: var(--muted);
+  display: none;
+}
+.hintwrap:hover .hintpop,
+.hintwrap:focus-within .hintpop,
+.hintwrap:focus .hintpop {
+  display: block;
+}
+
 @keyframes pop {
   0% {
     transform: scale(0.9);

@@ -140,6 +140,7 @@ describe("nav by mode", () => {
       "Divisions",
       "Opportunities",
       "Goals",
+      "Diagnose",
       "Capture",
       "Inbox",
     ]);
@@ -156,6 +157,7 @@ describe("nav by mode", () => {
       "Close",
       "Week",
       "Calendar",
+      "Diagnose",
       "Advisor",
       "Capture",
       "Inbox",
