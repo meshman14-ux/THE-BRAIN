@@ -405,10 +405,29 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **782/782 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **798/798 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
 vitest) and **`npm run build` produces exactly 39 routes** (32 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
+
+**The Samsung Health ingest path landed 2026-08-11** — stage one of two, and the
+staging is the design. Samsung Health has **no consumer cloud API**; what it has is its
+own export (Settings → Download personal data → a folder of CSVs). `src/lib/samsung.ts`
+parses them — metadata line first, headers second, prefixed column names, `time_offset`
+applied before any date is taken, per-device duplicate days resolved by MAX (two devices
+counting one walk is one walk), sleep summed onto its wake date, the last weight of the
+day winning, meals summing. `ImportHealth.tsx` on `/life/health` shows the parsed plan
+and **nothing writes until Jay confirms** — never auto-commit, the advisor's rule. The
+upsert rows carry ONLY the fields the export held (`toUpsertRows`), which is the
+no-clobber guarantee: a hand-typed weight survives an import that only brought steps.
+`source = 'samsung'` at last has a writer. Deliberate refusals, tested: resting HR is
+never derived from raw samples (a day's minimum is not a resting rate), and rMSSD is not
+invented — Samsung's export does not contain it, so readiness stays honestly waiting.
+**Stage two — zero taps — is a Health Connect companion app on the phone** (Samsung
+Health syncs into Health Connect on-device; an Android app with read permission can
+upsert `health_days` through Jay's own Supabase session, RLS intact, no service key).
+The `android/` directory holds an UNRELATED older standalone app (local Room DB, no
+Supabase) — do not mistake it for that companion; the companion does not exist yet.
 
 **Division months + the exit-gate watchtower rule landed 2026-08-11.** Every division
 dashboard carries a "This month" panel capturing the three numbers a division is judged
@@ -992,7 +1011,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 782 tests — must be green before build
+npm test                       # 798 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 

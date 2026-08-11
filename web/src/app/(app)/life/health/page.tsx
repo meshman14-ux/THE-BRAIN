@@ -17,6 +17,7 @@ import {
   type Lift,
 } from "@/lib/logic";
 import HealthToday from "@/components/HealthToday";
+import ImportHealth from "@/components/ImportHealth";
 import { Panel, Empty, Bar } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -267,10 +268,15 @@ export default async function HealthPage() {
         </p>
       </Panel>
 
+      {/* -- the ingest path -------------------------------------- */}
+      <Panel
+        title="Import from Samsung Health"
+        hint="the export, parsed — you confirm before anything writes"
+      >
+        <ImportHealth />
+      </Panel>
+
       <p className="text-[0.76rem] text-[var(--faint)] leading-relaxed">
-        Samsung Health import is not wired yet — the parsers exist in the
-        archived prototype and the columns are here waiting for them, but
-        nothing writes <code>source = &lsquo;samsung&rsquo;</code> today.{" "}
         <Link
           href="/life"
           className="font-semibold no-underline"
