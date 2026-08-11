@@ -470,6 +470,132 @@ h2.serif,
   display: block;
 }
 
+/* ------------------------------------------------------------------ *
+ * The printable diary — /week/print
+ *
+ * Paper is a different medium, not a smaller screen. Ink is expensive and
+ * white is free, so the sheet drops every surface fill and keeps only the
+ * rules that carry meaning. Colour is never load-bearing here: the day's
+ * structure is lines and weight, so it prints on a mono laser as readably
+ * as on colour.
+ * ------------------------------------------------------------------ */
+.printsheet .weekgrid {
+  display: grid;
+  grid-template-columns: 44px repeat(7, 1fr);
+  gap: 4px;
+}
+.printsheet .dayhead {
+  height: 34px;
+  padding: 4px 6px;
+  border-bottom: 1.5px solid var(--text);
+}
+.printsheet .dayhead[data-today="true"] {
+  background: var(--accent-soft);
+}
+.printsheet .hourlabel {
+  position: absolute;
+  right: 4px;
+  font-size: 0.6rem;
+  color: var(--faint);
+  transform: translateY(-0.4em);
+}
+.printsheet .slotcol {
+  border-left: 1px solid var(--border);
+}
+.printsheet .slotline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dotted var(--border);
+}
+.printsheet .slotline[data-hour="true"] {
+  border-top-style: solid;
+}
+.printsheet .block {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  overflow: hidden;
+  padding: 1px 3px;
+  border-radius: 3px;
+  border: 1px solid var(--accent);
+  border-left-width: 3px;
+  background: var(--accent-soft);
+}
+.printsheet .block[data-done="true"] {
+  opacity: 0.55;
+  text-decoration: line-through;
+}
+.printsheet .blocktitle {
+  font-size: 0.62rem;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.printsheet .blockmeta {
+  font-size: 0.52rem;
+  color: var(--muted);
+}
+.printsheet .untimed {
+  border-top: 1.5px solid var(--text);
+  padding-top: 4px;
+  margin-top: 4px;
+  min-height: 60px;
+}
+.printsheet .untimedrow {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 3px;
+}
+.printsheet .untimedempty {
+  font-size: 0.6rem;
+  color: var(--faint);
+}
+.printsheet .box {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border: 1px solid var(--border-bright);
+  border-radius: 2px;
+}
+.printsheet .untimedtitle {
+  font-size: 0.6rem;
+  line-height: 1.2;
+  flex: 1;
+  min-width: 0;
+}
+.printsheet .untimedlen {
+  font-size: 0.55rem;
+  color: var(--faint);
+}
+.printsheet .footnote {
+  margin-top: 10px;
+  font-size: 0.62rem;
+  color: var(--faint);
+  line-height: 1.5;
+}
+
+@media print {
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+  /* The app shell is navigation, and paper cannot be navigated. */
+  [data-appshell],
+  .noprint {
+    display: none !important;
+  }
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  /* Never break a day down the middle. */
+  .printsheet .daycol {
+    break-inside: avoid;
+  }
+}
+
 @keyframes pop {
   0% {
     transform: scale(0.9);

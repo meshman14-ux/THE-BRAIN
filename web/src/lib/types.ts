@@ -156,6 +156,20 @@ export type Task = {
   /** The one-line why, shown under a task on the priorities panel. */
   notes?: string | null;
   project_id?: string | null;
+  /**
+   * Estimated minutes. Null is "not estimated", never zero — the planner
+   * draws an unestimated task at a default length but reports a dash and
+   * excludes it from the day's known load.
+   */
+  duration_min?: number | null;
+  /**
+   * Minutes it actually took. Null until recorded. Paired with
+   * `duration_min` this is what makes the estimate multiplier possible;
+   * without it, the planning fallacy is invisible and permanent.
+   */
+  actual_min?: number | null;
+  /** jsonb. Carries `time: {start, end}` once the task has a slot. */
+  meta?: unknown;
 };
 
 /* ------------------------------------------------------------------ *

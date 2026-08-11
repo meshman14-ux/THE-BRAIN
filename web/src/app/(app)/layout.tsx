@@ -44,7 +44,7 @@ export default async function AppLayout({
 
   return (
     <div className="min-h-dvh flex flex-col">
-      <header className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--bg)]">
+      <header data-appshell className="sticky top-0 z-20 border-b border-[var(--border)] bg-[var(--bg)]">
         <div className="mx-auto max-w-[1200px] px-4 sm:px-5 h-14 flex items-center gap-2 sm:gap-4">
           <Link
             href="/dashboard"
@@ -109,7 +109,7 @@ export default async function AppLayout({
         {children}
       </main>
 
-      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 border-t border-[var(--border)] bg-[var(--bg)] pb-[env(safe-area-inset-bottom)]">
+      <nav data-appshell className="lg:hidden fixed bottom-0 left-0 right-0 z-20 border-t border-[var(--border)] bg-[var(--bg)] pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-5">
           {NAV.filter((n) => n.phoneModes.length > 0).map((n) => (
             <Link
