@@ -1368,8 +1368,104 @@ export function greetingFor(hour: number): { word: string; emoji: string } {
   return { word: "Good evening", emoji: "🌘" };
 }
 
+/* ------------------------------------------------------------------ *
+ * Division months — the three numbers a division is judged by
+ * ------------------------------------------------------------------ */
+
+/**
+ * One month of a division's honest figures, kept in `ventures.meta.months`
+ * keyed by "YYYY-MM" — the same decision-5 pattern as `journal.meta.hours`:
+ * per-period annotation on a row that already exists, no migration. All
+ * three are nullable and NULL means "not recorded" — a skipped month must
+ * never read as a £0 month.
+ */
+export type VentureMonth = {
+  revenue: number | null;
+  costs: number | null;
+  /** Hours worked THIS MONTH, not per week — the division of record. */
+  hours: number | null;
+};
+
+/** "2026-08-11" → "2026-08". */
+export function monthKey(iso: string): string {
+  return iso.slice(0, 7);
+}
+
+const num = (v: unknown): number | null =>
+  typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null;
+
+/** `meta` is jsonb — validate every field, discard what is not recognised. */
+export function readVentureMonths(
+  meta: unknown
+): Record<string, VentureMonth> {
+  if (typeof meta !== "object" || meta == null) return {};
+  const raw = (meta as { months?: unknown }).months;
+  if (typeof raw !== "object" || raw == null) return {};
+  const out: Record<string, VentureMonth> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (!/^\d{4}-\d{2}$/.test(k)) continue;
+    if (typeof v !== "object" || v == null) continue;
+    const m = v as Record<string, unknown>;
+    out[k] = {
+      revenue: num(m.revenue),
+      costs: num(m.costs),
+      hours: num(m.hours),
+    };
+  }
+  return out;
+}
+
+/**
+ * The heartbeat KPI. Null unless all three figures exist and hours are
+ * real — a month with unknown costs must show a dash, never a flattering
+ * number built on a zero that was actually a shrug.
+ */
+export function profitPerHour(m: VentureMonth | undefined): number | null {
+  if (!m) return null;
+  if (m.revenue == null || m.costs == null || m.hours == null) return null;
+  if (m.hours <= 0) return null;
+  return (m.revenue - m.costs) / m.hours;
+}
+
+/** The Division OS exit-gate threshold, £/hour. */
+export const LOW_PROFIT_FLOOR = 5;
+/** How many consecutive recorded months below the floor make it a pattern. */
+export const LOW_PROFIT_RUN = 3;
+
+/**
+ * Whether the last `run` COMPLETE months all sit below the floor.
+ *
+ * The current month is never judged — it is part-way through, and a month
+ * that has only had one quiet week would read as a crisis. The check walks
+ * backwards from last month, and a missing or incomplete month ends it:
+ * three months of evidence means three months of *recorded* evidence, the
+ * same discipline as `obstacleTally` staying silent below three reviews.
+ */
+export function lowProfitRun(
+  months: Record<string, VentureMonth>,
+  todayIso: string,
+  floor: number = LOW_PROFIT_FLOOR,
+  run: number = LOW_PROFIT_RUN
+): boolean {
+  const [y, mo] = [Number(todayIso.slice(0, 4)), Number(todayIso.slice(5, 7))];
+  for (let back = 1; back <= run; back++) {
+    const d = new Date(Date.UTC(y, mo - 1 - back, 1));
+    const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    const pph = profitPerHour(months[key]);
+    if (pph == null || pph >= floor) return false;
+  }
+  return true;
+}
+
 /** What the watchtower is shouting about. Lower rank = louder. */
-export type AlertKind = "overdue" | "due" | "person" | "birthday" | "drift" | "unscored";
+export type AlertKind =
+  | "overdue"
+  | "due"
+  | "person"
+  | "birthday"
+  | "drift"
+  | "lowprofit"
+  | "unscored";
 
 export type WatchAlert = {
   kind: AlertKind;
@@ -1384,7 +1480,10 @@ const ALERT_RANK: Record<AlertKind, number> = {
   birthday: 2,
   person: 3,
   drift: 4,
-  unscored: 5,
+  // A division under the exit floor outranks drift-bookkeeping — it is the
+  // one alert that can end a venture — but never a deadline or a person.
+  lowprofit: 5,
+  unscored: 6,
 };
 
 export const ALERT_TONE: Record<AlertKind, string> = {
@@ -1393,6 +1492,7 @@ export const ALERT_TONE: Record<AlertKind, string> = {
   birthday: "var(--accent)",
   person: "var(--accent)",
   drift: "var(--warn)",
+  lowprofit: "var(--warn)",
   unscored: "var(--faint)",
 };
 
@@ -1413,7 +1513,10 @@ export function watchtowerAlerts(input: {
     cadence_days: number | null;
     birthday: string | null;
   }[];
-  ventures: (Pick<Venture, "id" | "name" | "stage" | "status" | "progress">)[];
+  ventures: (Pick<Venture, "id" | "name" | "stage" | "status" | "progress"> & {
+    /** Optional: callers that select it get the low-profit rule for free. */
+    meta?: unknown;
+  })[];
   pillars: Pick<Pillar, "id" | "name" | "score">[];
   todayIso: string;
   dueDays?: number;
@@ -1476,6 +1579,21 @@ export function watchtowerAlerts(input: {
         kind: "drift",
         label: "DRIFT",
         text: `${v.name} — you say ${r.stated}%, its stage says ${r.derived}%`,
+        href: "/empire",
+      });
+    }
+    // The Division OS exit gate: three recorded months under the floor and
+    // the exit question is live. Needs three COMPLETE months of figures —
+    // no data, no alert, exactly as the dashboard shows a dash, never an
+    // estimate.
+    if (
+      v.status === "active" &&
+      lowProfitRun(readVentureMonths(v.meta), todayIso)
+    ) {
+      out.push({
+        kind: "lowprofit",
+        label: "£/HR",
+        text: `${v.name} — under £${LOW_PROFIT_FLOOR}/hr for ${LOW_PROFIT_RUN} recorded months. The exit question is live`,
         href: "/empire",
       });
     }

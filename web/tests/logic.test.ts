@@ -1255,6 +1255,9 @@ describe("reference library integrity", () => {
 import {
   greetingFor,
   watchtowerAlerts,
+  readVentureMonths,
+  profitPerHour,
+  lowProfitRun,
   daysUntilBirthday,
   streakHistory,
   taskSplit,
@@ -1941,5 +1944,113 @@ describe("leftovers", () => {
       task({ id: "waiting", do_date: TODAY, status: "waiting" }),
     ];
     expect(leftovers(rows, TODAY)).toHaveLength(0);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Division months — the three numbers and the exit gate
+ * ------------------------------------------------------------------ */
+
+describe("division months", () => {
+  const TODAY = "2026-08-11";
+  const m = (revenue: number | null, costs: number | null, hours: number | null) => ({
+    revenue,
+    costs,
+    hours,
+  });
+
+  it("validates meta rather than trusting it", () => {
+    expect(readVentureMonths(null)).toEqual({});
+    expect(readVentureMonths("junk")).toEqual({});
+    expect(readVentureMonths({ months: "junk" })).toEqual({});
+    expect(readVentureMonths({ months: { "not-a-month": m(1, 1, 1) } })).toEqual({});
+    const good = readVentureMonths({
+      months: { "2026-07": { revenue: 300, costs: "bad", hours: -2 } },
+    });
+    // Recognised month, unrecognised fields discarded to null — not zero.
+    expect(good["2026-07"]).toEqual(m(300, null, null));
+  });
+
+  it("profit per hour needs all three figures — a dash, never a guess", () => {
+    expect(profitPerHour(m(300, 200, 43))).toBeCloseTo(2.326, 2);
+    expect(profitPerHour(m(300, null, 43))).toBeNull();
+    expect(profitPerHour(m(300, 200, null))).toBeNull();
+    expect(profitPerHour(m(null, 200, 43))).toBeNull();
+    expect(profitPerHour(m(300, 200, 0))).toBeNull();
+    expect(profitPerHour(undefined)).toBeNull();
+  });
+
+  it("three recorded months under the floor trip the gate", () => {
+    const months = {
+      "2026-05": m(300, 200, 43),
+      "2026-06": m(300, 200, 43),
+      "2026-07": m(300, 200, 43),
+    };
+    expect(lowProfitRun(months, TODAY)).toBe(true);
+  });
+
+  it("the current month is never judged — it is part-way through", () => {
+    // August is terrible but only August exists: no pattern, no alert.
+    expect(lowProfitRun({ "2026-08": m(10, 200, 43) }, TODAY)).toBe(false);
+  });
+
+  it("a missing month ends the run — recorded evidence only", () => {
+    const months = {
+      "2026-05": m(300, 200, 43),
+      // June missing
+      "2026-07": m(300, 200, 43),
+    };
+    expect(lowProfitRun(months, TODAY)).toBe(false);
+  });
+
+  it("one healthy month breaks the pattern", () => {
+    const months = {
+      "2026-05": m(300, 200, 43),
+      "2026-06": m(900, 200, 43), // £16/hr
+      "2026-07": m(300, 200, 43),
+    };
+    expect(lowProfitRun(months, TODAY)).toBe(false);
+  });
+
+  it("the watchtower says it out loud, and only with the evidence", () => {
+    const base = {
+      tasks: [],
+      people: [],
+      pillars: [],
+      todayIso: TODAY,
+    };
+    const bad = {
+      id: "v1",
+      name: "A to Z Traderz",
+      stage: "stabilise" as const,
+      status: "active",
+      progress: 0,
+      meta: {
+        months: {
+          "2026-05": m(300, 200, 43),
+          "2026-06": m(300, 200, 43),
+          "2026-07": m(300, 200, 43),
+        },
+      },
+    };
+    const alerts = watchtowerAlerts({ ...base, ventures: [bad] });
+    const low = alerts.filter((a) => a.kind === "lowprofit");
+    expect(low).toHaveLength(1);
+    expect(low[0].text).toContain("A to Z Traderz");
+    expect(low[0].text).toContain("exit question");
+
+    // No months recorded → silent, not guessed.
+    const silent = watchtowerAlerts({
+      ...base,
+      ventures: [{ ...bad, meta: {} }],
+    });
+    expect(silent.filter((a) => a.kind === "lowprofit")).toHaveLength(0);
+
+    // A shelved division is not asked the exit question — it already left.
+    const shelved = watchtowerAlerts({
+      ...base,
+      ventures: [{ ...bad, status: "backlog" }],
+    });
+    expect(shelved.filter((a) => a.kind === "lowprofit")).toHaveLength(0);
   });
 });

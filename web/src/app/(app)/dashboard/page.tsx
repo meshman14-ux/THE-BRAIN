@@ -118,7 +118,7 @@ export default async function TheBrain({
     supabase.from("projects").select("pillar_id, due_date, status").eq("status", "active"),
     supabase
       .from("ventures")
-      .select("id, name, pillar_id, stage, progress, one_liner, status, sort_order, external_system")
+      .select("id, name, pillar_id, stage, progress, one_liner, status, sort_order, external_system, meta")
       .order("sort_order"),
     supabase.from("metrics").select("id, name, unit, direction, pillar_id"),
     supabase.from("metric_readings").select("metric_id, taken_on, value"),

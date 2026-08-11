@@ -390,10 +390,23 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **711/711 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **718/718 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
 vitest) and **`npm run build` produces exactly 39 routes** (32 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
+
+**Division months + the exit-gate watchtower rule landed 2026-08-11.** Every division
+dashboard carries a "This month" panel capturing the three numbers a division is judged
+by — revenue, costs, hours (monthly, not per-week) — written on blur into
+`ventures.meta.months["YYYY-MM"]`, the decision-5 pattern (`journal.meta.hours` for
+ventures; no migration). `readVentureMonths` validates the jsonb; `profitPerHour` returns
+null unless all three figures exist — a month with unknown costs shows £—/hr, never a
+number built on a shrug. The watchtower rule (`lowProfitRun`, `LOW_PROFIT_FLOOR = 5`,
+`LOW_PROFIT_RUN = 3`): three consecutive COMPLETE months under £5/hr on an active
+division raises `lowprofit` — "the exit question is live" (the Division OS §8 exit gate,
+stored in `ventures.plan` for A to Z Traderz). The current month is never judged (it is
+part-way through), a missing month ends the run (recorded evidence only, the
+`obstacleTally` discipline), and a shelved division is never asked — it already left.
 
 **The maintenance-cost pass landed 2026-08-11** — five features from the improvement
 research (`claude/` doc, evidence-led), all read-side or one-tap, no migration needed:
@@ -873,7 +886,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 711 tests — must be green before build
+npm test                       # 718 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 

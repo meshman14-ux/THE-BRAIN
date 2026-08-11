@@ -38,7 +38,9 @@ import {
   venturesWithNextStep,
 } from "@/lib/logic";
 import { divisionHref, refsForBranch, ventureSlug } from "@/lib/references";
+import { readVentureMonths } from "@/lib/logic";
 import { Panel, Empty, Kpi, Bar, Tag, DriftNote } from "@/components/ui";
+import DivisionMonth from "@/components/DivisionMonth";
 
 export const dynamic = "force-dynamic";
 
@@ -316,6 +318,18 @@ export default async function DivisionPage({
           </p>
         </div>
       </div>
+
+      {/* -- this month: the three numbers it is judged by ---------- */}
+      <Panel
+        title="This month"
+        hint="revenue · costs · hours — profit per hour follows"
+      >
+        <DivisionMonth
+          ventureId={v.id}
+          months={readVentureMonths(v.meta)}
+          today={toIso(new Date())}
+        />
+      </Panel>
 
       {/* -- graphs: the path, the money, the work ------------------ */}
       <div className="grid gap-5 lg:grid-cols-2 items-start">
