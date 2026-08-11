@@ -312,10 +312,11 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 ## A4. Database (live project)
 
 Supabase project **`qttroyuajpyelfrbxzzt`** · https://qttroyuajpyelfrbxzzt.supabase.co
-Region eu-west-2 (London), free tier. **RLS owner-only on all 28 tables.** pgvector enabled.
+Region eu-west-2 (London), free tier. **RLS owner-only on all 31 tables.** pgvector enabled.
 
 ```
 command centre : vision · pillars · goals · projects · tasks · inbox · links · reviews
+                 seasons · finishes · diagnostic_runs
 vault          : notes
 LIFE_OS        : habits · habit_logs · journal · people · people_contacts
                  metrics · metric_readings · debts · debt_payments · vehicles
@@ -323,6 +324,10 @@ LIFE_OS        : habits · habit_logs · journal · people · people_contacts
 EMPIRE_OS      : ventures · assets · investments · opportunities
 calendar       : calendar_sync · integrations
 ```
+
+> The `seasons` and `finishes` migrations (2026-08-11, cloud session) and
+> `diagnostic_runs` are **already applied to the live project — do not re-apply any of
+> them.** `seasons` carries a partial unique index enforcing exactly one open season.
 
 > The count said 20 for a while and was wrong: `debts`, `debt_payments` and `vehicles`
 > shipped with the debts/vehicles work and `integrations` with the calendar. The v2 pass
@@ -400,7 +405,7 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **729/729 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **782/782 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
 vitest) and **`npm run build` produces exactly 39 routes** (32 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
@@ -987,7 +992,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 729 tests — must be green before build
+npm test                       # 782 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 
