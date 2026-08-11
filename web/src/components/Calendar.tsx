@@ -532,7 +532,14 @@ export default function Calendar({
               return (
                 <div
                   key={l.id}
-                  className="flex items-center gap-3 rounded-[10px] border border-[var(--border)] px-3.5 py-2"
+                  // `min-w-0` on the ROW. The panel above already has one and
+                  // the task title below already has one, and neither helps:
+                  // `truncate` is `white-space: nowrap`, so the title still
+                  // contributes its entire unbroken string to THIS row's
+                  // min-content, and the row is a grid item of the `div.grid`
+                  // above with a default `min-width: auto`. That pushed the
+                  // page 232px sideways at 390 wide.
+                  className="min-w-0 flex items-center gap-3 rounded-[10px] border border-[var(--border)] px-3.5 py-2"
                 >
                   <span className="text-[0.84rem] min-w-0 flex-1 truncate">
                     {t?.title ?? "(task outside the window)"}

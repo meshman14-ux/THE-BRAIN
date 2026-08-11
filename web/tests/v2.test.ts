@@ -71,6 +71,7 @@ import {
   unknowns,
   type InlineKey,
 } from "../src/lib/inline";
+import { readFileSync } from "node:fs";
 
 const TODAY = "2026-08-10";
 
@@ -1559,5 +1560,59 @@ describe("rankForToday tie-breaks", () => {
       TODAY
     );
     expect(ranked[0].id).toBe("promoted");
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * The app shell's breakpoints
+ *
+ * The nav obeys a stylesheet and a set of Tailwind prefixes, so no test
+ * of `navForMode` can see this — exactly the lesson `stage4.test.ts`
+ * records about the mode selectors. What a test CAN do is hold the five
+ * breakpoints in step, which is the property that actually matters.
+ * ------------------------------------------------------------------ */
+
+describe("app shell breakpoints", () => {
+  const shell = readFileSync(
+    new URL("../src/app/(app)/layout.tsx", import.meta.url),
+    "utf8"
+  );
+
+  /**
+   * The desktop nav appears at `xl`, not `lg`, and the number is measured:
+   * twelve nav items in `brain` mode plus the brand, mode switch, theme
+   * toggle and sign-out need 1221px of header, inside a `max-w-[1200px]`
+   * box. At `lg` that overflowed the page by 197px.
+   */
+  it("shows the top nav at xl, never at lg", () => {
+    expect(shell).toContain("hidden xl:flex");
+    expect(shell).not.toContain("hidden lg:flex");
+  });
+
+  it("hides the phone bar at the same breakpoint the top nav appears", () => {
+    // If these drift apart there is a width with NO navigation at all, or
+    // one where both render at once.
+    expect(shell).toContain("xl:hidden fixed bottom-0");
+    expect(shell).not.toMatch(/lg:hidden fixed bottom-0/);
+  });
+
+  it("keeps main's bottom padding until the bar is gone", () => {
+    // `pb-24` is the room the fixed bar occupies. Dropping it before the
+    // bar disappears puts the bar over the last row of the page.
+    expect(shell).toContain("pb-24 xl:pb-8");
+  });
+
+  it("holds every shell breakpoint at the same prefix", () => {
+    const prefixes = [...shell.matchAll(/\b(sm|md|lg|xl|2xl):(hidden|flex|block|pb-8|ml-1\.5)/g)]
+      .map((m) => m[1]);
+    expect(prefixes.length).toBeGreaterThan(0);
+    expect([...new Set(prefixes)]).toEqual(["xl"]);
+  });
+
+  it("does not let the sign-out button shrink", () => {
+    // It was the only header child without `shrink-0`, so it absorbed the
+    // whole squeeze: 74px wide and 67px tall inside a 56px header.
+    expect(shell).toMatch(/xl:block shrink-0/);
+    expect(shell).toMatch(/btn btn-ghost[^"]*whitespace-nowrap/);
   });
 });

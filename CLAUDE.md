@@ -400,7 +400,7 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-10)
 
-Verified in this repo: **631/631 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **636/636 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + **`palette`** + **`v2`**, vitest) and
 **`npm run build` produces exactly 35 routes** (28 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
@@ -443,6 +443,41 @@ does nothing about the row's contribution to the track. **The tell is the arithm
 overflow was 15px in paper and 5px in EMPIRE, a difference of exactly 10px, which is
 `2 × (18 − 13)`, the two themes' `--pad`. A defect that scales with a token is a container
 problem, not a content one.
+
+**A second pass over Week, Planner and Calendar found two more, and the second one was
+never a phone bug at all.** Those three are client components taking props, so they could be
+swept for real rather than reasoned about.
+
+- **Calendar's links panel overflowed by 232px at 390.** Identical cause to the occasions
+  row, and instructive because `min-w-0` was *already* on the panel above it and on the task
+  title below it. Neither helps. The row between them is the grid item, so the row is where
+  it belongs.
+- **The desktop nav never fitted its own container, at any width.** In `brain` mode the bar
+  carries twelve items; with the brand, mode switch, theme toggle and sign-out that is
+  **1221px of header inside a box capped at `max-w-[1200px]`**. It was revealed at `lg`
+  (1024px), where it pushed the page **197px** sideways — and 121px at 1100, and 21px even
+  at 1200. Above ~1240 the page stopped overflowing only because the spill landed in the
+  outer margin, which is why it had never been noticed. `empire` mode fitted (five items);
+  `life` sat exactly on the 1200 line. So the comment in the layout claiming "the full nav
+  needs 1024px" had never been measured, and was wrong by about 200px.
+
+  Fixed by moving the whole shell to **`xl` (1280px)** and taking each nav item from
+  `px-2.5` to `px-2`, which brings twelve items to 1173 inside the 1200 box. **The
+  trade-off is deliberate and worth knowing: between 1024 and 1279 — iPad landscape, a
+  1100px laptop window — navigation is now the five-column bottom bar rather than the top
+  nav.** A working bottom bar beats a top nav that pushes the page sideways, and the
+  alternative (dropping items from `brain` mode) is a decision about which views matter,
+  not a layout fix.
+
+  It also exposed a third thing: **sign-out was the only header child without `shrink-0`**,
+  so it absorbed the entire squeeze — 74px wide and **67px tall inside a 56px header**,
+  wrapping to three lines. Now `shrink-0` + `whitespace-nowrap`.
+
+`tests/v2.test.ts` reads `layout.tsx` and holds all five `xl:` breakpoints in step, because
+if the phone bar hides before the top nav appears there is a width with **no navigation at
+all**, and if `main` drops `pb-24` early the fixed bar covers the last row. No test of
+`navForMode` can see any of that — the same lesson `stage4.test.ts` records about the mode
+selectors.
 
 Method note worth keeping: the page-level number named the symptom and nothing else — 73
 elements reported "past the edge" and all but one were simply inheriting a container that was
@@ -861,7 +896,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 631 tests — must be green before build
+npm test                       # 636 tests — must be green before build
 npm run build                  # 35 routes — green before you push
 ```
 
