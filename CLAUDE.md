@@ -240,6 +240,16 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 ### Schema choices worth preserving
 - **`tasks.do_date` is separate from `tasks.due_date`.** Due is a fact about the world; *do* is a
   decision. Today/Week views are built from `do_date`. This keeps the list honest.
+- **`rankForToday` breaks its last tie on `created_at`, not on the title.** With three visible
+  slots the final tie-break decides what Jay actually sees, so it has to mean something. The
+  first seven real tasks tied on reason, priority AND due date, and the alphabet then pushed
+  *"Ring Advantis and Marstons"* into the drawer because R sorts after C. Oldest-first is the
+  only honest ordering left at that point: among items the system cannot otherwise separate,
+  the one written down first has waited longest. **Any query feeding `/dashboard`, `/life` or
+  `/empire` must select `created_at`** or the tie-break silently reverts to the title.
+  Its documented limit: a bulk insert gives every row the same transaction timestamp, so the
+  seven remain tied — **the way to break a tie the system cannot see is to give one a
+  `do_date`**, which promotes it to `do-today` at the head of the ordering.
 - **`tasks.energy`** (`low|medium|deep`) so work can be matched to state, not dumped in one list.
 - **`tasks.priority`** is text `High|Med|Low` (Jay's vocabulary, from his blueprint).
 - **`tasks.status`**: `open → doing → done` drives the Kanban lanes (plus `dropped`, `waiting`).
@@ -390,7 +400,7 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **718/718 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **729/729 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
 vitest) and **`npm run build` produces exactly 39 routes** (32 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
@@ -482,7 +492,77 @@ dark × brain, life and empire). What it established:
 - **Priority is shape:** the three `.prio` bars measure 4px / 2px / 1px live.
 - Every element was checked against its OWN box, per §A7 rule 2, not just the page.
 
-It found one real defect, now fixed: **the phone-bar label overflowed its column.**
+**Re-swept 2026-08-11 over the v2 components**, same rig, same six grounds, driven through
+`puppeteer-core` against the pre-installed Chromium with a throwaway `(app)/sweep` harness so
+the components wore the **real** layout rather than a copy of it. All six grounds now report
+`scrollWidth − clientWidth` of **0**, exactly five phone-bar items, and the two machines live:
+brain/life at `13px · 18px · Source Serif` on the theme's own ground, EMPIRE at
+`5px · 13px · IBM Plex Mono` with `#3ac9e0` on graphite — **in the paper theme as well as
+dark**, which is the whole of decision 11. With the on-deck drawer open the three `.prio` bars
+measure **4px / 2px / 1px**, and their colour comes from `currentColor` — the same 4px bar
+renders indigo on a LIFE row and cyan on an EMPIRE one, so width carries priority and hue
+carries system, with neither borrowing the other's channel.
+
+That sweep found one real defect, now fixed. **The occasions row overflowed the page by 15px,
+and `min-w-0` on the truncating name did not prevent it.** `truncate` sets
+`white-space: nowrap`, and a nowrap child still contributes its whole unbroken string to its
+row's *min-content* — so the row's min-content was the full name plus the date and the
+`w-[4.5rem]` day count, about 347px. That row is a grid item of its `ul`, and a grid item
+defaults to `min-width: auto`, so the track could not shrink below it and the panel pushed the
+page sideways. The fix is `min-w-0` on the **row**, not the text: capping the name's used size
+does nothing about the row's contribution to the track. **The tell is the arithmetic** — page
+overflow was 15px in paper and 5px in EMPIRE, a difference of exactly 10px, which is
+`2 × (18 − 13)`, the two themes' `--pad`. A defect that scales with a token is a container
+problem, not a content one.
+
+**A second pass over Week, Planner and Calendar found two more, and the second one was
+never a phone bug at all.** Those three are client components taking props, so they could be
+swept for real rather than reasoned about.
+
+- **Calendar's links panel overflowed by 232px at 390.** Identical cause to the occasions
+  row, and instructive because `min-w-0` was *already* on the panel above it and on the task
+  title below it. Neither helps. The row between them is the grid item, so the row is where
+  it belongs.
+- **The desktop nav never fitted its own container, at any width.** In `brain` mode the bar
+  carries twelve items; with the brand, mode switch, theme toggle and sign-out that is
+  **1221px of header inside a box capped at `max-w-[1200px]`**. It was revealed at `lg`
+  (1024px), where it pushed the page **197px** sideways — and 121px at 1100, and 21px even
+  at 1200. Above ~1240 the page stopped overflowing only because the spill landed in the
+  outer margin, which is why it had never been noticed. `empire` mode fitted (five items);
+  `life` sat exactly on the 1200 line. So the comment in the layout claiming "the full nav
+  needs 1024px" had never been measured, and was wrong by about 200px.
+
+  Fixed by moving the whole shell to **`xl` (1280px)** and taking each nav item from
+  `px-2.5` to `px-2`, which brought the then-twelve items to 1173 inside the 1200 box.
+  **Remeasured at the merge (2026-08-11 evening): Diagnose had joined the bar as a
+  thirteenth item (74px), putting the header back over by ~25px — canvas-measured against
+  the real Public Sans. `px-1.5` brings thirteen to ~1173 with ~27px of room.** A
+  fourteenth item means measuring again, and at that point the honest fix is a shorter
+  label or fewer brain items, not another padding shave. **The `xl` trade-off is
+  deliberate and worth knowing: between 1024 and 1279 — iPad landscape, a 1100px laptop
+  window — navigation is the five-column bottom bar rather than the top nav.** A working
+  bottom bar beats a top nav that pushes the page sideways, and the alternative (dropping
+  items from `brain` mode) is a decision about which views matter, not a layout fix.
+
+  It also exposed a third thing: **sign-out was the only header child without `shrink-0`**,
+  so it absorbed the entire squeeze — 74px wide and **67px tall inside a 56px header**,
+  wrapping to three lines. Now `shrink-0` + `whitespace-nowrap`.
+
+`tests/v2.test.ts` reads `layout.tsx` and holds all five `xl:` breakpoints in step, because
+if the phone bar hides before the top nav appears there is a width with **no navigation at
+all**, and if `main` drops `pb-24` early the fixed bar covers the last row. No test of
+`navForMode` can see any of that — the same lesson `stage4.test.ts` records about the mode
+selectors.
+
+Method note worth keeping: the page-level number named the symptom and nothing else — 73
+elements reported "past the edge" and all but one were simply inheriting a container that was
+already too wide. What located the cause was cloning each panel into a fixed-width box and
+squeezing it to 250px until only one panel still overflowed, then reading `grid-template-columns`
+on it: `346.641px` inside a 250px box is a track that has refused to shrink, and that is the
+whole diagnosis. Measure intrinsic sizing, don't reason about it.
+
+The earlier 2026-08-10 sweep found one real defect, also fixed: **the phone-bar label
+overflowed its column.**
 `Opportunities` rendered 2px wider than its fifth of the bar with `overflow: visible`,
 so it leaned on its neighbours in EMPIRE mode. Cause is the same one §A7 rule 1 is
 about — a grid child defaults to `min-width: auto`, so it refuses to shrink. Fixed
@@ -739,6 +819,14 @@ Public paths: `/login`, `/auth`, `/manifest.webmanifest`, `/sw.js`.
      gets instead — the calendar now has `monthAgenda` — and only fall back to a scroll
      container when the wide thing genuinely is the only honest view. Checking overflow
      means checking the container, not just `document.documentElement`.
+  3. **`truncate` does not make a row shrinkable — it makes the row rigid.** Learned
+     2026-08-11. `truncate` is `white-space: nowrap`, and a nowrap child contributes its
+     entire unbroken string to its parent's **min-content**. Put that row in a grid or flex
+     parent, where items default to `min-width: auto`, and the track cannot shrink below the
+     full string however narrow the screen gets. `min-w-0` on the text itself does not help:
+     it caps that element's *used* size, not the row's contribution to the track. **The
+     `min-w-0` belongs on the row**, beside the `truncate`, every time. Both existing uses of
+     this pattern in the layout and in `People.tsx` needed it.
 
 - **CSS that hides things must fail closed.** The nav is filtered by hiding what does *not*
   belong to the current mode, so anything the selectors fail to match stays visible. A rule
@@ -856,12 +944,13 @@ Open items:
    **The model call has never been executed against the real API** — retrieval, citation
    checking, the brief and the evidence assembly are all tested and were exercised end to
    end against his real eleven notes, but the request to Claude itself has not run.
-14. **Nothing from the v2 pass has been opened in a browser.** It is typechecked,
-   unit-tested and production-built, and that is genuinely all: the four dashboard tabs,
-   `/checkin`, `/life/money`, `/life/health` and `/life/people` have never been rendered.
-   The 390×844 device sweep in §A5 predates every one of them, so the five-item phone bar
-   and the no-horizontal-overflow claims are unverified for the new routes. Run the sweep
-   again before trusting them.
+14. ~~Nothing from the v2 pass has been opened in a browser.~~ **Swept 2026-08-11** at
+   390×844 across all six grounds — see §A5. The v2 *components* are now verified
+   (composition, overflow, the two machines, priority-as-shape, the five-item bar) and one
+   real defect was found and fixed. What is still unverified is anything that needs a
+   signed-in page against real rows: the four dashboard tabs' own composition, the empty
+   states, and every row count. Egress still blocks `*.vercel.app` and the Supabase host,
+   so that half cannot be done from a sandboxed session.
 15. **The health tables are empty and nothing writes `source = 'samsung'` yet.** The
    readiness band therefore says "needs 14 days of readings" and the load panel says "needs
    four weeks", which is the intended first-run state rather than a fault. Porting the
@@ -877,6 +966,18 @@ Open items:
    "spent so far" is `£—`. That is honest rather than missing: budget-versus-spend is
    `unbudgeted`/`unspent`/`unknown` until Phase 5 builds the assets view, and a null budget
    with real spend is deliberately **not** an overspend (there is a test).
+19. **Auth email runs on Supabase's built-in sender, which is throttled to roughly one
+   message an hour.** It is not intended for production and it locked sign-in out on
+   2026-08-10 (`over_email_send_rate_limit`). **The fix is custom SMTP** — Authentication →
+   Settings → SMTP Settings, any transactional provider. DEPLOY-NOTES has the full trap,
+   including how to tell a genuine failure from a link you had already used successfully.
+20. **First real user data arrived 2026-08-10/11.** `tasks` went 0 → 8: seven from triaging
+   the inbox (`inbox` is now 0 open, every row `routed` rather than deleted) and **one Jay
+   wrote himself** on 11 Aug — the first row he has created since 5 August. Ten tables are
+   still empty: `habit_logs`, `people_contacts`, `health_days`, `workouts`, `lifts`,
+   `reviews`, `goals`, `projects`, `metric_readings`, and `pillars.score` on all 13. The
+   empty states on those are still the only thing anybody has seen, so they remain
+   load-bearing.
 
 ## A9. Commands
 
@@ -886,7 +987,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 718 tests — must be green before build
+npm test                       # 729 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 

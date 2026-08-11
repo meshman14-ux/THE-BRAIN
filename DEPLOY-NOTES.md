@@ -101,6 +101,28 @@ stylesheet hash in the page source: `/_next/static/css/<hash>.css` changes whene
 changes. It went `e1488b38f14a2e40` → `ce6d45e0f2c8dad1` when v2 shipped. Same hash as
 before a deploy that should have changed styling means you are on a cached or stale host.
 
+### "Email rate limit exceeded" — the built-in sender, and the real fix
+
+**Hit on 2026-08-10.** Requesting a magic link returns `over_email_send_rate_limit` (HTTP 429)
+and no email arrives.
+
+Supabase ships a built-in email sender so a new project works before anything is configured.
+It is **explicitly not for production** and is throttled hard — on this project the two
+successful sends that day were **65 minutes apart**, with three 429s in between. It is not a
+60-second cooldown you can wait out, and pressing the button again while limited only confirms
+the limit.
+
+**Check before you assume you are locked out.** Supabase → Logs → Auth, and read the `/otp`
+rows. A `200` means an email went out; a `429` after it means you asked again too soon. On
+2026-08-10 a full round trip had already **succeeded** at 18:37:27Z — the session existed and
+the 429s that followed were requests for a link that was no longer needed. Look for the most
+recent `login` event before deciding the sign-in failed.
+
+**The real fix is custom SMTP.** Supabase → Authentication → Settings → SMTP Settings, pointed
+at any transactional provider (Resend's free tier is 3,000/month, which one person signing in
+will never approach). The limit then becomes the provider's, and this failure mode stops
+existing. Until that is configured, one mistimed request costs an hour.
+
 ## Environment variables
 
 ```

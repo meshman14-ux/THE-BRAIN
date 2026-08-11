@@ -176,9 +176,12 @@ export type Task = {
    */
   actual_min?: number | null;
   /**
-   * When the row was captured. The only evidence of silence dormancy has —
-   * `tasks` carries no `updated_at` — so a row read without it can never
-   * be hidden (`isDormant` fails closed).
+   * When the row was written down. Two consumers, both honest about a
+   * missing value: `rankForToday` breaks its final tie on it (oldest first
+   * — a row without it sorts last, an unknown wait is not a long one), and
+   * `isDormant` treats it as the only evidence of silence `tasks` holds —
+   * no `updated_at` exists — so a row read without it can never be hidden.
+   * Any query feeding the dashboard or Focus must select it.
    */
   created_at?: string | null;
   /** Null is "not tagged" — an untagged task appears under every filter. */

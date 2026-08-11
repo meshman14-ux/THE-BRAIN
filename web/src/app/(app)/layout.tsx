@@ -63,11 +63,31 @@ export default async function AppLayout({
             </span>
           </Link>
 
-          {/* The full nav needs 1024px to sit beside the mode switch without
-              pushing it off the edge; below that the five-column bottom bar
-              carries navigation instead. Both breakpoints must stay in step
-              or a width exists with no nav at all. */}
-          <nav className="ml-auto hidden lg:flex items-center gap-0.5">
+          {/* The full nav appears at `xl` (1280px), NOT `lg`, and the number
+              is measured rather than chosen. In `brain` mode the bar carries
+              THIRTEEN items (Diagnose joined after the first measurement);
+              beside the brand, the mode switch, the theme toggle and
+              sign-out, twelve at `px-2.5` needed 1221px of header inside a
+              box capped at `max-w-[1200px]`. At `lg` that overflowed the
+              page by 197px, and it never fitted its own container at ANY
+              width — it simply stopped pushing the page once the viewport
+              was wide enough for the spill to land in the outer margin.
+
+              `px-1.5` is the second remeasurement: `px-2` brought twelve
+              inside 1200, then Diagnose's 74px put thirteen back over by
+              ~25px (canvas-measured against the real Public Sans). Thirteen
+              at `px-1.5` is ~1173px — inside with ~27px of room. If a
+              FOURTEENTH item ever joins this bar, measure again; the honest
+              alternatives at that point are a shorter label or fewer brain
+              items, not another padding shave.
+
+              Every `xl:` in this file is part of that one decision — the top
+              nav, the mode switch's margin, sign-out, `main`'s bottom padding
+              and the phone bar. They must stay in step: if the bottom bar
+              hides before the top nav appears there is a width with no
+              navigation at all, and if `main` drops `pb-24` early the bar
+              covers the last row of the page. */}
+          <nav className="ml-auto hidden xl:flex items-center">
             {NAV.map((n) => {
               const c = badge(n.key);
               return (
@@ -75,7 +95,7 @@ export default async function AppLayout({
                   key={n.key}
                   href={n.href}
                   data-nav-modes={n.modes.join(" ")}
-                  className="px-2.5 py-2 rounded-[9px] text-[0.8rem] font-semibold text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--bg-2)] no-underline transition-colors whitespace-nowrap"
+                  className="px-1.5 py-2 rounded-[9px] text-[0.8rem] font-semibold text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--bg-2)] no-underline transition-colors whitespace-nowrap"
                 >
                   {n.label}
                   {!!c && (
@@ -90,26 +110,32 @@ export default async function AppLayout({
 
           {/* The two buttons from Jay's sheet. In the bar at every width —
               on a phone this is the only way to change system. */}
-          <span className="ml-auto lg:ml-1.5 shrink-0">
+          <span className="ml-auto xl:ml-1.5 shrink-0">
             <ModeSwitch />
           </span>
           <span className="shrink-0">
             <ThemeToggle />
           </span>
 
-          <form action="/auth/signout" method="post" className="hidden lg:block">
-            <button className="btn btn-ghost text-[0.82rem] py-2 px-3" type="submit">
+          <form action="/auth/signout" method="post" className="hidden xl:block shrink-0">
+            <button
+              className="btn btn-ghost text-[0.82rem] py-2 px-3 whitespace-nowrap"
+              type="submit"
+            >
               Sign out
             </button>
           </form>
         </div>
       </header>
 
-      <main className="flex-1 mx-auto w-full max-w-[1200px] px-5 py-7 pb-24 lg:pb-8">
+      <main className="flex-1 mx-auto w-full max-w-[1200px] px-5 py-7 pb-24 xl:pb-8">
         {children}
       </main>
 
-      <nav data-appshell className="lg:hidden fixed bottom-0 left-0 right-0 z-20 border-t border-[var(--border)] bg-[var(--bg)] pb-[env(safe-area-inset-bottom)]">
+      {/* `xl:hidden` must mirror the top nav's `xl:flex` — in step, or a
+          width exists with no navigation. `data-appshell` is how the print
+          sheet strips the chrome. */}
+      <nav data-appshell className="xl:hidden fixed bottom-0 left-0 right-0 z-20 border-t border-[var(--border)] bg-[var(--bg)] pb-[env(safe-area-inset-bottom)]">
         <div className="grid grid-cols-5">
           {NAV.filter((n) => n.phoneModes.length > 0).map((n) => (
             <Link

@@ -76,7 +76,7 @@ export default async function EmpirePage() {
     supabase.from("projects").select("id, venture_id, pillar_id, status"),
     supabase
       .from("tasks")
-      .select("id, title, notes, pillar_id, project_id, do_date, due_date, priority, status"),
+      .select("id, title, notes, pillar_id, project_id, do_date, due_date, priority, status, created_at"),
     supabase.from("goals").select("id, title, target_date, progress, status, pillar_id"),
     supabase
       .from("pillars")

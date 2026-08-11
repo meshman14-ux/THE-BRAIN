@@ -71,6 +71,7 @@ import {
   unknowns,
   type InlineKey,
 } from "../src/lib/inline";
+import { readFileSync } from "node:fs";
 
 const TODAY = "2026-08-10";
 
@@ -81,6 +82,8 @@ type T = {
   priority: "High" | "Med" | "Low";
   do_date: string | null;
   due_date: string | null;
+  /** Optional exactly as it is on `Task` — most tests have no use for it. */
+  created_at?: string | null;
 };
 
 function task(id: string, over: Partial<T> = {}): T {
@@ -1453,5 +1456,163 @@ describe("nutritionState", () => {
     );
     expect(n.logged).toBe(1);
     expect(n.weightChange).toBeNull();
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * rankForToday — the last tie-break
+ *
+ * These exist because the first seven real tasks ever written to this
+ * database tied on reason, priority AND due date, so the final tie-break
+ * decided what Jay actually saw. It was the title, which is not a claim
+ * about importance and must not behave like one.
+ * ------------------------------------------------------------------ */
+
+describe("rankForToday tie-breaks", () => {
+  /** The real case: three High tasks, same due date, nothing else to go on. */
+  const trio = (created: (string | null)[]) => [
+    task("check", {
+      title: "Check the empty-homes council tax premium",
+      priority: "High" as const,
+      due_date: "2026-08-14",
+      created_at: created[0],
+    }),
+    task("confirm", {
+      title: "Confirm Rent Smart Wales registration",
+      priority: "High" as const,
+      due_date: "2026-08-14",
+      created_at: created[1],
+    }),
+    task("ring", {
+      title: "Ring Advantis and Marstons for exact balances",
+      priority: "High" as const,
+      due_date: "2026-08-14",
+      created_at: created[2],
+    }),
+  ];
+
+  it("orders a genuine tie oldest-first, not alphabetically", () => {
+    // "Ring" was written down first, so it goes first — even though R
+    // sorts last of the three.
+    const ranked = rankForToday(
+      trio(["2026-08-05T09:00:00Z", "2026-08-06T09:00:00Z", "2026-08-01T09:00:00Z"]),
+      TODAY
+    );
+    expect(ranked.map((t) => t.id)).toEqual(["ring", "check", "confirm"]);
+  });
+
+  it("puts the oldest of a tie in the visible three rather than the drawer", () => {
+    const f = focusList(
+      [
+        ...trio(["2026-08-05T09:00:00Z", "2026-08-06T09:00:00Z", "2026-08-01T09:00:00Z"]),
+        task("d", { priority: "High", due_date: "2026-08-14", created_at: "2026-08-07T09:00:00Z" }),
+      ],
+      TODAY
+    );
+    expect(f.visible.map((t) => t.id)).toContain("ring");
+    expect(f.onDeck.map((t) => t.id)).not.toContain("ring");
+  });
+
+  it("a missing timestamp sorts last — an unknown wait is not a long one", () => {
+    const ranked = rankForToday(
+      trio(["2026-08-05T09:00:00Z", null, "2026-08-01T09:00:00Z"]),
+      TODAY
+    );
+    expect(ranked.map((t) => t.id)).toEqual(["ring", "check", "confirm"]);
+  });
+
+  it("falls back to the title only when the timestamps are identical too", () => {
+    // A bulk insert gives every row the same transaction time, which is
+    // exactly what happened to the seven. The sort must still be stable
+    // and total rather than arbitrary run-to-run.
+    const same = "2026-08-10T18:12:43Z";
+    const ranked = rankForToday(trio([same, same, same]), TODAY);
+    expect(ranked.map((t) => t.id)).toEqual(["check", "confirm", "ring"]);
+  });
+
+  it("still ranks when no caller selected created_at at all", () => {
+    const ranked = rankForToday(
+      [
+        task("b", { priority: "High", due_date: "2026-08-14" }),
+        task("a", { priority: "High", due_date: "2026-08-14" }),
+      ],
+      TODAY
+    );
+    expect(ranked.map((t) => t.id)).toEqual(["a", "b"]);
+  });
+
+  it("created_at never outranks a do_date — that is how you promote one", () => {
+    // The escape hatch for a tie the system cannot break: give one a
+    // do_date and it goes to the top regardless of when it was written.
+    const ranked = rankForToday(
+      [
+        task("old", {
+          priority: "High",
+          due_date: "2026-08-14",
+          created_at: "2026-01-01T09:00:00Z",
+        }),
+        task("promoted", {
+          priority: "High",
+          do_date: TODAY,
+          created_at: "2026-08-09T09:00:00Z",
+        }),
+      ],
+      TODAY
+    );
+    expect(ranked[0].id).toBe("promoted");
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * The app shell's breakpoints
+ *
+ * The nav obeys a stylesheet and a set of Tailwind prefixes, so no test
+ * of `navForMode` can see this — exactly the lesson `stage4.test.ts`
+ * records about the mode selectors. What a test CAN do is hold the five
+ * breakpoints in step, which is the property that actually matters.
+ * ------------------------------------------------------------------ */
+
+describe("app shell breakpoints", () => {
+  const shell = readFileSync(
+    new URL("../src/app/(app)/layout.tsx", import.meta.url),
+    "utf8"
+  );
+
+  /**
+   * The desktop nav appears at `xl`, not `lg`, and the number is measured:
+   * twelve nav items in `brain` mode plus the brand, mode switch, theme
+   * toggle and sign-out need 1221px of header, inside a `max-w-[1200px]`
+   * box. At `lg` that overflowed the page by 197px.
+   */
+  it("shows the top nav at xl, never at lg", () => {
+    expect(shell).toContain("hidden xl:flex");
+    expect(shell).not.toContain("hidden lg:flex");
+  });
+
+  it("hides the phone bar at the same breakpoint the top nav appears", () => {
+    // If these drift apart there is a width with NO navigation at all, or
+    // one where both render at once.
+    expect(shell).toContain("xl:hidden fixed bottom-0");
+    expect(shell).not.toMatch(/lg:hidden fixed bottom-0/);
+  });
+
+  it("keeps main's bottom padding until the bar is gone", () => {
+    // `pb-24` is the room the fixed bar occupies. Dropping it before the
+    // bar disappears puts the bar over the last row of the page.
+    expect(shell).toContain("pb-24 xl:pb-8");
+  });
+
+  it("holds every shell breakpoint at the same prefix", () => {
+    const prefixes = [...shell.matchAll(/\b(sm|md|lg|xl|2xl):(hidden|flex|block|pb-8|ml-1\.5)/g)]
+      .map((m) => m[1]);
+    expect(prefixes.length).toBeGreaterThan(0);
+    expect([...new Set(prefixes)]).toEqual(["xl"]);
+  });
+
+  it("does not let the sign-out button shrink", () => {
+    // It was the only header child without `shrink-0`, so it absorbed the
+    // whole squeeze: 74px wide and 67px tall inside a 56px header.
+    expect(shell).toMatch(/xl:block shrink-0/);
+    expect(shell).toMatch(/btn btn-ghost[^"]*whitespace-nowrap/);
   });
 });
