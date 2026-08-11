@@ -43,6 +43,14 @@ import {
   runningCostTotal,
 } from "@/lib/logic";
 import { divisionHref } from "@/lib/references";
+import {
+  type Season,
+  type VentureTouch,
+  activeSetStatus,
+  seasonKind,
+  seasonLine,
+  splitVentures,
+} from "@/lib/season";
 import { Panel, Empty, Kpi, Bar, Tag } from "@/components/ui";
 import AreaBars from "@/components/AreaBars";
 
@@ -126,6 +134,42 @@ export default async function EmpirePage() {
 
   const counts = countsByVenture(allProjects, allTasks);
   const ordered = sortVentures(allVentures);
+
+  /* -- the season, and the active set it permits ------------------ *
+   *
+   * Eighteen divisions is not scatter — it is the identity, and narrowing
+   * him to three would be a cage he abandons. But an idle division still
+   * charges attention every time it appears in a count. Dormancy removes
+   * the tax without removing the ambition: derived at read time, nothing
+   * written, nothing deleted.
+   *
+   * A diagnostic run is the touch, because it is the only per-division
+   * action the schema timestamps. Waking a division is running one.
+   * ---------------------------------------------------------------- */
+
+  const [{ data: seasonRows }, { data: runRows }] = await Promise.all([
+    supabase
+      .from("seasons")
+      .select("id, kind, started_on, ended_on, note")
+      .order("started_on", { ascending: false })
+      .limit(12),
+    supabase
+      .from("diagnostic_runs")
+      .select("subject_id, started_at")
+      .eq("subject_type", "venture")
+      .order("started_at", { ascending: false }),
+  ]);
+
+  const seasons = (seasonRows ?? []) as Season[];
+  const season = seasonKind(seasons);
+  const touches = new Map<string, VentureTouch>();
+  for (const r of (runRows ?? []) as { subject_id: string; started_at: string }[]) {
+    // Rows arrive newest-first, so the first sighting of a division is its
+    // most recent touch.
+    if (!touches.has(r.subject_id)) touches.set(r.subject_id, { lastRunAt: r.started_at });
+  }
+  const split = splitVentures(ordered, touches, today);
+  const activeSet = activeSetStatus(split.live.length, season);
   const building = inDevelopment(allVentures);
   const parked = backlog(allVentures);
 
@@ -279,8 +323,40 @@ export default async function EmpirePage() {
       <div className="grid gap-5 lg:grid-cols-2 items-start">
         <Panel
           title="Business divisions"
-          hint={`${allVentures.length} on the books`}
+          hint={`${allVentures.length} on the books · ${seasonLine(seasons, today)}`}
+          action={
+            <span
+              className="mono text-[0.64rem]"
+              style={{ color: activeSet.over ? "var(--warn)" : "var(--faint)" }}
+            >
+              {split.live.length}/{activeSet.slots} ACTIVE
+            </span>
+          }
         >
+          {/* The active set, reported and never enforced. Which division to
+              cool is Jay's decision — the same rule the calendar holds for
+              clashes. */}
+          <p className="text-[0.74rem] text-[var(--muted)] leading-relaxed">
+            {activeSet.line}
+          </p>
+          {(split.dormant.length > 0 || split.parked.length > 0) && (
+            <p className="text-[0.72rem] text-[var(--faint)] leading-relaxed">
+              {split.dormant.length > 0 && (
+                <>
+                  <b className="mono">{split.dormant.length}</b> gone quiet for
+                  30+ days and left the counts — nothing deleted, and running a
+                  diagnostic wakes one.{" "}
+                </>
+              )}
+              {split.parked.length > 0 && (
+                <>
+                  <b className="mono">{split.parked.length}</b> parked on
+                  purpose. Parked and dormant are different facts, and the
+                  system keeps them apart.
+                </>
+              )}
+            </p>
+          )}
           {ordered.length === 0 ? (
             <Empty>
               No divisions yet. A division is a thing that could one day pay

@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import SeasonSwitch from "@/components/SeasonSwitch";
+import { type Season, daysInSeason, seasonKind } from "@/lib/season";
 import {
   type Metric,
   type MetricReading,
@@ -228,6 +230,22 @@ export default async function TheBrain({
   const lifeTasks = bySystem("life");
   const empireTasks = bySystem("empire");
 
+  /* -- the season ---------------------------------------------------- *
+   *
+   * Fetched here rather than in a child so the first paint already knows
+   * what the system expects of him — the same reasoning as the mode
+   * attribute. A season is never absent: "quiet" is the neutral position.
+   * -------------------------------------------------------------------- */
+
+  const { data: seasonRows } = await supabase
+    .from("seasons")
+    .select("id, kind, started_on, ended_on, note")
+    .order("started_on", { ascending: false })
+    .limit(12);
+  const seasons = (seasonRows ?? []) as Season[];
+  const season = seasonKind(seasons);
+  const seasonDays = daysInSeason(seasons, today);
+
   /* -- the watchtower ----------------------------------------------- */
 
   const alerts = watchtowerAlerts({
@@ -390,6 +408,10 @@ export default async function TheBrain({
          * back button does.
          */}
         <div className="grid gap-5 min-w-0">
+          {/* The season governs what every tab below expects of him, so
+              it sits above them rather than inside one. */}
+          <SeasonSwitch current={season} daysIn={seasonDays} />
+
           <TabBar tab={tab} attention={alerts.length} />
 
           {tab === "now" && (
