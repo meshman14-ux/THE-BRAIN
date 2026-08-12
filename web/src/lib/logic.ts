@@ -43,6 +43,7 @@ import {
   COMPLIANCE_KEY,
   COMPLIANCE_QUESTIONS,
   VEHICLE_DATE_KEYS,
+  VEHICLE_DATE_LABEL,
   DUE_SOON_DAYS,
   PAYMENTS_PER_YEAR,
   HOUR_PURPOSES,
@@ -1499,6 +1500,10 @@ export function lowProfitRun(
 
 /** What the watchtower is shouting about. Lower rank = louder. */
 export type AlertKind =
+  /** A vehicle obligation lapsed or about to. The world punishes these
+   *  ones itself — a lapsed MOT is not a preference, it is a fine and an
+   *  invalid insurance policy — so it outranks every other alert. */
+  | "legal"
   | "overdue"
   | "due"
   | "person"
@@ -1515,6 +1520,9 @@ export type WatchAlert = {
 };
 
 const ALERT_RANK: Record<AlertKind, number> = {
+  // Nothing outranks a legal deadline. Every other alert is the system's
+  // opinion about Jay's life; this one is the DVLA's.
+  legal: -1,
   overdue: 0,
   due: 1,
   birthday: 2,
@@ -1527,6 +1535,7 @@ const ALERT_RANK: Record<AlertKind, number> = {
 };
 
 export const ALERT_TONE: Record<AlertKind, string> = {
+  legal: "var(--bad)",
   overdue: "var(--bad)",
   due: "var(--warn)",
   birthday: "var(--accent)",
@@ -1558,6 +1567,14 @@ export function watchtowerAlerts(input: {
     meta?: unknown;
   })[];
   pillars: Pick<Pillar, "id" | "name" | "score">[];
+  /**
+   * Vehicles, if the caller selected them. Optional so every existing
+   * caller keeps working — but a caller that passes them gets the legal
+   * deadlines for free, which is what these dates were always for. They
+   * were filed as vehicle attributes and never reached the panel whose
+   * entire job is "what is about to bite you".
+   */
+  vehicles?: (Pick<Vehicle, VehicleDateKey> & { id: string; name: string; status?: string })[];
   todayIso: string;
   dueDays?: number;
 }): WatchAlert[] {
@@ -1636,6 +1653,36 @@ export function watchtowerAlerts(input: {
         text: `${v.name} — under £${LOW_PROFIT_FLOOR}/hr for ${LOW_PROFIT_RUN} recorded months. The exit question is live`,
         href: "/empire",
       });
+    }
+  }
+
+  /* Vehicle obligations. The dates existed from the start and were filed
+   * as attributes of a vehicle rather than as deadlines, so the one panel
+   * whose job is "what is about to bite you" never saw them. A lapsed MOT
+   * is the clearest example in the whole system of something the WORLD
+   * punishes rather than something Jay merely intended.
+   *
+   * A never-recorded date raises nothing: it is a gap, not a lapse, and
+   * the Not-yet-known panel already asks for it. Saying "MOT unknown"
+   * here every day would be four permanent alerts nobody can clear. */
+  for (const v of input.vehicles ?? []) {
+    if (v.status != null && v.status !== "active") continue;
+    for (const d of vehicleDeadlines(v, todayIso)) {
+      if (d.state === "overdue") {
+        out.push({
+          kind: "legal",
+          label: VEHICLE_DATE_LABEL[d.key].toUpperCase(),
+          text: `${v.name} — ${VEHICLE_DATE_LABEL[d.key].toLowerCase()} lapsed ${Math.abs(d.days ?? 0)}d ago`,
+          href: "/life/vehicles",
+        });
+      } else if (d.state === "due_soon") {
+        out.push({
+          kind: "legal",
+          label: `${d.days}D`,
+          text: `${v.name} — ${VEHICLE_DATE_LABEL[d.key].toLowerCase()} due`,
+          href: "/life/vehicles",
+        });
+      }
     }
   }
 

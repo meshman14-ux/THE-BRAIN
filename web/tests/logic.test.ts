@@ -2055,3 +2055,79 @@ describe("division months", () => {
     expect(shelved.filter((a) => a.kind === "lowprofit")).toHaveLength(0);
   });
 });
+
+/* ------------------------------------------------------------------ *
+ * Vehicle deadlines reach the watchtower
+ *
+ * LIFE_OS v2, step 5. The four dates existed from the start and were
+ * filed as attributes OF A VEHICLE rather than as deadlines, so the one
+ * panel whose whole job is "what is about to bite you" never saw them.
+ * A lapsed MOT is the clearest thing in the system that the WORLD
+ * punishes rather than something Jay merely intended to do.
+ * ------------------------------------------------------------------ */
+
+describe("watchtower · vehicles", () => {
+  const TODAY = "2026-08-12";
+  const base = { tasks: [], people: [], ventures: [], pillars: [], todayIso: TODAY };
+  const van = (o: Record<string, unknown> = {}) => ({
+    id: String(o.id ?? "v1"),
+    name: String(o.name ?? "Canter"),
+    status: String(o.status ?? "active"),
+    tax_due: ("tax_due" in o ? o.tax_due : null) as string | null,
+    mot_due: ("mot_due" in o ? o.mot_due : null) as string | null,
+    insurance_due: ("insurance_due" in o ? o.insurance_due : null) as string | null,
+    next_service: ("next_service" in o ? o.next_service : null) as string | null,
+  });
+
+  it("raises a lapsed obligation, with the vehicle named and the days counted", () => {
+    const alerts = watchtowerAlerts({
+      ...base,
+      vehicles: [van({ mot_due: "2026-08-09" })],
+    });
+    const legal = alerts.filter((a) => a.kind === "legal");
+    expect(legal).toHaveLength(1);
+    expect(legal[0].text).toContain("Canter");
+    expect(legal[0].text).toContain("3d ago");
+  });
+
+  it("outranks every other alert, because the DVLA is not an opinion", () => {
+    const alerts = watchtowerAlerts({
+      ...base,
+      tasks: [
+        { id: "t", title: "Late thing", due_date: "2026-08-01", status: "open" },
+      ],
+      vehicles: [van({ tax_due: "2026-08-10" })],
+    });
+    expect(alerts[0].kind).toBe("legal");
+  });
+
+  it("a never-recorded date raises NOTHING — a gap is not a lapse", () => {
+    // Four vehicles with no dates would otherwise be sixteen permanent
+    // alerts nobody can clear. The Not-yet-known panel asks for these.
+    const alerts = watchtowerAlerts({ ...base, vehicles: [van(), van({ id: "v2" })] });
+    expect(alerts.filter((a) => a.kind === "legal")).toHaveLength(0);
+  });
+
+  it("says nothing about a vehicle that is off the road", () => {
+    const alerts = watchtowerAlerts({
+      ...base,
+      vehicles: [van({ status: "sorn", mot_due: "2026-01-01" })],
+    });
+    expect(alerts.filter((a) => a.kind === "legal")).toHaveLength(0);
+  });
+
+  it("warns before the date as well as after it", () => {
+    const alerts = watchtowerAlerts({
+      ...base,
+      vehicles: [van({ insurance_due: "2026-08-20" })],
+    });
+    const legal = alerts.filter((a) => a.kind === "legal");
+    expect(legal).toHaveLength(1);
+    expect(legal[0].text).toContain("due");
+  });
+
+  it("is entirely optional — every existing caller keeps working", () => {
+    expect(() => watchtowerAlerts(base)).not.toThrow();
+    expect(watchtowerAlerts(base)).toEqual([]);
+  });
+});

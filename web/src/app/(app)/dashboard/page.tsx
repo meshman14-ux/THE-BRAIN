@@ -119,6 +119,7 @@ export default async function TheBrain({
     { count: inboxCount },
     { data: tonight },
     { data: creed },
+    { data: vehicles },
   ] = await Promise.all([
     supabase
       .from("pillars")
@@ -147,6 +148,9 @@ export default async function TheBrain({
     // they are a place he goes, never something that arrives (§A3, and
     // PRINCIPLES_NEVER_PUSH in types.ts).
     supabase.from("notes").select("body").eq("kind", "creed").limit(1).maybeSingle(),
+    supabase
+      .from("vehicles")
+      .select("id, name, status, tax_due, mot_due, insurance_due, next_service"),
   ]);
 
   // A failed read must never masquerade as an empty account — the seed
@@ -327,6 +331,17 @@ export default async function TheBrain({
     }[],
     ventures: allVentures,
     pillars: allPillars,
+    // Vehicle obligations, at last. The dates were always deadlines; they
+    // were just filed as attributes of a vehicle instead.
+    vehicles: (vehicles ?? []) as {
+      id: string;
+      name: string;
+      status: string;
+      tax_due: string | null;
+      mot_due: string | null;
+      insurance_due: string | null;
+      next_service: string | null;
+    }[],
     todayIso: today,
   });
 

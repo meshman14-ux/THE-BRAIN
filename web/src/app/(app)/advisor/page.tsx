@@ -57,6 +57,7 @@ export default async function AdvisorPage() {
     { data: habitLogs },
     { data: debts },
     { data: links },
+    { data: vehicles },
   ] = await Promise.all([
     supabase.from("notes").select("id, title, body, kind, tags, starred, pillar_id, meta"),
     supabase
@@ -76,6 +77,9 @@ export default async function AdvisorPage() {
     supabase.from("habit_logs").select("habit_id, done_on"),
     supabase.from("debts").select("id, creditor, kind, current_balance, status, plan_amount, plan_frequency, sort_order, recurring"),
     supabase.from("calendar_sync").select("id, task_id, conflict"),
+    supabase
+      .from("vehicles")
+      .select("id, name, status, tax_due, mot_due, insurance_due, next_service"),
   ]);
 
   const allNotes = (notes ?? []) as Note[];
@@ -98,6 +102,15 @@ export default async function AdvisorPage() {
     }[],
     ventures: allVentures,
     pillars: allPillars,
+    vehicles: (vehicles ?? []) as {
+      id: string;
+      name: string;
+      status: string;
+      tax_due: string | null;
+      mot_due: string | null;
+      insurance_due: string | null;
+      next_service: string | null;
+    }[],
     todayIso: today,
   });
 
