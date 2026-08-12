@@ -407,7 +407,7 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **811/811 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **824/824 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
 vitest) and **`npm run build` produces exactly 40 routes** (33 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
@@ -760,6 +760,23 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
                        level); the star outranks the sort; "Cooked it" is
                        one tap, once per day, and builds times_cooked —
                        the honest answer to "what do we actually eat?"
+                       THE WEEK PLAN (hybrid, Jay's spec 2026-08-12): "+
+                       This week" pools a meal in one tap; pinning it to a
+                       day and slot (Mon–Sun × breakfast/lunch/dinner) is
+                       optional, always — an unpinned pick is a decision to
+                       stay flexible, not an unfinished plan. Lives in
+                       meals.meta.plan keyed by the Monday (decision-5
+                       pattern, no migration); readPlan validates the
+                       jsonb, half a pin is no pin, last week's plan simply
+                       stops counting. THE SHOPPING LIST is derived from
+                       the pool, never typed: same item + same unit merge
+                       (700g+600g lamb mince = 1.3kg), different units
+                       never merge (no conversion by guesswork), a meal
+                       planned twice wants its ingredients twice, grouped
+                       by shop section (sectionOf keyword rules, Cupboard
+                       the honest default), tick-off lives in localStorage
+                       per week (trolley state, not records), and Copy
+                       emits the grouped plain-text list.
 /(app)/life/people     cadence watchtower (at most three) · occasions strip ·
                        the roster with one-tap tiers and contact logging
 /(app)/life            LIFE_OS — the 8 personal areas, scores, habits (#habits),
@@ -1027,7 +1044,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 811 tests — must be green before build
+npm test                       # 824 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 

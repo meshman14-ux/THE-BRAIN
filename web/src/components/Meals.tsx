@@ -1,21 +1,38 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Meal } from "@/lib/types";
+import { mondayOf } from "@/lib/logic";
 import {
   HIGH_PROTEIN_MIN,
+  MEAL_SLOTS,
+  type MealPick,
+  PLAN_DAYS,
   QUICK_MAX_MIN,
+  SHOP_SECTIONS,
   type MealFilter,
   NO_FILTER,
   filterMeals,
+  formatShopQty,
   ingredientLine,
+  listAsText,
   mealCategories,
   mealCount,
+  readPlan,
+  shoppingList,
   sortMeals,
   totalMin,
+  withPlan,
 } from "@/lib/food";
+
+const DAY_LABEL: Record<(typeof PLAN_DAYS)[number], string> = {
+  mon: "Mon", tue: "Tue", wed: "Wed", thu: "Thu", fri: "Fri", sat: "Sat", sun: "Sun",
+};
+const SLOT_LABEL: Record<(typeof MEAL_SLOTS)[number], string> = {
+  breakfast: "Breakfast", lunch: "Lunch", dinner: "Dinner",
+};
 
 export type MealCard = Meal & {
   /** name+cuisine+category+tags+ingredients, lowercased, built server-side. */
@@ -37,11 +54,90 @@ export type MealCard = Meal & {
 export default function Meals({ meals, today }: { meals: MealCard[]; today: string }) {
   const [f, setF] = useState<MealFilter>(NO_FILTER);
   const [busy, setBusy] = useState<string | null>(null);
+  // "Placing": a pool pick waiting for a slot tap. {mealId, index into picks}.
+  const [placing, setPlacing] = useState<{ mealId: string; i: number } | null>(null);
+  const [ticked, setTicked] = useState<Set<string>>(new Set());
+  const [copied, setCopied] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
+  const monday = mondayOf(today);
   const categories = useMemo(() => mealCategories(meals), [meals]);
   const shown = useMemo(() => sortMeals(filterMeals(meals, f)), [meals, f]);
+
+  /** This week's plan, derived from every meal's meta. */
+  const plan = useMemo(
+    () =>
+      meals
+        .map((m) => ({ meal: m, picks: readPlan(m.meta, monday) }))
+        .filter((p) => p.picks.length > 0),
+    [meals, monday]
+  );
+  const pickCount = plan.reduce((n, p) => n + p.picks.length, 0);
+  const picksOf = (m: MealCard) => readPlan(m.meta, monday);
+
+  const list = useMemo(
+    () =>
+      shoppingList(
+        plan.map((p) => ({
+          name: p.meal.name,
+          times: p.picks.length,
+          ingredients: p.meal.ingredients,
+        }))
+      ),
+    [plan]
+  );
+
+  // Ticks live in localStorage, per week — trolley state, not records. The
+  // database never hears about them, and next Monday starts clean.
+  const tickKey = `brain-shop-${monday}`;
+  useEffect(() => {
+    try {
+      const held = JSON.parse(localStorage.getItem(tickKey) ?? "[]");
+      if (Array.isArray(held)) setTicked(new Set(held.filter((x) => typeof x === "string")));
+    } catch {
+      /* a corrupt entry is an empty trolley, not a crash */
+    }
+  }, [tickKey]);
+  function toggleTick(key: string) {
+    setTicked((old) => {
+      const next = new Set(old);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      try {
+        localStorage.setItem(tickKey, JSON.stringify([...next]));
+      } catch {
+        /* storage full or blocked — the tick still works for this visit */
+      }
+      return next;
+    });
+  }
+
+  async function writePicks(m: MealCard, picks: MealPick[]) {
+    setBusy(m.id);
+    await supabase
+      .from("meals")
+      .update({ meta: withPlan(m.meta, monday, picks) })
+      .eq("id", m.id);
+    setBusy(null);
+    setPlacing(null);
+    router.refresh();
+  }
+
+  /** ＋ on a card: one more planned cooking, into the pool. */
+  function addToWeek(m: MealCard) {
+    void writePicks(m, [...picksOf(m), { day: null, slot: null }]);
+  }
+
+  function removePick(m: MealCard, i: number) {
+    const picks = picksOf(m).filter((_, n) => n !== i);
+    void writePicks(m, picks);
+  }
+
+  function pinPick(m: MealCard, i: number, day: MealPick["day"], slot: MealPick["slot"]) {
+    const picks = picksOf(m).map((p, n) => (n === i ? { day, slot } : p));
+    void writePicks(m, picks);
+  }
 
   async function toggleFavourite(m: MealCard) {
     setBusy(m.id);
@@ -78,8 +174,210 @@ export default function Meals({ meals, today }: { meals: MealCard[]; today: stri
     </button>
   );
 
+  async function copyList() {
+    try {
+      await navigator.clipboard.writeText(listAsText(list, monday));
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      /* clipboard blocked — the list is still on screen */
+    }
+  }
+
+  /** The pinned picks living in one day+slot cell. */
+  const inCell = (day: string, slot: string) =>
+    plan.flatMap((p) =>
+      p.picks
+        .map((pick, i) => ({ meal: p.meal, pick, i }))
+        .filter((x) => x.pick.day === day && x.pick.slot === slot)
+    );
+  const poolPicks = plan.flatMap((p) =>
+    p.picks
+      .map((pick, i) => ({ meal: p.meal, pick, i }))
+      .filter((x) => x.pick.day == null)
+  );
+
   return (
     <div className="grid gap-4">
+      {/* -- this week: the pool and the grid ----------------------- */}
+      <div className="panel grid gap-3">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <p className="label">This week · {pickCount} planned</p>
+          <span className="mono text-[0.66rem] text-[var(--faint)] ml-auto">
+            week of {monday}
+          </span>
+        </div>
+
+        {pickCount === 0 ? (
+          <p className="text-[0.78rem] text-[var(--muted)] leading-relaxed">
+            Nothing picked yet. ＋ This week on any meal starts the plan — a
+            pick lands in the pool, and pinning it to a day is optional,
+            always. The shopping list builds itself from whatever is here.
+          </p>
+        ) : (
+          <>
+            {/* The pool: flexible on purpose. */}
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-[0.7rem] text-[var(--faint)] mr-1">Pool</span>
+              {poolPicks.length === 0 && (
+                <span className="text-[0.72rem] text-[var(--faint)]">
+                  empty — everything is pinned
+                </span>
+              )}
+              {poolPicks.map((x) => (
+                <span
+                  key={`${x.meal.id}:${x.i}`}
+                  className="chip"
+                  data-active={
+                    placing?.mealId === x.meal.id && placing.i === x.i
+                  }
+                  role="button"
+                  tabIndex={0}
+                  title="Tap, then tap a slot below to pin it. The × removes it from the week."
+                  onClick={() =>
+                    setPlacing(
+                      placing?.mealId === x.meal.id && placing.i === x.i
+                        ? null
+                        : { mealId: x.meal.id, i: x.i }
+                    )
+                  }
+                >
+                  {x.meal.name}
+                  <button
+                    aria-label={`Remove ${x.meal.name} from this week`}
+                    className="ml-1.5 text-[var(--faint)]"
+                    disabled={busy != null}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      removePick(x.meal, x.i);
+                    }}
+                  >
+                    ×
+                  </button>
+                </span>
+              ))}
+            </div>
+            {placing && (
+              <p className="text-[0.7rem]" style={{ color: "var(--accent)" }}>
+                Now tap a slot below to pin it — or tap the chip again to leave
+                it flexible.
+              </p>
+            )}
+
+            {/* The grid: seven days, three slots, nothing demanded. */}
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse text-[0.72rem]" style={{ minWidth: "520px" }}>
+                <thead>
+                  <tr>
+                    <th className="text-left font-normal text-[var(--faint)] pb-1 w-[44px]"></th>
+                    {MEAL_SLOTS.map((s) => (
+                      <th key={s} className="text-left font-normal text-[var(--faint)] pb-1">
+                        {SLOT_LABEL[s]}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {PLAN_DAYS.map((d) => (
+                    <tr key={d} className="border-t border-[var(--border)]">
+                      <td className="py-1.5 pr-2 mono text-[var(--muted)]">{DAY_LABEL[d]}</td>
+                      {MEAL_SLOTS.map((s) => {
+                        const here = inCell(d, s);
+                        return (
+                          <td
+                            key={s}
+                            className="py-1.5 pr-2 align-top"
+                            onClick={() => {
+                              if (!placing) return;
+                              const m = meals.find((x) => x.id === placing.mealId);
+                              if (m) pinPick(m, placing.i, d, s);
+                            }}
+                            style={placing ? { cursor: "pointer", background: "var(--accent-soft)" } : undefined}
+                          >
+                            {here.length === 0 ? (
+                              <span className="text-[var(--faint)]">—</span>
+                            ) : (
+                              <span className="flex flex-wrap gap-1">
+                                {here.map((x) => (
+                                  <button
+                                    key={`${x.meal.id}:${x.i}`}
+                                    className="chip"
+                                    disabled={busy != null}
+                                    title="Tap to send it back to the pool"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      pinPick(x.meal, x.i, null, null);
+                                    }}
+                                  >
+                                    {x.meal.name}
+                                  </button>
+                                ))}
+                              </span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* -- the shopping list, derived ------------------------ */}
+            <div className="border-t border-[var(--border)] pt-3 grid gap-2">
+              <div className="flex items-baseline gap-2">
+                <p className="label">Shopping list · {list.length} items</p>
+                <button
+                  className="chip ml-auto"
+                  onClick={() => void copyList()}
+                >
+                  {copied ? "Copied ✓" : "Copy list"}
+                </button>
+              </div>
+              {SHOP_SECTIONS.map((section) => {
+                const rows = list.filter((l) => l.section === section);
+                if (rows.length === 0) return null;
+                return (
+                  <div key={section}>
+                    <p className="text-[0.62rem] uppercase tracking-[0.11em] text-[var(--faint)] mb-1">
+                      {section}
+                    </p>
+                    <ul className="grid gap-0.5">
+                      {rows.map((l) => {
+                        const key = `${l.item.toLowerCase()}|${l.unit ?? ""}`;
+                        const done = ticked.has(key);
+                        const q = formatShopQty(l);
+                        return (
+                          <li key={key}>
+                            <button
+                              className="text-left text-[0.78rem] leading-relaxed w-full"
+                              style={{
+                                color: done ? "var(--faint)" : "var(--text)",
+                                textDecoration: done ? "line-through" : "none",
+                              }}
+                              onClick={() => toggleTick(key)}
+                              title={`For: ${l.meals.join(" · ")}`}
+                            >
+                              {done ? "☑" : "☐"} {q ? `${q} ` : ""}
+                              {l.item}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                );
+              })}
+              <p className="text-[0.66rem] text-[var(--faint)] leading-relaxed">
+                Same ingredient across meals merges into one line; different
+                units stay separate rather than being converted by guesswork.
+                Ticks live on this device for this week only.
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+
       {/* -- the bar ------------------------------------------------ */}
       <div className="flex flex-wrap gap-1.5 items-center">
         {chip("All", f.category == null, () => setF({ ...f, category: null }))}
@@ -201,7 +499,18 @@ export default function Meals({ meals, today }: { meals: MealCard[]; today: stri
                     )}
                   </details>
 
-                  <div className="mt-auto pt-2 flex items-center gap-2">
+                  <div className="mt-auto pt-2 flex items-center gap-2 flex-wrap">
+                    <button
+                      className="chip"
+                      data-active={picksOf(m).length > 0}
+                      disabled={busy === m.id}
+                      onClick={() => addToWeek(m)}
+                      title="Into this week's pool — pin it to a day up top if you want to, or don't"
+                    >
+                      {picksOf(m).length > 0
+                        ? `This week ×${picksOf(m).length} ＋`
+                        : "＋ This week"}
+                    </button>
                     <button
                       className="chip"
                       disabled={busy === m.id || m.last_cooked_on === today}

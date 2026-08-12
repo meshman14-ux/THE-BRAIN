@@ -216,6 +216,8 @@ export type Meal = {
   favourite: boolean;
   last_cooked_on: string | null;
   times_cooked: number;
+  /** jsonb. Carries `plan: {week, picks}` while the meal is in a week. */
+  meta?: unknown;
 };
 
 export type MealIngredient = {

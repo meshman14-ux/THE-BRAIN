@@ -20,7 +20,7 @@ export default async function FoodPage() {
     supabase
       .from("meals")
       .select(
-        "id, name, slug, category, cuisine, image_url, servings, prep_min, cook_min, protein_g, kcal, estimates, tags, method, favourite, last_cooked_on, times_cooked"
+        "id, name, slug, category, cuisine, image_url, servings, prep_min, cook_min, protein_g, kcal, estimates, tags, method, favourite, last_cooked_on, times_cooked, meta"
       )
       .order("protein_g", { ascending: false }),
     supabase
