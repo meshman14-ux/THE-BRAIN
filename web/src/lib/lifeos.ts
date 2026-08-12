@@ -275,7 +275,16 @@ export function monthNudge(
   const day = Number(todayIso.slice(8, 10));
   if (day < MONTH_NUDGE_DAY) return null;
   if (finishesThisMonth > 0) return null;
-  return "Nothing has visibly finished this month yet.";
+  // The days remaining are the evidence that makes this actionable. "The
+  // month has not counted" is a verdict; "and there are five days left"
+  // is a window, and one of those two is worth reading.
+  const year = Number(todayIso.slice(0, 4));
+  const month = Number(todayIso.slice(5, 7));
+  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  const left = lastDay - day;
+  return left === 0
+    ? "Nothing has visibly finished this month, and today is the last day of it."
+    : `Nothing has visibly finished this month yet, with ${left} day${left === 1 ? "" : "s"} left.`;
 }
 
 /** Half-lives, in days, for the truths that genuinely cost typing. */

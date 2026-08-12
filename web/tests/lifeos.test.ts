@@ -264,8 +264,16 @@ describe("monthNudge", () => {
     expect(monthNudge(0, `2026-08-${MONTH_NUDGE_DAY - 1}`)).toBeNull();
   });
 
-  it("speaks from the 25th when nothing has closed", () => {
-    expect(monthNudge(0, `2026-08-${MONTH_NUDGE_DAY}`)).toContain("finished");
+  it("speaks from the 25th when nothing has closed, with the window left", () => {
+    // The days remaining are what make it actionable: "the month has not
+    // counted" is a verdict, "and there are six days left" is a window.
+    const line = monthNudge(0, `2026-08-${MONTH_NUDGE_DAY}`)!;
+    expect(line).toContain("finished");
+    expect(line).toContain("6 days left");
+  });
+
+  it("says so plainly on the last day rather than counting zero days", () => {
+    expect(monthNudge(0, "2026-08-31")).toContain("last day");
   });
 
   it("stays quiet when something did finish", () => {

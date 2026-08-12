@@ -49,6 +49,7 @@ import {
   sortVentures,
   isShelved,
   isOpenWork,
+  type PersonRow,
   greetingFor,
   watchtowerAlerts,
   ALERT_TONE,
@@ -67,6 +68,8 @@ import {
   BRAIN_TAB_QUESTION,
   type BrainTab,
 } from "@/lib/logic";
+import { bodyContract, moneyContract, peopleContract, rhythmContract } from "@/lib/lifeos";
+import { oneLine, silenceFor } from "@/lib/oneline";
 import { verseOfDay } from "@/lib/gita";
 import { creedFrom, creedLineOfDay } from "@/lib/creed";
 import { divisionHref } from "@/lib/references";
@@ -353,6 +356,45 @@ export default async function TheBrain({
    * and people are never suppressed by any season. */
   const { shown: alerts, silenced } = alertsForSeason(everyAlert, season);
 
+  /* -- THE ONE LINE ------------------------------------------------- *
+   *
+   * LIFE_OS v2, step 6. Everything above narrows to a single sentence,
+   * ranked by who is doing the punishing: the world, then the floor Jay
+   * declared, then the month, then a stale figure — and then silence,
+   * which is the product. Everything else exists to earn the right to
+   * print it.
+   */
+  const lifeContracts = {
+    body: bodyContract({
+      trainingDays: trainingDays,
+      readinessBand: null,
+      todayIso: today,
+    }),
+    money: moneyContract({
+      debts: [],
+      missedPayments: 0,
+      debtFreeDate: null,
+    }),
+    people: peopleContract({
+      people: (people ?? []) as PersonRow[],
+      todayIso: today,
+    }),
+    rhythm: rhythmContract({ season, tallies }),
+  };
+  const todaysLine = oneLine({
+    contracts: lifeContracts,
+    // Only the alerts the WORLD punishes reach the top rank.
+    worldAlerts: everyAlert
+      .filter((a) => a.kind === "legal")
+      .map((a) => ({ text: a.text, href: a.href })),
+    finishesThisMonth: finishes.filter((f) => f.on.slice(0, 7) === today.slice(0, 7)).length,
+    staleAges: [],
+    lastSaid: {},
+    todayIso: today,
+  });
+  const line =
+    todaysLine.kind === "silence" ? silenceFor(lifeContracts) : todaysLine;
+
   /* -- ventures ----------------------------------------------------- */
 
   const orderedVentures = sortVentures(allVentures);
@@ -555,6 +597,48 @@ export default async function TheBrain({
                 </div>
               </div>
             </div>
+            {/* -- THE ONE LINE --------------------------------------- *
+             *
+             * One sentence, ranked by who is doing the punishing, and
+             * silence is a legitimate answer — the one the whole system
+             * is trying to earn. It sits above the verse because it is
+             * the only thing here that might need acting on today.
+             */}
+            <div className="min-w-0 basis-full">
+              <p
+                className="text-[0.92rem] leading-relaxed font-medium"
+                style={{
+                  color:
+                    line.kind === "world"
+                      ? "var(--bad)"
+                      : line.kind === "floor"
+                        ? "var(--warn)"
+                        : line.kind === "silence"
+                          ? "var(--muted)"
+                          : "var(--text)",
+                }}
+              >
+                {line.kind !== "silence" && (
+                  <span className="mono text-[0.62rem] uppercase tracking-[0.1em] mr-2">
+                    {line.kind}
+                  </span>
+                )}
+                {line.line}
+                {line.href && line.kind !== "silence" && (
+                  <>
+                    {" "}
+                    <Link
+                      href={line.href}
+                      className="font-semibold no-underline"
+                      style={{ color: "var(--accent)" }}
+                    >
+                      →
+                    </Link>
+                  </>
+                )}
+              </p>
+            </div>
+
             {/* The words come last. They are the part he reads, not the part
                 he acts on, so they yield the top of the card to the numbers
                 and take the whole width once they get there. */}
