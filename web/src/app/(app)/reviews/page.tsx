@@ -212,20 +212,25 @@ export default async function Reviews() {
       )}
 
       {/* -- the other two rituals ----------------------------------- */}
-      <Panel title="The other rituals" hint="not built yet — the weekly is the one that pays">
+      <Panel title="The other rituals" hint="all three built — the weekly is the one that pays">
         <div className="grid gap-1.5">
           <p className="text-[0.82rem] text-[var(--muted)] leading-relaxed">
-            <b className="text-[var(--text)]">Daily, 2 minutes.</b> Tick the
-            habits, pick tomorrow&apos;s three.{" "}
-            <Link href="/life" className="no-underline" style={{ color: "var(--accent)" }}>
-              habits are on LIFE_OS →
+            <b className="text-[var(--text)]">Daily, 2 minutes.</b> The close:
+            mood, energy, and the leftovers settled.{" "}
+            <Link href="/checkin" className="no-underline" style={{ color: "var(--accent)" }}>
+              the daily close →
             </Link>
           </p>
           <p className="text-[0.82rem] text-[var(--muted)] leading-relaxed">
-            <b className="text-[var(--text)]">Quarterly, an hour.</b> Rescore
-            every area, retire what is dead.{" "}
-            <Link href="/life" className="no-underline" style={{ color: "var(--accent)" }}>
-              area scores →
+            <b className="text-[var(--text)]">Quarterly, an hour.</b> The
+            reset: the quarter&apos;s evidence read back, every area rescored,
+            one focus per system.{" "}
+            <Link
+              href="/reviews/quarterly"
+              className="no-underline"
+              style={{ color: "var(--accent)" }}
+            >
+              the quarterly reset →
             </Link>
           </p>
           <p className="text-[0.78rem] text-[var(--faint)] leading-relaxed mt-1">

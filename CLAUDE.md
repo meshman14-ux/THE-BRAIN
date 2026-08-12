@@ -407,9 +407,9 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **841/841 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **851/851 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
-vitest) and **`npm run build` produces exactly 40 routes** (33 pages + 7 API routes).
+vitest) and **`npm run build` produces exactly 41 routes** (34 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
 
 **The Samsung Health ingest path landed 2026-08-11** — stage one of two, and the
@@ -829,6 +829,12 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /api/advisor/ask           POST, retrieve → answer → grounding check
 /api/advisor/review        POST, evidence → draft. Saves nothing
 /(app)/reviews         the weekly review + "what got in the way" + the obstacle tally
+/(app)/reviews/quarterly
+                       the quarterly reset (decision 7's hour): the quarter's
+                       evidence assembled first — never generated — then
+                       wins · friction · a 13-area rescore · one focus per
+                       system. Resumable; closing it is explicit and records
+                       itself as a finish
 /(app)/capture         one-box capture (PWA start_url)
 /(app)/inbox           triage
 /(app)/life/debts      the creditor detail — rates, references, payment days.
@@ -934,7 +940,7 @@ library; what remains is writing notes, the `links` table and backlinks)
 still to build · 5 EMPIRE_OS — **division onboarding + the division dashboards ✅**
 (Stage 4 · Phase C, 2026-08-06); assets, investments and opportunities still to build
 · 6 Review rituals — the weekly one ✅ at `/reviews`, **the daily two-minute one ✅ at
-`/checkin`**; the quarterly hour still to build
+`/checkin`**, **the quarterly reset ✅ at `/reviews/quarterly` (2026-08-12)** — all three rituals built
 · **7 AI layer ✅ built 2026-08-06** at `/advisor` (§A3 decision 6).
 · **Calendar (decision 8) ✅ built 2026-08-06** at `/calendar`, waiting only on credentials.
 
@@ -960,9 +966,15 @@ Open items:
    "not recorded", never as overdue and never as fine; there is a test that proves it.
 5. His blueprint has **5** review cadences (daily, weekly, monthly, quarterly, annual); we
    deliberately build **3**. Confirm with him before adding monthly/annual. The **weekly**
-   one is built at `/reviews` and the daily 2-minute one at `/checkin` (2026-08-10); the
-   quarterly hour is still to come, and `/reviews` says so on screen rather than pretending
-   it exists.
+   one is built at `/reviews`, the daily 2-minute one at `/checkin` (2026-08-10), and the
+   quarterly hour at `/reviews/quarterly` (2026-08-12): the quarter's evidence assembled
+   first (finishes, weekly-review rate, obstacle tally, seasons spanned, score deltas
+   against the LAST quarterly snapshot, closeable debt, keystone days), then three prose
+   questions + a 13-area rescore (dual-writing `pillars.score` and the review's
+   `pillar_scores` snapshot, the daily close's pattern), every answer writing on tap,
+   resumable across evenings. Closing the quarter is an explicit act that stamps
+   `completed_at` and records itself as a finish — a closed quarter IS something that
+   visibly finished. All three rituals now exist; monthly/annual stay deliberately absent.
 6. **No ESLint config.** v1.2 ships none, and `next lint` is deprecated and prompts
    interactively. `npx tsc --noEmit` is the current gate and is clean. Add a flat
    `eslint.config.mjs` when convenient.
@@ -1044,7 +1056,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 841 tests — must be green before build
+npm test                       # 851 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 
