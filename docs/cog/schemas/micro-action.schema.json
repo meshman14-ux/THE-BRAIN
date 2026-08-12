@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-brain.app/schemas/cog/micro-action.json",
+  "title": "MicroAction",
+  "description": "A <=5 minute action offered when energy is low or a gap is short. Drawn from real open work, never invented busywork.",
+  "type": "object",
+  "required": ["id", "label", "estimateMin", "origin", "rationale"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "label": { "type": "string", "maxLength": 120 },
+    "estimateMin": { "type": "integer", "minimum": 1, "maximum": 5 },
+    "origin": { "enum": ["task-fragment", "keystone-support", "inbox-triage", "people-cadence", "admin"] },
+    "refTaskId": { "type": ["string", "null"], "format": "uuid" },
+    "rationale": { "type": "string", "maxLength": 240 },
+    "ruleTrace": { "type": "array", "items": { "type": "object", "properties": { "ruleId": { "type": "string" }, "fired": { "type": "boolean" }, "detail": { "type": "string" } } } },
+    "verdict": { "enum": ["accepted", "done", "rejected", null] }
+  }
+}

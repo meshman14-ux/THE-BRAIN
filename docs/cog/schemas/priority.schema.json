@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-brain.app/schemas/cog/priority.json",
+  "title": "Priority",
+  "description": "One of the Top 3 (Top 1 in minimum season). Always explainable.",
+  "type": "object",
+  "required": ["taskId", "rank", "score", "rationale", "ruleTrace"],
+  "properties": {
+    "taskId": { "type": "string", "format": "uuid" },
+    "title": { "type": "string" },
+    "rank": { "type": "integer", "minimum": 1, "maximum": 3 },
+    "score": { "type": "number", "description": "Composite priority score 0-100" },
+    "components": {
+      "type": "object",
+      "description": "Score breakdown, one key per weighted component",
+      "additionalProperties": { "type": "number" },
+      "propertyNames": { "enum": ["urgency", "importance", "energyFit", "seasonFit", "staleness", "keystoneSupport", "empireSignal"] }
+    },
+    "rationale": { "type": "string", "maxLength": 240, "description": "1-2 lines, human-readable" },
+    "ruleTrace": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["ruleId", "fired"],
+        "properties": {
+          "ruleId": { "type": "string" },
+          "fired": { "type": "boolean" },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "suggestedSlot": { "type": ["string", "null"], "description": "FocusSlot id if this priority is matched to the main slot" }
+  }
+}

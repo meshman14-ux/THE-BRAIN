@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-brain.app/schemas/cog/momentum-state.json",
+  "title": "MomentumState",
+  "description": "Normalized snapshot of all inputs for one day. The Advisor Engine's only input. Missing sources are named, never guessed.",
+  "type": "object",
+  "required": ["date", "season", "tasks", "signals", "missingInputs"],
+  "properties": {
+    "date": { "type": "string", "format": "date" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "season": { "enum": ["quiet", "busy", "minimum"] },
+    "signals": {
+      "type": "object",
+      "description": "All bands are 1-5 ints derived on-device or from BRAIN tables; raw values never appear here.",
+      "properties": {
+        "energyBand": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 },
+        "sleepBand": { "type": ["integer", "null"], "minimum": 1, "maximum": 5 },
+        "energySource": { "enum": ["checkin", "decayed", "none"] },
+        "sleepSource": { "enum": ["health", "checkin", "none"] },
+        "yesterdayCompletionRatio": { "type": ["number", "null"], "minimum": 0, "maximum": 1 },
+        "keystoneHitYesterday": { "type": ["boolean", "null"] },
+        "checkinStreakDays": { "type": "integer", "minimum": 0 },
+        "finishesRate": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "lib/finishes.ts twelve-month rate, current month excluded" },
+        "calendarLoadRatio": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "busy time / waking window today" },
+        "workloadPressure": { "type": ["number", "null"], "minimum": 0, "maximum": 1, "description": "open tasks due within 7d, normalized vs config cap" }
+      }
+    },
+    "tasks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "status"],
+        "properties": {
+          "id": { "type": "string", "format": "uuid" },
+          "title": { "type": "string" },
+          "status": { "enum": ["open", "waiting"] },
+          "doDate": { "type": ["string", "null"], "format": "date" },
+          "dueDate": { "type": ["string", "null"], "format": "date" },
+          "priority": { "type": "integer" },
+          "energy": { "enum": ["low", "medium", "deep", null] },
+          "pillarId": { "type": ["string", "null"] },
+          "projectId": { "type": ["string", "null"] },
+          "estimateMin": { "type": ["integer", "null"] },
+          "staleDays": { "type": "integer", "minimum": 0 },
+          "supportsKeystone": { "type": "boolean" }
+        }
+      }
+    },
+    "calendar": {
+      "type": "object",
+      "description": "Busy/free intervals only — event titles are never persisted server-side.",
+      "properties": {
+        "source": { "enum": ["google", "planner", "none"] },
+        "busy": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["start", "end"],
+            "properties": {
+              "start": { "type": "string", "format": "date-time" },
+              "end": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      }
+    },
+    "empire": {
+      "type": "object",
+      "properties": {
+        "dormantVentures": { "type": "integer" },
+        "opportunitiesDueToday": { "type": "integer" },
+        "watchtowerSilencedCount": { "type": "integer", "description": "items silenced by season; deadlines & people never silenced" }
+      }
+    },
+    "identityProfileId": { "type": ["string", "null"] },
+    "missingInputs": {
+      "type": "array",
+      "items": { "enum": ["sleep", "checkin", "calendar", "health", "empire"] },
+      "description": "Sources absent today. Drives weight redistribution and report labelling."
+    },
+    "momentumIndicator": {
+      "type": ["number", "null"], "minimum": 0, "maximum": 100,
+      "description": "Computed by the engine (see docs/03-advisor-logic.md), echoed back into the persisted state."
+    }
+  }
+}

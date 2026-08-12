@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-brain.app/schemas/cog/focus-slot.json",
+  "title": "FocusSlot",
+  "description": "The main focus block for the day: largest qualifying free interval matched to the best-fitting priority.",
+  "type": "object",
+  "required": ["id", "start", "end", "quality", "rationale"],
+  "properties": {
+    "id": { "type": "string" },
+    "start": { "type": "string", "format": "date-time" },
+    "end": { "type": "string", "format": "date-time" },
+    "durationMin": { "type": "integer", "minimum": 25 },
+    "quality": { "enum": ["prime", "good", "fallback"], "description": "prime = >=50min inside deep-work window; fallback = 25-min pomodoro offered when nothing qualifies" },
+    "matchedPriorityRank": { "type": ["integer", "null"] },
+    "source": { "enum": ["google", "planner", "config-default"] },
+    "rationale": { "type": "string", "maxLength": 240 },
+    "ruleTrace": { "type": "array", "items": { "type": "object", "properties": { "ruleId": { "type": "string" }, "fired": { "type": "boolean" }, "detail": { "type": "string" } } } }
+  }
+}

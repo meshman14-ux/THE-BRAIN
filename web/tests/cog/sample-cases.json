@@ -1,0 +1,55 @@
+{
+  "description": "10 sample input cases with expected outputs. Consumed by tests/advisor.test.ts and sim/run-days.ts. Each `patch` deep-merges into the base state (tests/base-state.ts); `taskEdits`/`tasks` override the task list.",
+  "cases": [
+    {
+      "name": "01 normal quiet morning, full inputs, keystone undone",
+      "patch": {},
+      "expected": { "pulseKind": "do-task", "pulseRule": "N5", "momentumBand": "rolling", "prioritiesInclude": "t1-train", "topRuleFired": "P2", "focusQuality": "prime" }
+    },
+    {
+      "name": "02 low energy day (band 2) — protect tomorrow",
+      "patch": { "signals": { "energyBand": 2 } },
+      "expected": { "pulseKind": "micro-action", "pulseRule": "N4", "microActionsMin": 1 }
+    },
+    {
+      "name": "03 no check-in yet — engine asks before advising",
+      "patch": { "signals": { "energyBand": null, "energySource": "none" }, "missingInputs": ["checkin", "health", "sleep"] },
+      "expected": { "pulseKind": "checkin", "pulseRule": "N1", "degraded": true }
+    },
+    {
+      "name": "04 minimum season — one thing, the floor",
+      "patch": { "season": "minimum" },
+      "expected": { "prioritiesCount": 1, "topRuleFired": "P1", "pulseKind": "do-task" }
+    },
+    {
+      "name": "05 overdue invoice — P4 claims a slot",
+      "taskEdits": [{ "id": "t2-invoice", "set": { "dueDate": "2026-08-11" } }],
+      "expected": { "prioritiesInclude": "t2-invoice", "ruleFiredOnTask": { "taskId": "t2-invoice", "ruleId": "P4" } }
+    },
+    {
+      "name": "06 wall-to-wall meetings — pomodoro fallback slot",
+      "patch": { "calendar": { "source": "google", "busy": [{ "start": "2026-08-13T08:00:00", "end": "2026-08-13T12:10:00" }, { "start": "2026-08-13T13:00:00", "end": "2026-08-13T20:45:00" }] } },
+      "expected": { "focusQuality": "fallback", "focusRule": "F3" }
+    },
+    {
+      "name": "07 no calendar signal — config-default window (FB-3/F4)",
+      "patch": { "calendar": { "source": "none", "busy": [] }, "missingInputs": ["calendar"] },
+      "expected": { "focusQuality": "fallback", "focusSource": "config-default", "degraded": true }
+    },
+    {
+      "name": "08 three pulses rejected — engine goes quiet (FB-5)",
+      "patch": { "signals": { "pulsesRejectedToday": 3 } },
+      "expected": { "pulseKind": "none", "pulseRule": "N2" }
+    },
+    {
+      "name": "09 empty day — rest is a legitimate output",
+      "tasks": [],
+      "expected": { "prioritiesCount": 0, "pulseKind": "rest", "pulseRule": "N8" }
+    },
+    {
+      "name": "10 inbox overload, keystone already done — triage pulse",
+      "patch": { "signals": { "inboxCount": 20, "keystoneDoneToday": true } },
+      "expected": { "pulseKind": "triage", "pulseRule": "N6" }
+    }
+  ]
+}

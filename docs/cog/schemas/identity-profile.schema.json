@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-brain.app/schemas/cog/identity-profile.json",
+  "title": "IdentityProfile",
+  "description": "Who Jay is deciding to be, per pillar. Sources: pillars.standard, vision, plus explicit identity statements. Read-mostly.",
+  "type": "object",
+  "required": ["id", "statements"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "keystoneHabitId": { "type": ["string", "null"], "description": "Currently: Training" },
+    "deepWorkWindow": {
+      "type": "object",
+      "properties": {
+        "start": { "type": "string", "pattern": "^\\d{2}:\\d{2}$" },
+        "end": { "type": "string", "pattern": "^\\d{2}:\\d{2}$" }
+      }
+    },
+    "statements": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["pillarId", "statement"],
+        "properties": {
+          "pillarId": { "type": "string", "format": "uuid" },
+          "statement": { "type": "string", "maxLength": 200, "description": "e.g. 'I am someone who trains before the day can interfere.'" },
+          "weight": { "type": "number", "minimum": 0, "maximum": 1, "default": 1 }
+        }
+      }
+    },
+    "alignmentWindowDays": { "type": "integer", "default": 7, "description": "Lookback for the identity alignment check" }
+  }
+}

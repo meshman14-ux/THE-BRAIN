@@ -9,6 +9,10 @@ import {
   monthsCounted,
 } from "@/lib/finishes";
 import { readinessFor } from "@/lib/hybrid";
+import { type Advice, advise } from "@/lib/cog";
+import { loadCogBundle } from "@/lib/cogserver";
+import { COG_ENABLED } from "@/lib/flags";
+import Momentum from "@/components/Momentum";
 import {
   allReadings as bodySignals,
   type CookedMealRow,
@@ -451,6 +455,22 @@ export default async function TheBrain({
    * about attention. A lapsed MOT gets nothing: the world is not
    * interested in how his week went.
    */
+  /* -- THE COG ------------------------------------------------------ *
+   *
+   * Fetched here rather than from the client so the card arrives with the
+   * page instead of popping in a second later. Wrapped because a failure
+   * in the newest module must not take down the screen everything else
+   * lives on: no advice is a missing card, never a missing dashboard. */
+  let cogAdvice: Advice | null = null;
+  if (COG_ENABLED) {
+    try {
+      const bundle = await loadCogBundle(today);
+      cogAdvice = advise(bundle.state, bundle.profile, bundle.config);
+    } catch {
+      cogAdvice = null;
+    }
+  }
+
   const alerts = annotate(shownAlerts, {
     season,
     capacity: lifeContracts.rhythm.capacity,
@@ -732,6 +752,21 @@ export default async function TheBrain({
               )}
             </div>
           </div>
+
+          {/* -- THE COG ---------------------------------------------- *
+           *
+           * Below the one line, and that order is the design. The line
+           * above answers "what is wrong" and is allowed to say nothing
+           * is; this answers "what next". Two different questions, two
+           * different voices, and the one that reports a lapsed MOT keeps
+           * the top of the screen over the one that suggests a good use
+           * of the next hour.
+           *
+           * Behind a flag because this is the first module that writes to
+           * a BRAIN table on his behalf rather than surfacing and letting
+           * him decide. It fails silently: if the engine cannot read the
+           * day, the dashboard is exactly what it was before. */}
+          {cogAdvice && <Momentum advice={cogAdvice} />}
 
           {/* -- weekly review pointer ------------------------------- */}
           <Link

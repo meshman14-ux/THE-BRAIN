@@ -1,0 +1,76 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="720" viewBox="0 0 960 720" font-family="ui-monospace, 'SF Mono', Menlo, monospace">
+  <defs>
+    <marker id="arr" markerWidth="10" markerHeight="8" refX="9" refY="4" orient="auto">
+      <path d="M0,0 L10,4 L0,8 z" fill="#3b4252"/>
+    </marker>
+  </defs>
+  <style>
+    .box { rx: 8; stroke-width: 1.5; }
+    .title { font-size: 13px; font-weight: 700; fill: #1c2330; }
+    .body { font-size: 10.5px; fill: #3b4252; }
+    .edge { stroke: #3b4252; stroke-width: 1.4; fill: none; marker-end: url(#arr); }
+    .lbl { font-size: 9.5px; fill: #5b6472; }
+  </style>
+  <text x="480" y="26" text-anchor="middle" font-size="16" font-weight="700" fill="#1c2330">THE COG — Daily Momentum Engine (module of THE BRAIN)</text>
+
+  <!-- UI layer -->
+  <rect class="box" x="230" y="46" width="500" height="72" fill="#eef4ff" stroke="#4c6ef5"/>
+  <text class="title" x="480" y="66" text-anchor="middle">UI LAYER</text>
+  <text class="body" x="480" y="84" text-anchor="middle">Momentum card · Advisor feed · Morning check-in (PWA, local-first)</text>
+  <text class="body" x="480" y="100" text-anchor="middle">accept ✓ · modify ✎ · reject ✕ — rationale one tap deep</text>
+
+  <!-- Orchestrator -->
+  <rect class="box" x="230" y="168" width="500" height="80" fill="#fff7ec" stroke="#e8a33d"/>
+  <text class="title" x="480" y="188" text-anchor="middle">WORKFLOW ORCHESTRATOR</text>
+  <text class="body" x="480" y="206" text-anchor="middle">/cog/daily-state · /cog/advise · /cog/feedback · /cog/micro-action</text>
+  <text class="body" x="480" y="222" text-anchor="middle">Next.js route handlers · cron 06:30 state build · nightly prune</text>
+
+  <!-- Telemetry -->
+  <rect class="box" x="40" y="168" width="150" height="80" fill="#f4f0fa" stroke="#9775fa"/>
+  <text class="title" x="115" y="192" text-anchor="middle">TELEMETRY</text>
+  <text class="body" x="115" y="210" text-anchor="middle">counts &amp; latencies</text>
+  <text class="body" x="115" y="226" text-anchor="middle">never content</text>
+
+  <!-- Advisor engine -->
+  <rect class="box" x="130" y="300" width="330" height="104" fill="#eafaf0" stroke="#37b24d"/>
+  <text class="title" x="295" y="322" text-anchor="middle">ADVISOR ENGINE (pure)</text>
+  <text class="body" x="295" y="342" text-anchor="middle">normalize → score → rules → outputs</text>
+  <text class="body" x="295" y="358" text-anchor="middle">Momentum Indicator · Top 3 · focus slot · pulse</text>
+  <text class="body" x="295" y="374" text-anchor="middle">identity check · micro-actions</text>
+  <text class="body" x="295" y="392" text-anchor="middle" font-style="italic">rationale + ruleTrace on every output</text>
+
+  <!-- Integration layer -->
+  <rect class="box" x="510" y="300" width="330" height="104" fill="#fdf0f0" stroke="#e03131"/>
+  <text class="title" x="675" y="322" text-anchor="middle">INTEGRATION LAYER</text>
+  <text class="body" x="675" y="342" text-anchor="middle">two-way BRAIN sync · cog_events outbox</text>
+  <text class="body" x="675" y="358" text-anchor="middle">correlation ids · HMAC webhooks · reconciliation</text>
+  <text class="body" x="675" y="376" text-anchor="middle">writes tasks.do_date/priority/meta.cog</text>
+  <text class="body" x="675" y="392" text-anchor="middle" font-style="italic">on ACCEPTED verdict only — human always wins</text>
+
+  <!-- State store -->
+  <rect class="box" x="130" y="456" width="710" height="96" fill="#f1f3f5" stroke="#495057"/>
+  <text class="title" x="485" y="478" text-anchor="middle">STATE STORE — Supabase Postgres (RLS, single owner)</text>
+  <text class="body" x="485" y="498" text-anchor="middle">owns: cog_checkins · cog_states · cog_pulses · cog_feedback · cog_config · cog_identity · cog_events · cog_telemetry</text>
+  <text class="body" x="485" y="516" text-anchor="middle">reads: tasks · habits · journal(bands) · season · pillars · vision · ventures · opportunities · reviews · finishes</text>
+  <text class="body" x="485" y="536" text-anchor="middle" font-style="italic">the command centre reads; the subsystems write — COG writes narrowly, reads widely</text>
+
+  <!-- Input adapters -->
+  <rect class="box" x="130" y="600" width="710" height="72" fill="#fffbe6" stroke="#f0b429"/>
+  <text class="title" x="485" y="622" text-anchor="middle">INPUT ADAPTERS</text>
+  <text class="body" x="485" y="640" text-anchor="middle">BrainAdapter (SQL) · CalendarAdapter (busy/free only) · HealthAdapter (Samsung → on-device bands) · CheckinAdapter</text>
+  <text class="body" x="485" y="656" text-anchor="middle" font-style="italic">every adapter returns value-or-missing — nothing is ever guessed</text>
+
+  <!-- Device boundary -->
+  <line x1="40" y1="690" x2="920" y2="690" stroke="#e03131" stroke-width="2" stroke-dasharray="8 5"/>
+  <text x="480" y="708" text-anchor="middle" font-size="11" fill="#e03131" font-weight="700">DEVICE BOUNDARY — raw sleep / mood / energy never cross; derived bands (1–5) do</text>
+
+  <!-- Edges -->
+  <path class="edge" d="M420 118 L420 168"/><text class="lbl" x="410" y="147" text-anchor="end">feedback</text>
+  <path class="edge" d="M540 168 L540 118"/><text class="lbl" x="550" y="147">render</text>
+  <path class="edge" d="M230 208 L190 208"/><text class="lbl" x="210" y="200" text-anchor="middle"> </text>
+  <path class="edge" d="M340 248 L310 300"/><text class="lbl" x="300" y="278" text-anchor="end">MomentumState in</text>
+  <path class="edge" d="M620 248 L660 300"/><text class="lbl" x="668" y="278">accepted verdicts</text>
+  <path class="edge" d="M295 404 L295 456"/><text class="lbl" x="305" y="434">reads state</text>
+  <path class="edge" d="M675 404 L675 456"/><text class="lbl" x="685" y="434">narrow write-back</text>
+  <path class="edge" d="M485 600 L485 552"/><text class="lbl" x="495" y="580">bands &amp; intervals only</text>
+</svg>

@@ -333,7 +333,7 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 ## A4. Database (live project)
 
 Supabase project **`qttroyuajpyelfrbxzzt`** · https://qttroyuajpyelfrbxzzt.supabase.co
-Region eu-west-2 (London), free tier. **RLS owner-only on all 36 tables.** pgvector enabled.
+Region eu-west-2 (London), free tier. **RLS owner-only on all 44 tables.** pgvector enabled.
 
 ```
 command centre : vision · pillars · goals · projects · tasks · inbox · links · reviews
@@ -345,7 +345,15 @@ LIFE_OS        : habits · habit_logs · journal · people · people_contacts
                  training_sets · skill_attempts · athlete_profile
 EMPIRE_OS      : ventures · assets · investments · opportunities
 calendar       : calendar_sync · integrations
+THE COG        : cog_checkins · cog_states · cog_pulses · cog_feedback
+                 cog_config · cog_identity · cog_events · cog_telemetry
 ```
+
+> The eight `cog_*` tables (2026-08-12, migration `cog_core`) are **already applied**
+> and `cog_config` is seeded with one `default` row owned by Jay's user. That seed is
+> deliberately NOT inline in the migration file: `default auth.uid()` evaluates to NULL
+> under a migration connection, and an unowned config row is invisible to RLS forever
+> after. The whole file is `if not exists`, so re-applying it is safe.
 
 > The `seasons`, `finishes`, `diagnostic_runs` and `meals`/`meal_ingredients`
 > migrations (2026-08-11, cloud sessions) are **already applied to the live project —
@@ -429,10 +437,39 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **1066/1066 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **1167/1167 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
-vitest) and **`npm run build` produces exactly 43 routes** (36 pages + 7 API routes).
+vitest) and **`npm run build` produces exactly 47 routes** (36 pages + 11 API routes).
 `npx tsc --noEmit` is clean.
+
+**THE COG — the daily momentum engine — landed 2026-08-12** at `src/lib/cog/` (pure
+engine), `src/lib/cogstate.ts` (the mapping, tested) and `src/lib/cogserver.ts` (the
+queries). Four routes under `/api/cog/`, eight `cog_*` tables, and a Momentum card on the
+dashboard's Now tab **behind `NEXT_PUBLIC_COG`** — off unless explicitly set to `1`,
+because this is the first module that writes to a BRAIN table on Jay's behalf rather than
+surfacing and letting him decide.
+
+Ported from a cloud-session blueprint whose engine was sound and whose **schema
+assumptions were wrong in three places**, each corrected in `cogstate.ts` and pinned by a
+test: `tasks.priority` is text (`High|Med|Low`, not a number — fed through raw it made
+every score `NaN`), the estimate column is `duration_min` (not `estimate_min`), and
+`tasks.status` has five values (`doing` is open). The blueprint also shipped one real bug:
+rule F3 computed its slot end via `toISOString()`, mixing naive local time with UTC, so
+during BST the pomodoro fallback produced a block that **ended before it started**
+(13:00 → 12:25). Fixed with `addMinutes`, and `tests/cog/focus.test.ts` is the proof.
+
+**One design departure, decided with Jay:** the blueprint centres a 10-second MORNING
+check-in and rule N1 nags whenever it is absent — but the check-in here is NIGHTLY, so
+that would have fired every morning forever. The morning bands are **derived** from last
+night's `journal` mood/energy and `health_days` sleep, decayed by age, reported as
+`decayed` so N1 stays quiet. A `cog_checkins` row still overrides when one exists.
+
+Two contracts, both mechanically enforced: **nothing in `cog/` imports from outside
+`cog/`, reads a clock, or calls `Math.random`** (`tests/cog/boundary.test.ts`), and COG
+writes only `cog_*` plus `tasks.do_date/priority/meta.cog` on an *accepted* verdict,
+behind an optimistic-concurrency guard — a human edit always wins and is recorded as
+feedback. A 90-day seeded simulation (`tests/cog/sim.test.ts`) gates the aggregate
+behaviour the unit tests cannot see.
 
 **HYBRID — the Health OS engine — landed 2026-08-12** at `src/lib/hybrid/`, and it is
 **foundation only: no UI, no tables, no adapter.** Nothing in the app looks different
@@ -1160,7 +1197,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1066 tests — must be green before build
+npm test                       # 1167 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 

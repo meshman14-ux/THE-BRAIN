@@ -1,0 +1,161 @@
+openapi: 3.1.0
+info:
+  title: THE COG — Daily Momentum Engine API
+  version: 0.1.0
+  description: >
+    Four endpoints inside THE BRAIN's Next.js app (app/api/cog/*). Auth = the app's existing
+    Supabase session (magic link, signups off). Every recommendation carries `rationale`
+    (human, <=2 lines) and `ruleTrace` (machine). Deterministic: same state + config => same output.
+servers:
+  - url: https://the-brain.vercel.app/api
+security:
+  - supabaseSession: []
+paths:
+  /cog/daily-state:
+    get:
+      operationId: getDailyState
+      summary: Today's normalized MomentumState (build-on-read if the 06:30 cron hasn't run)
+      parameters:
+        - name: date
+          in: query
+          schema: { type: string, format: date }
+          description: Defaults to today (Europe/London)
+      responses:
+        "200":
+          description: The state, including momentumIndicator and missingInputs
+          content:
+            application/json:
+              schema: { $ref: "../schemas/momentum-state.schema.json" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: submitCheckin
+      summary: Morning check-in — bands only; raw values never leave the device
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [date, energyBand]
+              properties:
+                date: { type: string, format: date }
+                energyBand: { type: integer, minimum: 1, maximum: 5 }
+                sleepBand: { type: [integer, "null"], minimum: 1, maximum: 5 }
+                intent: { type: string, maxLength: 140, description: "Optional one-line intent for the day" }
+      responses:
+        "201": { description: Check-in stored; state invalidated for rebuild }
+        "409": { description: Check-in already exists for this date (use PUT semantics via re-POST with overwrite=true) }
+  /cog/advise:
+    get:
+      operationId: getAdvice
+      summary: The full daily advice bundle — report, Top 3, focus slot, pulse, alignment, micro-actions
+      parameters:
+        - name: date
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: Advice with rationale + ruleTrace on every element
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [state, report, priorities, pulse]
+                properties:
+                  state: { $ref: "../schemas/momentum-state.schema.json" }
+                  report:
+                    type: object
+                    properties:
+                      headline: { type: string }
+                      momentumIndicator: { type: number }
+                      degraded: { type: boolean }
+                      missingInputs: { type: array, items: { type: string } }
+                      narrative: { type: string, description: "3-5 sentences, template-generated, deterministic" }
+                  priorities:
+                    type: array
+                    maxItems: 3
+                    items: { $ref: "../schemas/priority.schema.json" }
+                  focusSlot:
+                    oneOf: [{ $ref: "../schemas/focus-slot.schema.json" }, { type: "null" }]
+                  pulse: { $ref: "../schemas/advisor-pulse.schema.json" }
+                  identityAlignment:
+                    type: object
+                    properties:
+                      aligned: { type: array, items: { type: string } }
+                      drifts:
+                        type: array
+                        maxItems: 2
+                        items:
+                          type: object
+                          properties:
+                            pillarId: { type: string }
+                            observation: { type: string, description: "Observation, not verdict" }
+                  microActions:
+                    type: array
+                    items: { $ref: "../schemas/micro-action.schema.json" }
+  /cog/feedback:
+    post:
+      operationId: postFeedback
+      summary: Verdict on a pulse / priority / micro-action. Acceptance triggers BRAIN write-back.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [targetKind, targetId, verdict]
+              properties:
+                targetKind: { enum: [pulse, priority, focus-slot, micro-action] }
+                targetId: { type: string }
+                verdict: { enum: [accepted, modified, rejected] }
+                modification:
+                  type: object
+                  description: Present when verdict=modified
+                  properties:
+                    newTaskId: { type: [string, "null"] }
+                    newStart: { type: [string, "null"], format: date-time }
+                    note: { type: string, maxLength: 240 }
+                correlationId: { type: string }
+      responses:
+        "200":
+          description: Recorded; includes any BRAIN write-back performed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  recorded: { type: boolean }
+                  brainWriteBack:
+                    type: object
+                    description: Null unless verdict=accepted required a task update
+                    properties:
+                      table: { type: string }
+                      id: { type: string }
+                      fields: { type: array, items: { type: string } }
+                      eventId: { type: string }
+  /cog/micro-action:
+    post:
+      operationId: requestMicroAction
+      summary: On-demand micro-action for a short gap ("I have 10 minutes — what's worth it?")
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                availableMin: { type: integer, minimum: 1, maximum: 30, default: 5 }
+      responses:
+        "200":
+          content:
+            application/json:
+              schema: { $ref: "../schemas/micro-action.schema.json" }
+        "204": { description: Nothing worth doing in the gap — rest is the recommendation }
+components:
+  securitySchemes:
+    supabaseSession:
+      type: http
+      scheme: bearer
+      description: Supabase JWT from the existing magic-link session
+  responses:
+    Unauthorized:
+      description: No valid session

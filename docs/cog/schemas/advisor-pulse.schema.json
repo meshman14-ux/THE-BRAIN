@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://the-brain.app/schemas/cog/advisor-pulse.json",
+  "title": "AdvisorPulse",
+  "description": "The single 'Do this next' card. Exactly one live pulse at a time; every pulse expects a verdict.",
+  "type": "object",
+  "required": ["id", "kind", "message", "rationale", "ruleTrace", "issuedAt"],
+  "properties": {
+    "id": { "type": "string", "format": "uuid" },
+    "kind": { "enum": ["do-task", "start-focus", "micro-action", "checkin", "triage", "rest", "identity-nudge"] },
+    "refId": { "type": ["string", "null"], "description": "task / slot / micro-action id this pulse points at" },
+    "message": { "type": "string", "maxLength": 160, "description": "Imperative, one sentence. Microcopy templates in docs/04-ui-ux.md" },
+    "rationale": { "type": "string", "maxLength": 240 },
+    "ruleTrace": { "type": "array", "items": { "type": "object", "properties": { "ruleId": { "type": "string" }, "fired": { "type": "boolean" }, "detail": { "type": "string" } } } },
+    "issuedAt": { "type": "string", "format": "date-time" },
+    "expiresAt": { "type": ["string", "null"], "format": "date-time" },
+    "verdict": { "enum": ["accepted", "modified", "rejected", "expired", null] },
+    "correlationId": { "type": "string", "description": "Threads pulse → feedback → BRAIN write-back → events" }
+  }
+}
