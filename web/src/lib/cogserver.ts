@@ -14,10 +14,13 @@
  * ------------------------------------------------------------------ */
 
 import { createClient } from "./supabase/server";
+import { accessTokenFor, loadIntegration, primaryIdOf } from "./calendar-server";
+import { freeBusy } from "./google";
 import { toIso } from "./logic";
 import { seasonKind, type Season } from "./season";
 import { collectFinishes, monthsCounted } from "./finishes";
 import {
+  busyFromGoogle,
   type CogHealthRow,
   type CogIdentityRow,
   type CogJournalRow,
@@ -32,7 +35,54 @@ import {
   tasksFrom,
   yesterdayOf,
 } from "./cogstate";
-import { type IdentityProfile, type MomentumState, resolveConfig, type CogConfig } from "./cog";
+import {
+  type CogConfig,
+  type IdentityProfile,
+  type Interval,
+  type MomentumState,
+  resolveConfig,
+} from "./cog";
+
+/**
+ * Today's busy intervals from Google, or null when there is no usable
+ * signal at all.
+ *
+ * Null rather than an empty list on every failure path — no integration,
+ * an unreadable token, an API error. The caller needs to fall through to
+ * the planner in those cases, and an empty array would say "free all day"
+ * instead.
+ */
+async function googleBusy(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  todayIso: string
+): Promise<{ source: "google" | "planner" | "none"; busy: Interval[] } | null> {
+  try {
+    const integration = await loadIntegration(supabase);
+    if (!integration) return null;
+    const token = await accessTokenFor(supabase, integration);
+
+    // Every calendar he has connected, not just the BRAIN one: a focus
+    // block planned over a dentist appointment is not a focus block, and
+    // the dentist lives on his personal calendar.
+    const ids = [integration.calendar_id, primaryIdOf(integration)].filter(
+      (id): id is string => typeof id === "string" && id.length > 0
+    );
+    const unique = [...new Set(ids)];
+    if (unique.length === 0) return null;
+
+    // A generous window either side, because a UTC day and a London day
+    // are not the same day and an evening block would otherwise be missed.
+    const intervals = await freeBusy(
+      token,
+      unique,
+      `${yesterdayOf(todayIso)}T00:00:00Z`,
+      `${todayIso}T23:59:59Z`
+    );
+    return busyFromGoogle(intervals, todayIso);
+  } catch {
+    return null;
+  }
+}
 
 /** Everything one advise() call needs, fetched once. */
 export type CogBundle = {
@@ -181,13 +231,31 @@ export async function loadCogBundle(
     todayIso,
   });
 
-  // FB-3: Google free/busy is not wired yet, so the day-planner's pinned
-  // hours stand in — a weaker signal (where he MEANT to work, not where he
-  // is committed), and the slot it produces says `planner` so the UI can.
-  const calendar = busyFromPlanner(
-    (plannerRow as { meta?: { hours?: unknown } } | null)?.meta?.hours,
-    todayIso
-  );
+  /* -- the calendar -------------------------------------------------- *
+   *
+   * Google's free/busy first, then the day-planner's pinned hours (FB-3),
+   * then nothing. The order is about what each source actually KNOWS: a
+   * calendar block means he is committed, a pinned hour means he intended
+   * to be, and the focus slot reports which of those it was built on
+   * rather than presenting them as equal.
+   *
+   * `freeBusy` returns intervals only — there is no field in the response
+   * that could carry a title, an attendee or a location. THE COG needs to
+   * know WHEN he is busy and has no business knowing with whom, and a
+   * query that cannot return the answer is a stronger guarantee than a
+   * promise not to store it.
+   *
+   * A calendar that is connected but errors falls through to the planner
+   * rather than reporting an empty day: "could not read it" and "nothing
+   * booked" are different facts, and confusing them would hand him a
+   * four-hour focus block in the middle of a day of meetings. */
+  let calendar = await googleBusy(supabase, todayIso);
+  if (calendar == null) {
+    calendar = busyFromPlanner(
+      (plannerRow as { meta?: { hours?: unknown } } | null)?.meta?.hours,
+      todayIso
+    );
+  }
 
   const tallies = monthsCounted(
     collectFinishes(

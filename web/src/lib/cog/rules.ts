@@ -5,7 +5,7 @@
  */
 import type { CogConfig } from "./config";
 import { explain } from "./explain";
-import { priorityScore, tiebreak } from "./score";
+import { confidenceOf, decisionMargin, inputCompleteness, priorityScore, tiebreak } from "./score";
 import type {
   AdvisorPulse, CogTask, FocusSlot, IdentityAlignment, IdentityProfile,
   Interval, MicroAction, MomentumState, Priority, PulseKind, RuleTraceEntry,
@@ -20,6 +20,19 @@ export function selectPriorities(state: MomentumState, cfg: CogConfig): Priority
   const scored = open.map((task) => ({ task, ...priorityScore(task, state, cfg) }));
   scored.sort(tiebreak);
 
+  // Confidence inputs, computed once for the whole selection. The MARGIN
+  // is the interesting half: two tasks a point apart is a coin toss, and
+  // announcing a coin toss in the same tone as a clear winner is exactly
+  // what this number exists to stop.
+  const completeness = inputCompleteness(state, cfg);
+  const energyMissing = state.signals.energyBand === null;
+  const margin = decisionMargin(scored[0]?.score, scored[1]?.score);
+  const conf = (fallbacks = 0) =>
+    confidenceOf(
+      { inputCompleteness: completeness, decisionMargin: margin, fallbacksApplied: fallbacks, energyMissing },
+      cfg
+    );
+
   const trace = (task: CogTask, base: RuleTraceEntry[]): RuleTraceEntry[] => [
     ...base,
     { ruleId: "P6", fired: !!task.userSteered, detail: task.userSteered ? "user-steered: never demoted" : undefined },
@@ -33,6 +46,7 @@ export function selectPriorities(state: MomentumState, cfg: CogConfig): Priority
     return [{
       taskId: pick.task.id, title: pick.task.title, rank: 1,
       score: pick.score, components: pick.components,
+      confidence: conf(),
       rationale: explain("P1"),
       ruleTrace: trace(pick.task, [{ ruleId: "P1", fired: true, detail: "minimum season cap = 1" }]),
     }];
@@ -77,6 +91,10 @@ export function selectPriorities(state: MomentumState, cfg: CogConfig): Priority
     return {
       taskId: s.task.id, title: s.task.title, rank: (i + 1) as 1 | 2 | 3,
       score: s.score, components: s.components,
+      // P5 means nothing was scheduled, so the engine is picking FOR him
+      // rather than confirming a choice he already made. That is a
+      // fallback, and it costs confidence.
+      confidence: conf(nothingScheduled ? 1 : 0),
       rationale: explain(leadRule, { score: s.score }),
       ruleTrace: trace(s.task, [
         { ruleId: "P2", fired: isKeystonePick },
@@ -142,6 +160,15 @@ export function allocateFocus(
   const windowStart = hm(state.date, profile.deepWorkWindow.start);
   const windowEnd = hm(state.date, profile.deepWorkWindow.end);
 
+  // Each rung down the fallback chain costs confidence, because each one
+  // is the engine knowing less about the day than it wanted to. A block
+  // read off his real calendar and a block guessed from a default window
+  // are not the same claim and must not sound like it.
+  const completeness = inputCompleteness(state, cfg);
+  const energyMissing = state.signals.energyBand === null;
+  const slotConf = (fallbacks: number) =>
+    confidenceOf({ inputCompleteness: completeness, fallbacksApplied: fallbacks, energyMissing }, cfg);
+
   // F4 — source fallback chain
   let source: FocusSlot["source"] = "google";
   const busy = state.calendar.busy;
@@ -154,6 +181,7 @@ export function allocateFocus(
       id: `slot-${state.date}-fallback`, start, end,
       durationMin: Math.round((Date.parse(end) - Date.parse(start)) / MS_MIN),
       quality: "fallback", matchedPriorityRank: priorities[0]?.rank ?? null, source,
+      confidence: slotConf(2), // no calendar at all: the weakest claim here
       rationale: explain("F4"), ruleTrace: trace,
     };
   }
@@ -173,6 +201,10 @@ export function allocateFocus(
     return {
       id: `slot-${state.date}-prime`, start: pick.start, end: pick.end, durationMin: minutes(pick),
       quality: "prime", matchedPriorityRank: matched?.rank ?? null, source,
+      // A prime block off a real calendar is the strongest thing this
+      // engine says all day. Off planner pins it is an intention, so the
+      // source itself is the fallback.
+      confidence: slotConf(source === "planner" ? 1 : 0),
       rationale: explain("F2", {
         start: pick.start.slice(11, 16), end: pick.end.slice(11, 16),
         task: matched?.title ?? "your top priority",
@@ -193,6 +225,7 @@ export function allocateFocus(
       end: addMinutes(pick.start, cfg.focusFallbackMin),
       durationMin: cfg.focusFallbackMin, quality: "fallback",
       matchedPriorityRank: priorities[0]?.rank ?? null, source,
+      confidence: slotConf(source === "planner" ? 2 : 1),
       rationale: explain("F3", { min: cfg.focusMinPrimeMin, len: cfg.focusFallbackMin }),
       ruleTrace: trace,
     };
@@ -211,11 +244,27 @@ export function choosePulse(
   microActions: MicroAction[],
   cfg: CogConfig
 ): AdvisorPulse {
-  const mk = (kind: PulseKind, ruleId: string, message: string, refId: string | null, vars = {}): AdvisorPulse => ({
+  // The pulse inherits the confidence of what it is pointing AT. A "do
+  // this next" is only as trustworthy as the priority underneath it, and
+  // saying so is cheaper than pretending the sentence is more certain
+  // than the ranking that produced it.
+  const completeness = inputCompleteness(state, cfg);
+  const energyMissing = state.signals.energyBand === null;
+  const mk = (
+    kind: PulseKind,
+    ruleId: string,
+    message: string,
+    refId: string | null,
+    vars = {},
+    confidence?: number
+  ): AdvisorPulse => ({
     id: `pulse-${state.date}-${ruleId}`, kind, refId,
     message, rationale: explain(ruleId, vars),
     ruleTrace: [{ ruleId, fired: true }],
     issuedAt: state.now, correlationId: `cor-${state.date}-${ruleId}`,
+    confidence:
+      confidence ??
+      confidenceOf({ inputCompleteness: completeness, energyMissing }, cfg),
   });
 
   // N1 — no check-in yet
@@ -227,7 +276,7 @@ export function choosePulse(
   // N3 — inside an unstarted focus slot
   if (focusSlot && state.now >= focusSlot.start && state.now < focusSlot.end)
     return mk("start-focus", "N3", `Start the focus block: ${priorities[0]?.title ?? "top priority"}.`,
-      focusSlot.id, { mins: focusSlot.durationMin });
+      focusSlot.id, { mins: focusSlot.durationMin }, focusSlot.confidence);
   // N4 — low energy: micro-action or rest
   if (state.signals.energyBand !== null && state.signals.energyBand <= 2) {
     const m = microActions[0];
@@ -238,7 +287,7 @@ export function choosePulse(
   // N5 — keystone undone
   if (!state.signals.keystoneDoneToday) {
     const k = priorities.find((p) => p.ruleTrace.some((r) => r.ruleId === "P2" && r.fired));
-    if (k) return mk("do-task", "N5", `Keystone first: ${k.title}`, k.taskId);
+    if (k) return mk("do-task", "N5", `Keystone first: ${k.title}`, k.taskId, {}, k.confidence);
   }
   // N6 — inbox pressure
   if (state.signals.inboxCount > cfg.triageThreshold)
@@ -247,7 +296,10 @@ export function choosePulse(
   if (priorities.length === 0)
     return mk("rest", "N8", "Nothing left that beats resting. Day's banked.", null);
   // N7 — default: top priority
-  return mk("do-task", "N7", `Next: ${priorities[0].title}`, priorities[0].taskId, { task: priorities[0].title });
+  return mk(
+    "do-task", "N7", `Next: ${priorities[0].title}`, priorities[0].taskId,
+    { task: priorities[0].title }, priorities[0].confidence
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -286,10 +338,18 @@ export function identityCheck(profile: IdentityProfile): IdentityAlignment {
 /* ------------------------------------------------------------------ */
 
 export function microActions(state: MomentumState, cfg: CogConfig, availableMin = 5): MicroAction[] {
+  const microConf = confidenceOf(
+    {
+      inputCompleteness: inputCompleteness(state, cfg),
+      energyMissing: state.signals.energyBand === null,
+    },
+    cfg
+  );
   // M1 gate is applied by the caller (advisor / endpoint); this builds candidates in M2 order.
   const out: MicroAction[] = [];
   const mk = (label: string, origin: MicroAction["origin"], est: number, refTaskId: string | null): MicroAction => ({
     id: `micro-${state.date}-${out.length + 1}`, label, estimateMin: est, origin, refTaskId,
+    confidence: microConf,
     rationale: explain("M2", { mins: availableMin, origin }),
     ruleTrace: [{ ruleId: "M2", fired: true, detail: origin }],
   });

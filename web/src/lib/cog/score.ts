@@ -48,6 +48,79 @@ export function momentumBand(score: number): "low" | "steady" | "rolling" {
   return score < 40 ? "low" : score < 70 ? "steady" : "rolling";
 }
 
+/* ------------------------------------------------------------------ *
+ * Confidence — how much to trust what was just said
+ *
+ * Ported from the standalone service build, and the single best idea in
+ * it. The score already renormalises over present inputs, so a missing
+ * sensor does not crater it — but that leaves a real problem: a score
+ * built on two signals out of seven LOOKS exactly like one built on all
+ * seven. Confidence is the number that tells them apart.
+ *
+ * It is built from two things, and both matter:
+ *
+ *   COMPLETENESS — the share of possible evidence that actually showed
+ *   up. Thin evidence, quieter claim.
+ *   MARGIN — how clearly the top pick beat the runner-up. Two tasks
+ *   within a point of each other is a coin toss, and a coin toss
+ *   announced in the same tone as a clear winner is the failure this
+ *   whole design exists to prevent.
+ *
+ * And it is CAPPED BELOW 1. The engine is deterministic; the person it
+ * models is not, and a system that ever claims certainty about a human
+ * has said something false.
+ * ------------------------------------------------------------------ */
+
+/** Share of the possible momentum weight that was actually available. */
+export function inputCompleteness(state: MomentumState, cfg: CogConfig): number {
+  const { components } = momentumIndicator(state, cfg);
+  const w = cfg.momentumWeights;
+  const possible = Object.values(w).reduce((a, b) => a + b, 0);
+  if (possible === 0) return 0;
+  const available = Object.keys(components).reduce(
+    (sum, k) => sum + (w[k as keyof typeof w] ?? 0),
+    0
+  );
+  return clamp01(available / possible);
+}
+
+/**
+ * (top − runnerUp) / top.
+ *
+ * One candidate is a clear field, not a close call, so it returns 1.
+ * Nothing to compare returns 0.5 — neither confident nor an accusation
+ * of ambiguity that was never tested.
+ */
+export function decisionMargin(top: number | undefined, runnerUp: number | undefined): number {
+  if (top === undefined || top <= 0) return 0.5;
+  if (runnerUp === undefined) return 1;
+  return Math.round(clamp01((top - runnerUp) / top) * 1000) / 1000;
+}
+
+export type ConfidenceInput = {
+  inputCompleteness: number;
+  decisionMargin?: number;
+  /** How many fallback rules the engine had to reach for. */
+  fallbacksApplied?: number;
+  energyMissing?: boolean;
+};
+
+export function confidenceOf(input: ConfidenceInput, cfg: CogConfig): number {
+  const c = cfg.confidence;
+  let value =
+    c.base +
+    c.completeness * clamp01(input.inputCompleteness) +
+    c.margin * clamp01(input.decisionMargin ?? 1);
+  value -= c.penaltyFallback * (input.fallbacksApplied ?? 0);
+  if (input.energyMissing) value -= c.penaltyNoEnergy;
+  return Math.round(Math.max(c.floor, Math.min(c.ceiling, value)) * 100) / 100;
+}
+
+/** How a confidence number should be said out loud. */
+export function confidenceWord(n: number): "low" | "fair" | "high" {
+  return n < 0.5 ? "low" : n < 0.75 ? "fair" : "high";
+}
+
 /** Days between two ISO dates (b - a). */
 function daysBetween(a: string, b: string): number {
   return Math.round((Date.parse(b) - Date.parse(a)) / 86_400_000);

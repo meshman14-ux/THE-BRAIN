@@ -26,6 +26,29 @@ export interface CogConfig {
     staleness: number;
     keystoneSupport: number;
   };
+  /**
+   * How confident to sound.
+   *
+   * The best idea in the service build, ported: every recommendation
+   * reports how much to trust it, from (a) how complete the inputs were
+   * and (b) how clearly the winner beat the runner-up. A confident-
+   * sounding guess is the exact failure this whole design exists to
+   * prevent, and a number that never reaches 1.0 says so out loud.
+   */
+  confidence: {
+    base: number;
+    /** Weight on the share of possible evidence that showed up. */
+    completeness: number;
+    /** Weight on how far the top pick beat the second. */
+    margin: number;
+    /** Deducted per fallback rule the engine had to reach for. */
+    penaltyFallback: number;
+    /** Deducted when there is no energy reading at all. */
+    penaltyNoEnergy: number;
+    floor: number;
+    /** Never 1.0. The engine is deterministic; the person it models is not. */
+    ceiling: number;
+  };
   empireBonus: number; // flat bonus when a task unblocks an opportunity due today
   triageThreshold: number; // inbox count that triggers pulse N6
   pulseFatigueLimit: number; // consecutive rejections that silence pulses (FB-5 / N2)
@@ -54,6 +77,15 @@ export const defaultConfig: CogConfig = {
     seasonFit: 0.1,
     staleness: 0.1,
     keystoneSupport: 0.05,
+  },
+  confidence: {
+    base: 0.4,
+    completeness: 0.35,
+    margin: 0.25,
+    penaltyFallback: 0.15,
+    penaltyNoEnergy: 0.1,
+    floor: 0.2,
+    ceiling: 0.95,
   },
   empireBonus: 5,
   triageThreshold: 15,

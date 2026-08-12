@@ -437,10 +437,39 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **1195/1195 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **1231/1231 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
 vitest) and **`npm run build` produces exactly 48 routes** (37 pages + 11 API routes).
 `npx tsc --noEmit` is clean.
+
+**THE COG harvest — 2026-08-12.** A second cloud drop arrived as a standalone Dockerised
+service with its own Postgres. It was NOT merged as a service — two engines to keep in
+sync, a second thing to host, and a **service-role key against Supabase**, which this repo
+has deliberately never had (see the companion app, §A5). Its BRAIN adapter also repeated
+all three schema bugs: `Math.max(1, ("High" ?? 0) + 1)` is `NaN`, `status=eq.open` misses
+`doing`/`waiting`, and `meta.estimateMinutes` does not exist.
+
+Three things were harvested into the module instead:
+
+1. **Confidence** (`score.ts`) — every recommendation reports how much to trust it, from
+   input completeness AND decision margin, clamped to [0.20, 0.95]. **Never 1.0:** the
+   engine is deterministic, the person it models is not. This closes a real gap — the
+   score renormalises over present inputs, so a 73 built on two signals looked exactly
+   like a 73 built on seven. Each fallback rung costs confidence, so a block off the real
+   calendar outranks one guessed from a default window.
+2. **Google free/busy** (`google.ts` → `freeBusy`) — using the OAuth, encrypted tokens and
+   refresh THE BRAIN already had, so nothing was ported from the service here. The
+   `freeBusy` endpoint rather than an event list is the privacy line: **the response has
+   no field that could carry a title, attendee or location.** Falls through to the
+   planner's pinned hours when the calendar is absent or errors — "could not read it" and
+   "nothing booked" must not look the same.
+3. **The zone is named** (`cogstate.ts` → `TIMEZONE`, `toNaiveLocal`). Vercel runs in UTC;
+   the engine speaks naive London. Left to the runtime this is the F3 bug again, so the
+   conversion is explicit and tested across the DST boundary.
+
+The A*/F5/I0 rulebook refinements were NOT taken: the service uses a different domain
+model (`energy: 0–100`, `sleepScore`) and porting them would have meant rewriting the
+seam that was just corrected against the real schema.
 
 **`/setup` — the list that makes the rest of it work — landed 2026-08-12** at
 `src/lib/setup.ts` (pure, 28 tests), `src/lib/setupserver.ts` (the queries, shared with
@@ -1224,7 +1253,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1195 tests — must be green before build
+npm test                       # 1231 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 

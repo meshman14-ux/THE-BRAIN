@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import type { Advice } from "@/lib/cog";
+import { type Advice, confidenceWord } from "@/lib/cog";
 
 /* ------------------------------------------------------------------ *
  * THE COG — the Momentum card
@@ -68,8 +68,27 @@ export default function Momentum({ advice }: { advice: Advice }) {
           {report.momentumIndicator}
         </span>
         <span className="text-[0.85rem] font-semibold">{BAND_WORD[report.band]}</span>
-        <span className="mono text-[0.6rem] uppercase tracking-[0.12em] text-[var(--faint)] ml-auto">
-          Momentum
+        {/* Confidence, said in words. The score already renormalises over
+            present inputs so a missing sensor does not crater it — but
+            that leaves a 73 built on two signals looking exactly like a 73
+            built on seven. This is the part that tells them apart, and it
+            never reads as certainty because the engine is modelling a
+            person. */}
+        <span
+          className="mono text-[0.6rem] uppercase tracking-[0.12em] ml-auto"
+          title={`${Math.round(report.confidence * 100)}% confidence, from ${Math.round(
+            report.inputCompleteness * 100
+          )}% of the usual evidence`}
+          style={{
+            color:
+              confidenceWord(report.confidence) === "high"
+                ? "var(--muted)"
+                : confidenceWord(report.confidence) === "fair"
+                  ? "var(--faint)"
+                  : "var(--warn)",
+          }}
+        >
+          {confidenceWord(report.confidence)} confidence
         </span>
       </div>
 
@@ -111,6 +130,8 @@ export default function Momentum({ advice }: { advice: Advice }) {
                   .filter((r) => r.fired)
                   .map((r) => r.ruleId)
                   .join(" · ")}
+                {" · "}
+                {Math.round(pulse.confidence * 100)}%
               </span>
             </p>
           )}
@@ -149,6 +170,13 @@ export default function Momentum({ advice }: { advice: Advice }) {
                 {p.title}
                 <span className="block text-[0.68rem] text-[var(--faint)] mt-0.5">
                   {p.rationale}
+                  {/* Only said when it is worth saying. A ranking this
+                      close is a coin toss, and announcing a coin toss in
+                      the same tone as a clear winner is the failure the
+                      confidence model exists to prevent. */}
+                  {confidenceWord(p.confidence) === "low" && (
+                    <span style={{ color: "var(--warn)" }}> — close call, your judgement.</span>
+                  )}
                 </span>
               </span>
             </li>

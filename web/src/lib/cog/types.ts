@@ -92,6 +92,8 @@ export interface Priority {
   components: Record<string, number>;
   rationale: string;
   ruleTrace: RuleTraceEntry[];
+  /** How much to trust this, 0.20-0.95. Never 1: it is modelling a person. */
+  confidence: number;
 }
 
 export interface FocusSlot {
@@ -104,6 +106,7 @@ export interface FocusSlot {
   source: "google" | "planner" | "config-default";
   rationale: string;
   ruleTrace: RuleTraceEntry[];
+  confidence: number;
 }
 
 export type PulseKind =
@@ -119,6 +122,7 @@ export interface AdvisorPulse {
   ruleTrace: RuleTraceEntry[];
   issuedAt: string;
   correlationId: string;
+  confidence: number;
 }
 
 export interface MicroAction {
@@ -129,6 +133,7 @@ export interface MicroAction {
   refTaskId: string | null;
   rationale: string;
   ruleTrace: RuleTraceEntry[];
+  confidence: number;
 }
 
 export interface IdentityAlignment {
@@ -145,6 +150,10 @@ export interface Advice {
     degraded: boolean;
     missingInputs: MissingInput[];
     narrative: string;
+    /** Trust in the momentum figure itself. */
+    confidence: number;
+    /** Share of the possible evidence that showed up, 0-1. */
+    inputCompleteness: number;
   };
   priorities: Priority[];
   focusSlot: FocusSlot | null;

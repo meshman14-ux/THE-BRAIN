@@ -366,6 +366,58 @@ export async function listChangedEvents(
   return { items, nextSyncToken };
 }
 
+/* ------------------------------------------------------------------ *
+ * Free/busy — when he is committed, and nothing else
+ * ------------------------------------------------------------------ */
+
+export type BusyInterval = { start: string; end: string };
+
+/**
+ * The hours already spoken for on a given day.
+ *
+ * Google's freeBusy endpoint rather than a list of events, and that choice
+ * is the privacy line: it returns INTERVALS ONLY. No titles, no attendees,
+ * no locations, no descriptions — there is no field in the response that
+ * could carry them. THE COG needs to know when he is committed and has no
+ * business knowing to whom, and a query that cannot return the answer is a
+ * stronger guarantee than a promise not to store it.
+ *
+ * It also asks about every calendar he has connected, not just the BRAIN
+ * one: a focus block planned over a dentist appointment is not a focus
+ * block, and the dentist lives on his personal calendar.
+ */
+export async function freeBusy(
+  accessToken: string,
+  calendarIds: string[],
+  timeMinIso: string,
+  timeMaxIso: string
+): Promise<BusyInterval[]> {
+  if (calendarIds.length === 0) return [];
+  const body = {
+    timeMin: timeMinIso,
+    timeMax: timeMaxIso,
+    items: calendarIds.map((id) => ({ id })),
+  };
+  const res: {
+    calendars?: Record<string, { busy?: BusyInterval[]; errors?: unknown[] }>;
+  } = await call(accessToken, "/freeBusy", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+
+  const out: BusyInterval[] = [];
+  for (const entry of Object.values(res.calendars ?? {})) {
+    // A calendar that errored contributes NOTHING rather than an empty
+    // busy list. "We could not read it" and "it is free" must not look the
+    // same, or a permissions problem quietly reads as a wide-open day.
+    if (entry.errors && entry.errors.length > 0) continue;
+    for (const b of entry.busy ?? []) {
+      if (b.start && b.end) out.push({ start: b.start, end: b.end });
+    }
+  }
+  return out.sort((a, b) => a.start.localeCompare(b.start));
+}
+
 /** True when a sync token has aged out and the pull must start over. */
 export function isExpiredSyncToken(e: unknown): boolean {
   return (e as { status?: number })?.status === 410;

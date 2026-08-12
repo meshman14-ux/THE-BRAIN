@@ -509,6 +509,78 @@ export function completionsByPillar(
  * The calendar, from the planner
  * ------------------------------------------------------------------ */
 
+/* ------------------------------------------------------------------ *
+ * The calendar, from Google
+ * ------------------------------------------------------------------ */
+
+/**
+ * The zone every naive time in this engine is expressed in.
+ *
+ * Vercel runs the server in UTC, so "just use local time" would silently
+ * shift every focus block by an hour for half the year. Naming the zone
+ * makes the conversion explicit and, more importantly, testable — the
+ * same class of mistake as the F3 bug, which is why this is not left to
+ * the runtime's idea of local.
+ */
+export const TIMEZONE = "Europe/London";
+
+/**
+ * A UTC instant → the naive local datetime the engine works in.
+ *
+ * `Intl` does the zone arithmetic, including the DST transition, which is
+ * the part nobody gets right by hand.
+ */
+export function toNaiveLocal(utcIso: string, timeZone: string = TIMEZONE): string | null {
+  const ms = Date.parse(utcIso);
+  if (Number.isNaN(ms)) return null;
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date(ms));
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  // `en-GB` renders midnight as 24 rather than 00 in some runtimes.
+  const hour = get("hour") === "24" ? "00" : get("hour");
+  return `${get("year")}-${get("month")}-${get("day")}T${hour}:${get("minute")}:${get("second")}`;
+}
+
+/**
+ * Google's busy intervals, clipped to one day, in the engine's frame.
+ *
+ * An interval that starts yesterday and runs into this morning is clipped
+ * rather than dropped: an overnight shift genuinely occupies the start of
+ * the day, and losing it would offer him a focus block he is asleep in.
+ */
+export function busyFromGoogle(
+  intervals: { start: string; end: string }[],
+  dateIso: string,
+  timeZone: string = TIMEZONE
+): { source: "google" | "none"; busy: Interval[] } {
+  const dayStart = `${dateIso}T00:00:00`;
+  const dayEnd = `${dateIso}T23:59:59`;
+  const busy: Interval[] = [];
+
+  for (const raw of intervals) {
+    const start = toNaiveLocal(raw.start, timeZone);
+    const end = toNaiveLocal(raw.end, timeZone);
+    if (start == null || end == null) continue;
+    if (end <= dayStart || start >= dayEnd) continue; // another day entirely
+    const clippedStart = start < dayStart ? dayStart : start;
+    const clippedEnd = end > dayEnd ? dayEnd : end;
+    if (clippedEnd > clippedStart) busy.push({ start: clippedStart, end: clippedEnd });
+  }
+
+  // An empty result here means "connected, and the day is free" — which is
+  // a real and useful answer, and completely different from having no
+  // calendar at all. The caller decides which of those it is holding.
+  return { source: "google", busy: busy.sort((a, b) => a.start.localeCompare(b.start)) };
+}
+
 /**
  * Busy blocks from the day-planner's `journal.meta.hours` pinning.
  *
