@@ -333,7 +333,7 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 ## A4. Database (live project)
 
 Supabase project **`qttroyuajpyelfrbxzzt`** · https://qttroyuajpyelfrbxzzt.supabase.co
-Region eu-west-2 (London), free tier. **RLS owner-only on all 33 tables.** pgvector enabled.
+Region eu-west-2 (London), free tier. **RLS owner-only on all 36 tables.** pgvector enabled.
 
 ```
 command centre : vision · pillars · goals · projects · tasks · inbox · links · reviews
@@ -342,6 +342,7 @@ vault          : notes
 LIFE_OS        : habits · habit_logs · journal · people · people_contacts
                  metrics · metric_readings · debts · debt_payments · vehicles
                  health_days · workouts · lifts · meals · meal_ingredients
+                 training_sets · skill_attempts · athlete_profile
 EMPIRE_OS      : ventures · assets · investments · opportunities
 calendar       : calendar_sync · integrations
 ```
@@ -428,9 +429,9 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **933/933 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **960/960 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
-vitest) and **`npm run build` produces exactly 41 routes** (34 pages + 7 API routes).
+vitest) and **`npm run build` produces exactly 43 routes** (36 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
 
 **HYBRID — the Health OS engine — landed 2026-08-12** at `src/lib/hybrid/`, and it is
@@ -461,11 +462,39 @@ progress), and `at-ceiling` is kept separate from `over` so the top of the produ
 range is not flagged red. Acute:chronic workload is used as a conversation, never a
 gate, because the evidence is genuinely contested.
 
-**What it is waiting for, in order:** the Health Connect companion running on the phone
-(`health_days` is EMPTY — 0 rows — so readiness honestly returns "nothing to go on yet"
-every day until then), the `health_days` → `Reading[]` adapter, then any UI. Nutrition
-and mental-health engines are specced but deliberately deferred until the training core
-is proven.
+**The adapter and the UI landed 2026-08-12**, so HYBRID is now wired end to end.
+`src/lib/training.ts` is the adapter and sits OUTSIDE the engine boundary by design: if
+the database changes shape, it changes and the 77 engine tests do not. It maps
+`health_days` → `Reading[]` (rmssd→hrv, source `health_connect`→wearable,
+`samsung`→import, `manual`→self, an unknown source to the MORE discounted tier), the
+daily close's mood and energy → self-report readings (the only signals Jay reliably
+supplies, and the literature puts them level with HRV), `workouts`+`training_sets` →
+`SessionLog[]`, `skill_attempts` → `Attempt[]`, and `athlete_profile` → `AthleteProfile`
+with a floor-not-a-wish default of floor/wall/bar. A null column produces NO reading —
+this is where "absence is not zero" is actually enforced.
+
+Migration `training_sets_skill_attempts_athlete_profile` (applied 2026-08-12): per-set
+logs with `rir` NULL-means-unlogged, `skill_attempts` **unique on (user, node, day)** so
+the separate-days rule cannot be defeated by logging twice, and a one-row profile.
+`lifts` is deliberately NOT reused as the set log — its `movement` is constrained to the
+Big 4 and it stays that tracker.
+
+**`/life/health/train`** — readiness with its drivers and confidence, today's session in
+block order (skill work second, before anything heavy), a logger that writes each set on
+tap and creates the workout row lazily on the FIRST set, and the advisor's four channels.
+Session kind comes from the season's week shape and what has not been trained in three
+days, never from a weekday. **`/life/health/skills`** — the four trees as DAGs with each
+rung naming what it requires, mastery DERIVED on every load, form criteria shown on the
+working edge, and the test-in flow so an owned skill positions from evidence rather than
+being re-climbed.
+
+**Still waiting on one thing only: the Health Connect companion running on the phone.**
+`health_days` is EMPTY, so readiness honestly returns "nothing to go on yet" — and six
+integration tests cover exactly that state, because it is Jay's real state today: no
+score, a full session anyway (no data is not a reason to not train), no workload ratio
+rather than a division by nothing, and silence on progression rather than an invented
+failure. Nutrition and mental-health engines stay deferred until the training core is
+proven.
 
 **The Samsung Health ingest path landed 2026-08-11** — stage one of two, and the
 staging is the design. Samsung Health has **no consumer cloud API**; what it has is its
@@ -807,6 +836,18 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /(app)/life/money      Money & Security in four tabs off `?tab=`: debt · worth ·
                        cashflow · buffer, with `?strategy=snowball` pricing the
                        alternative ordering in pounds and months
+/(app)/life/health/train
+                       today's session, assembled by HYBRID: readiness with
+                       drivers and confidence, the plan in block order,
+                       a set-by-set logger (writes on tap; the workout row
+                       is created by the FIRST set, so opening and walking
+                       away leaves nothing), and the advisor's four channels
+/(app)/life/health/skills
+                       the four trees as DAGs — each rung names what it
+                       requires. Mastery derived from skill_attempts on
+                       every load, form criteria shown on the working edge,
+                       and a test-in flow so an owned skill positions from
+                       evidence instead of being re-climbed
 /(app)/life/health     readiness band · load spike detector · the Big 4 ·
                        the nutrition ladder
 /(app)/life/food       the meal library: fifty meals, protein first, no beef
@@ -1111,7 +1152,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 933 tests — must be green before build
+npm test                       # 960 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 

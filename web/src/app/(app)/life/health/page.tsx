@@ -98,6 +98,16 @@ export default async function HealthPage() {
           The floor fills itself from a sync or a single tap. Everything below
           it is there when you want it and silent when you do not.
         </p>
+        {/* The two HYBRID pages. This hub stays the measurement surface;
+            those two are where the training itself happens. */}
+        <div className="flex gap-1.5 flex-wrap mt-3">
+          <Link href="/life/health/train" className="chip no-underline">
+            ⌁ Today&apos;s session
+          </Link>
+          <Link href="/life/health/skills" className="chip no-underline">
+            ◈ Skills
+          </Link>
+        </div>
       </header>
 
       {/* -- HERO · readiness, with its inputs shown ----------------- *
