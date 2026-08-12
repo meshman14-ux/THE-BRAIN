@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   DEFAULT_SEASON,
+  type LifeContext,
   SEASON_KINDS,
+  annotate,
+  annotationFor,
   SEASON_LABEL,
   SEASON_MEANING,
   VENTURE_DORMANT_AFTER_DAYS,
@@ -400,5 +403,107 @@ describe("habits", () => {
 
   it("defaults an untagged habit to tracked, so nothing vanishes on migration", () => {
     expect(trackedHabits([{ active: true }])).toHaveLength(1);
+  });
+});
+
+/* ================================================================== *
+ * LIFE_OS annotates EMPIRE_OS
+ *
+ * The design risk, stated in the spec and tested here: if every empire
+ * alert carries a life excuse, "busy season" becomes wallpaper. So the
+ * tests that matter most are the ones asserting SILENCE.
+ * ================================================================== */
+
+describe("annotationFor", () => {
+  const quiet: LifeContext = {
+    season: "quiet",
+    capacity: 3,
+    trainingPerWeek: 4,
+    floorHeld: true,
+  };
+
+  it("says nothing when the life explains nothing", () => {
+    // Quiet season, floor intact. There is no excuse to offer, so the
+    // system offers none — this is the case that keeps the annotation
+    // meaningful in every other case.
+    expect(annotationFor(quiet)).toBeNull();
+  });
+
+  it("explains with the narrowed season, and carries the slot count", () => {
+    const a = annotationFor({ ...quiet, season: "busy", capacity: 1 });
+    expect(a).toContain("busy");
+    expect(a).toContain("1 venture slot");
+  });
+
+  it("explains with a breached floor, and carries the number", () => {
+    const a = annotationFor({ ...quiet, floorHeld: false, trainingPerWeek: 2 });
+    expect(a).toContain("2/week");
+  });
+
+  it("gives both when both are true", () => {
+    const a = annotationFor({
+      season: "minimum",
+      capacity: 1,
+      trainingPerWeek: 1,
+      floorHeld: false,
+    });
+    expect(a).toContain("minimum");
+    expect(a).toContain("1/week");
+  });
+
+  it("does not offer an UNMEASURED floor as an explanation", () => {
+    // "We do not know how much he trained" explains nothing at all, and
+    // printing it would be exactly the wallpaper this guards against.
+    expect(
+      annotationFor({ ...quiet, floorHeld: null, trainingPerWeek: null })
+    ).toBeNull();
+  });
+});
+
+describe("annotate", () => {
+  const busy: LifeContext = {
+    season: "busy",
+    capacity: 1,
+    trainingPerWeek: 4,
+    floorHeld: true,
+  };
+
+  it("annotates a judgement about attention", () => {
+    const [a] = annotate([{ kind: "drift", text: "A to Z drifting" }], busy);
+    expect(a.annotation).toContain("busy");
+    // And never at the cost of the alert itself.
+    expect(a.text).toBe("A to Z drifting");
+  });
+
+  it("never annotates what the world punishes", () => {
+    // A lapsed MOT is a fine. The season is not a defence, and putting
+    // one beside it would be the system helping him excuse it.
+    const [a] = annotate([{ kind: "legal", text: "MOT lapsed 3d ago" }], busy);
+    expect(a.annotation).toBeNull();
+  });
+
+  it("never annotates a person going quiet", () => {
+    const [a] = annotate([{ kind: "person", text: "Mum — 40d" }], busy);
+    expect(a.annotation).toBeNull();
+  });
+
+  it("annotates nothing at all in a quiet season with the floor held", () => {
+    const out = annotate(
+      [
+        { kind: "drift", text: "A to Z drifting" },
+        { kind: "lowprofit", text: "margin under floor" },
+      ],
+      { season: "quiet", capacity: 3, trainingPerWeek: 5, floorHeld: true }
+    );
+    expect(out.every((a) => a.annotation === null)).toBe(true);
+  });
+
+  it("never suppresses — every alert survives annotation", () => {
+    const alerts = [
+      { kind: "drift", text: "a" },
+      { kind: "legal", text: "b" },
+      { kind: "person", text: "c" },
+    ];
+    expect(annotate(alerts, busy)).toHaveLength(alerts.length);
   });
 });

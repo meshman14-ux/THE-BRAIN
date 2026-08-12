@@ -12,6 +12,7 @@ import {
   type Season,
   SEASON_LABEL,
   alertsForSeason,
+  annotate,
   daysInSeason,
   seasonKind,
 } from "@/lib/season";
@@ -354,7 +355,7 @@ export default async function TheBrain({
    * dropped, so the empire bookkeeping alerts go quiet — but they are
    * counted and said out loud rather than silently removed, and deadlines
    * and people are never suppressed by any season. */
-  const { shown: alerts, silenced } = alertsForSeason(everyAlert, season);
+  const { shown: shownAlerts, silenced } = alertsForSeason(everyAlert, season);
 
   /* -- THE ONE LINE ------------------------------------------------- *
    *
@@ -394,6 +395,27 @@ export default async function TheBrain({
   });
   const line =
     todaysLine.kind === "silence" ? silenceFor(lifeContracts) : todaysLine;
+
+  /* -- LIFE_OS annotates EMPIRE_OS ---------------------------------- *
+   *
+   * Step 7. Jay chose annotation over capping, and it is the better
+   * answer: capping DELETES information, and an expectation you cannot
+   * see is an expectation you cannot weigh. So nothing is removed here.
+   * A drifting division still says it is drifting; it just also says the
+   * season was one slot wide while it drifted.
+   *
+   * The whole risk is that this becomes wallpaper, so `annotate` attaches
+   * a clause only when one genuinely explains — a narrowed season or a
+   * measurably breached floor — and only to alerts that are JUDGEMENTS
+   * about attention. A lapsed MOT gets nothing: the world is not
+   * interested in how his week went.
+   */
+  const alerts = annotate(shownAlerts, {
+    season,
+    capacity: lifeContracts.rhythm.capacity,
+    trainingPerWeek: lifeContracts.body.trainingPerWeek,
+    floorHeld: lifeContracts.body.floorHeld,
+  });
 
   /* -- ventures ----------------------------------------------------- */
 
@@ -838,6 +860,14 @@ export default async function TheBrain({
                         </span>
                         <span className="text-[0.8rem] flex-1 min-w-0 leading-snug">
                           {a.text}
+                          {/* The life beside the judgement, never instead of
+                              it. Quieter and smaller, because it is context
+                              and not the finding. */}
+                          {a.annotation && (
+                            <span className="block text-[0.7rem] text-[var(--faint)] mt-0.5">
+                              {a.annotation}
+                            </span>
+                          )}
                         </span>
                         <span className="mono text-[0.66rem] text-[var(--faint)] shrink-0">
                           →

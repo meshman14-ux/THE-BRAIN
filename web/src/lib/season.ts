@@ -331,6 +331,89 @@ export function alertsForSeason<T extends { kind: string }>(
 }
 
 /* ------------------------------------------------------------------ *
+ * LIFE_OS annotates EMPIRE_OS — it never caps it
+ *
+ * Jay chose annotation over capping, and it is the better answer.
+ * Capping would quietly DELETE information: an expectation removed is an
+ * expectation you cannot weigh. Annotating keeps the whole picture and
+ * leaves the judgement where it belongs — the same spine as "surface,
+ * never decide", and consistent with every other choice in this system.
+ *
+ * The risk, stated once and then designed against: if every empire alert
+ * carries a life excuse, "busy season" becomes wallpaper and stops
+ * meaning anything. So an annotation appears ONLY when it is genuinely
+ * explanatory — the season is narrowed, or the floor is breached. In a
+ * quiet season with the floor intact, an empire alert carries no
+ * annotation at all, because there is nothing to explain.
+ * ------------------------------------------------------------------ */
+
+export type LifeContext = {
+  season: SeasonKind;
+  /** Ventures the season supports. Only meaningful when narrowed. */
+  capacity: number;
+  /** Sessions per week, or null when unmeasured. */
+  trainingPerWeek: number | null;
+  /** False only when a leg is measurably breached; null when unmeasured. */
+  floorHeld: boolean | null;
+};
+
+/**
+ * The clause that explains an empire alert, or null when nothing does.
+ *
+ * Null is the common case by design. An annotation is a claim that the
+ * life is why the empire is drifting, and that claim is only true when
+ * the life has actually narrowed.
+ */
+export function annotationFor(ctx: LifeContext): string | null {
+  const parts: string[] = [];
+
+  // A narrowed season is the whole point of declaring one.
+  if (ctx.season !== "quiet") {
+    parts.push(
+      `${SEASON_LABEL[ctx.season].toLowerCase()} season, ${ctx.capacity} venture slot${
+        ctx.capacity === 1 ? "" : "s"
+      }`
+    );
+  }
+
+  // A breached floor explains drift anywhere. An UNMEASURED floor does
+  // not: "we do not know how much he trained" explains nothing, and
+  // printing it would be exactly the wallpaper this guards against.
+  if (ctx.floorHeld === false && ctx.trainingPerWeek != null) {
+    parts.push(`training down to ${ctx.trainingPerWeek}/week`);
+  }
+
+  return parts.length === 0 ? null : parts.join(", ");
+}
+
+/**
+ * Alert kinds a life can actually explain.
+ *
+ * The same three the season silences, and for the same reason: they are
+ * JUDGEMENTS about attention, and a narrowed life is a real account of
+ * where the attention went. A lapsed MOT is not one of them — the world
+ * does not care how his week went, and "busy season" beside a legal
+ * deadline would be the system helping him excuse a fine.
+ */
+export const EXPLAINABLE_KINDS = ["drift", "lowprofit", "unscored"] as const;
+
+/** An alert with its explanation attached, when there genuinely is one. */
+export function annotate<T extends { kind: string }>(
+  alerts: T[],
+  ctx: LifeContext
+): (T & { annotation: string | null })[] {
+  const annotation = annotationFor(ctx);
+  return alerts.map((a) => ({
+    ...a,
+    annotation:
+      annotation != null &&
+      (EXPLAINABLE_KINDS as readonly string[]).includes(a.kind)
+        ? annotation
+        : null,
+  }));
+}
+
+/* ------------------------------------------------------------------ *
  * Debts that close, and bills that recur
  * ------------------------------------------------------------------ */
 
