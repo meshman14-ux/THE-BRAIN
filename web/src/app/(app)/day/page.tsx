@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PlanTabs from "@/components/PlanTabs";
 import { createClient } from "@/lib/supabase/server";
 import DayPlanner from "@/components/DayPlanner";
 import type { Pillar, Task } from "@/lib/types";
@@ -64,8 +65,9 @@ export default async function DayPage({
 
   return (
     <div className="grid gap-5">
+      <PlanTabs active="day" />
       <header>
-        <p className="label">Planner</p>
+        <p className="label">The hour grid</p>
         <h1 className="text-[1.7rem] font-semibold mt-1.5">
           {day === today ? "Today" : formatDayLong(day)}
         </h1>

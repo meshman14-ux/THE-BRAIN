@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PlanTabs from "@/components/PlanTabs";
 import { createClient } from "@/lib/supabase/server";
 import Week from "@/components/Week";
 import HourPurposeGrid, { type JournalDay } from "@/components/HourPurpose";
@@ -115,6 +116,7 @@ export default async function WeekPage() {
 
   return (
     <div className="grid gap-6">
+      <PlanTabs active="week" />
       <header className="mb-1">
         <p className="label">Scheduler</p>
         <h1 className="text-[1.7rem] font-semibold mt-1.5">This Week</h1>

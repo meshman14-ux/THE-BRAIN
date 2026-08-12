@@ -120,7 +120,10 @@ describe("nav by mode", () => {
   const labels = (m: Mode) => navForMode(NAV, m).map((n) => n.label);
 
   it("gives LIFE_OS its own operating system", () => {
+    // "Plan" replaced "Week" here on 2026-08-12: one planning door instead
+    // of two, pointing at /day. Week is one tap away inside it.
     expect(labels("life")).toEqual([
+      "Plan",
       "Areas",
       "Money",
       "Health",
@@ -128,7 +131,6 @@ describe("nav by mode", () => {
       "Vehicles",
       "Habits",
       "Close",
-      "Week",
       "Calendar",
       "Capture",
       "Inbox",
@@ -151,11 +153,13 @@ describe("nav by mode", () => {
       "Brain",
       "Life",
       "Empire",
-      "Planner",
+      // One planning door. "Planner" and "Week" were two entries onto the
+      // same surface, and /day — the best of the three views — had no
+      // entry at all.
+      "Plan",
       "Review",
       "Goals",
       "Close",
-      "Week",
       "Calendar",
       "Diagnose",
       "Advisor",

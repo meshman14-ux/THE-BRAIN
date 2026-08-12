@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import PlanTabs from "@/components/PlanTabs";
 import Planner from "@/components/Planner";
 import SeededTasks from "@/components/SeededTasks";
 import { seedSuggestions, type SeedRun } from "@/lib/diagnostics";
@@ -40,6 +41,7 @@ export default async function PlannerPage() {
 
   return (
     <div>
+      <PlanTabs active="board" />
       <header className="mb-5">
         <p className="label">Kanban</p>
         <h1 className="text-[1.7rem] font-semibold mt-1.5">Planner</h1>

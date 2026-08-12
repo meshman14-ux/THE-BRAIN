@@ -57,11 +57,16 @@ export const NAV: NavItem[] = [
     phoneModes: ["brain"],
   },
   {
-    key: "planner",
-    href: "/planner",
-    label: "Planner",
+    // ONE planning door, added 2026-08-12 (LIFE_OS v2, step 4). It points
+    // at /day rather than /planner because /day was the best planning
+    // surface in the system and had no nav entry at all — it shipped with
+    // the day-planner work and could only be reached through a chip on
+    // /week. Week and Board are one tap away via PlanTabs.
+    key: "plan",
+    href: "/day",
+    label: "Plan",
     icon: "▤",
-    modes: ["brain"],
+    modes: ["brain", "life"],
     phoneModes: [],
   },
   {
@@ -164,14 +169,6 @@ export const NAV: NavItem[] = [
     // thing here you genuinely do one-handed in bed; planning a week is a
     // desk job, the same reasoning that already keeps Calendar off the bar.
     phoneModes: ["life"],
-  },
-  {
-    key: "week",
-    href: "/week",
-    label: "Week",
-    icon: "▦",
-    modes: ["brain", "life"],
-    phoneModes: [],
   },
   {
     key: "calendar",
