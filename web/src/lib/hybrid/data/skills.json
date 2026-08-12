@@ -1,0 +1,423 @@
+[
+  {
+    "id": "handstand",
+    "name": "Handstand",
+    "goal": "hs.free30",
+    "nodes": [
+      {
+        "id": "hs.wrists",
+        "name": "Wrist preparation",
+        "requires": [],
+        "exercise_id": "ex.wrist_prep",
+        "standard": {
+          "hold_s": 60,
+          "sessions": 3,
+          "form": [
+            "Full weight through the palm with fingers actively gripping",
+            "No pain at the front of the joint — pressure is fine, pinching is not",
+            "Completed in all four positions: flexion, extension, and both rotations"
+          ]
+        },
+        "note": "Ayalon's non-negotiable. Wrists are the tissue that caps handstand volume, and they adapt far slower than the shoulders that want the work."
+      },
+      {
+        "id": "hs.hollow",
+        "name": "Hollow body hold",
+        "requires": [],
+        "exercise_id": "ex.hollow_hold",
+        "standard": {
+          "hold_s": 45,
+          "form": [
+            "Lower back stays flat against the floor for the whole hold",
+            "Shoulders and feet both off the floor",
+            "Breathing continues — a hold you cannot breathe through is a brace, not a position"
+          ]
+        },
+        "note": "The handstand line is a vertical hollow. Learn it on the floor where you can see it fail."
+      },
+      {
+        "id": "hs.wall_plank",
+        "name": "Wall plank",
+        "requires": ["hs.wrists", "hs.hollow"],
+        "exercise_id": "ex.wall_plank",
+        "standard": {
+          "hold_s": 60,
+          "form": [
+            "Shoulders stacked directly over hands",
+            "Ribs down, no arch through the lower back",
+            "Elbows locked"
+          ]
+        }
+      },
+      {
+        "id": "hs.chest_wall",
+        "name": "Chest-to-wall handstand",
+        "requires": ["hs.wall_plank"],
+        "exercise_id": "ex.chest_to_wall",
+        "standard": {
+          "hold_s": 60,
+          "form": [
+            "Only the toes touch the wall — nothing else rests on it",
+            "Full shoulder elevation, ears covered by the arms",
+            "Straight line from hands through hips to heels"
+          ]
+        },
+        "note": "This is the position. Everything after it is about removing the wall, not about changing the shape."
+      },
+      {
+        "id": "hs.kickup",
+        "name": "Controlled kick-up",
+        "requires": ["hs.chest_wall"],
+        "exercise_id": "ex.kick_up",
+        "standard": {
+          "reps": 5,
+          "form": [
+            "Arrives in balance without crashing into the wall",
+            "Same leg leads every repetition",
+            "Steps down under control rather than falling out"
+          ]
+        }
+      },
+      {
+        "id": "hs.free10",
+        "name": "Freestanding handstand — 10 seconds",
+        "requires": ["hs.kickup"],
+        "exercise_id": "ex.freestanding_handstand",
+        "standard": {
+          "hold_s": 10,
+          "form": [
+            "No wall contact at any point",
+            "Balance corrected through the fingers, not by piking at the hips",
+            "Exits on the athlete's terms"
+          ]
+        }
+      },
+      {
+        "id": "hs.free30",
+        "name": "Freestanding handstand — 30 seconds",
+        "requires": ["hs.free10"],
+        "exercise_id": "ex.freestanding_handstand",
+        "standard": {
+          "hold_s": 30,
+          "sessions": 3,
+          "form": [
+            "No wall contact",
+            "Straight line held throughout — a banana handstand held for 30 seconds is a different skill",
+            "Controlled exit"
+          ]
+        },
+        "note": "Thirty unbroken seconds is the point at which the handstand stops being a balance trick and becomes a position you can work from."
+      }
+    ]
+  },
+  {
+    "id": "muscle-up",
+    "name": "Bar muscle-up",
+    "goal": "mu.strict3",
+    "nodes": [
+      {
+        "id": "mu.pullup10",
+        "name": "Strict pull-up × 10",
+        "requires": [],
+        "exercise_id": "ex.pull_up",
+        "standard": {
+          "reps": 10,
+          "form": [
+            "Dead hang at the bottom, elbows fully extended",
+            "Chin clearly over the bar",
+            "No kip, no leg drive"
+          ]
+        },
+        "note": "Vadnal's entry standard. Below ten strict, the muscle-up is a strength problem wearing a technique costume."
+      },
+      {
+        "id": "mu.dip8",
+        "name": "Straight-bar dip × 8",
+        "requires": [],
+        "exercise_id": "ex.straight_bar_dip",
+        "standard": {
+          "reps": 8,
+          "form": [
+            "Shoulders descend below the elbows",
+            "Bar stays in contact with the torso through the bottom",
+            "Locked out at the top without shrugging"
+          ]
+        },
+        "note": "Straight bar, not rings or parallels. The muscle-up catch happens on a bar and the wrist position is the hard part."
+      },
+      {
+        "id": "mu.chest_bar",
+        "name": "Chest-to-bar pull-up × 5",
+        "requires": ["mu.pullup10"],
+        "exercise_id": "ex.chest_to_bar",
+        "standard": {
+          "reps": 5,
+          "form": [
+            "Sternum makes contact with the bar",
+            "Bottom of every rep is a full dead hang",
+            "Torso stays close to vertical"
+          ]
+        }
+      },
+      {
+        "id": "mu.sternum",
+        "name": "Sternum pull-up × 3",
+        "requires": ["mu.chest_bar"],
+        "exercise_id": "ex.sternum_pull_up",
+        "standard": {
+          "reps": 3,
+          "form": [
+            "Bar reaches the bottom of the sternum or lower",
+            "Elbows drive back and down",
+            "Strict — no hip drive"
+          ]
+        },
+        "note": "The height test. If the bar cannot reach low ribs, there is nothing to transition from."
+      },
+      {
+        "id": "mu.transition",
+        "name": "Assisted transition × 5",
+        "requires": ["mu.dip8", "mu.sternum"],
+        "exercise_id": "ex.banded_transition",
+        "standard": {
+          "reps": 5,
+          "form": [
+            "Passes through the transition slowly rather than being thrown through it",
+            "Wrists rotate over the bar deliberately",
+            "No shoulder pain at any point in the rotation"
+          ]
+        },
+        "note": "Dunham's point: the transition is a separate skill from both the pull and the dip, and it is the one nobody trains."
+      },
+      {
+        "id": "mu.strict1",
+        "name": "Strict muscle-up × 1",
+        "requires": ["mu.transition"],
+        "exercise_id": "ex.muscle_up",
+        "standard": {
+          "reps": 1,
+          "form": [
+            "Starts from a dead hang",
+            "No kip and no leg swing",
+            "Finishes at a full lockout above the bar"
+          ]
+        }
+      },
+      {
+        "id": "mu.strict3",
+        "name": "Strict muscle-up × 3",
+        "requires": ["mu.strict1"],
+        "exercise_id": "ex.muscle_up",
+        "standard": {
+          "reps": 3,
+          "sessions": 2,
+          "form": [
+            "Three consecutive from a dead hang",
+            "Strict throughout — the third rep is where the kip creeps in",
+            "Controlled descent on every rep"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "front-lever",
+    "name": "Front lever",
+    "goal": "fl.full",
+    "nodes": [
+      {
+        "id": "fl.scap",
+        "name": "Scapular pull-up × 10",
+        "requires": [],
+        "exercise_id": "ex.scapular_pull_up",
+        "standard": {
+          "reps": 10,
+          "form": [
+            "Elbows stay completely straight",
+            "Movement comes from the shoulder blades alone",
+            "Slow and controlled in both directions"
+          ]
+        },
+        "note": "Ladon's foundation. The front lever is a straight-arm strength skill, and straight-arm strength is trained here or not at all."
+      },
+      {
+        "id": "fl.hollow",
+        "name": "Hollow body hold",
+        "requires": [],
+        "exercise_id": "ex.hollow_hold",
+        "standard": {
+          "hold_s": 45,
+          "form": [
+            "Lower back flat throughout",
+            "Legs straight and together",
+            "Breathing continues"
+          ]
+        }
+      },
+      {
+        "id": "fl.tuck",
+        "name": "Tuck front lever",
+        "requires": ["fl.scap", "fl.hollow"],
+        "exercise_id": "ex.tuck_front_lever",
+        "standard": {
+          "hold_s": 20,
+          "form": [
+            "Torso horizontal — hips at shoulder height, not below",
+            "Arms completely straight",
+            "Scapulae protracted and depressed, not shrugged"
+          ]
+        }
+      },
+      {
+        "id": "fl.adv_tuck",
+        "name": "Advanced tuck front lever",
+        "requires": ["fl.tuck"],
+        "exercise_id": "ex.adv_tuck_front_lever",
+        "standard": {
+          "hold_s": 15,
+          "form": [
+            "Back flat and parallel to the floor",
+            "Thighs perpendicular to the torso, knees roughly at 90°",
+            "No sag at the hips"
+          ]
+        }
+      },
+      {
+        "id": "fl.one_leg",
+        "name": "One-leg front lever",
+        "requires": ["fl.adv_tuck"],
+        "exercise_id": "ex.one_leg_front_lever",
+        "standard": {
+          "hold_s": 10,
+          "form": [
+            "Extended leg fully straight",
+            "Hips level — no rotation toward the tucked side",
+            "Body horizontal"
+          ]
+        }
+      },
+      {
+        "id": "fl.straddle",
+        "name": "Straddle front lever",
+        "requires": ["fl.one_leg"],
+        "exercise_id": "ex.straddle_front_lever",
+        "standard": {
+          "hold_s": 10,
+          "form": [
+            "Both legs straight and level with the torso",
+            "Horizontal line from shoulders to hips",
+            "Arms locked"
+          ]
+        }
+      },
+      {
+        "id": "fl.full",
+        "name": "Full front lever",
+        "requires": ["fl.straddle"],
+        "exercise_id": "ex.front_lever",
+        "standard": {
+          "hold_s": 10,
+          "sessions": 2,
+          "form": [
+            "Legs together and straight",
+            "Whole body horizontal — hips do not drop below shoulders",
+            "Held, not passed through"
+          ]
+        }
+      }
+    ]
+  },
+  {
+    "id": "l-sit",
+    "name": "L-sit",
+    "goal": "ls.full",
+    "nodes": [
+      {
+        "id": "ls.compression",
+        "name": "Seated compression lifts × 10",
+        "requires": [],
+        "exercise_id": "ex.seated_compression",
+        "standard": {
+          "reps": 10,
+          "form": [
+            "Legs straight, lifted from the floor by the hip flexors alone",
+            "Torso stays upright — no leaning back to cheat the lift",
+            "Held for a beat at the top of each rep"
+          ]
+        },
+        "note": "Liu's insight: most failed L-sits are a compression problem, not a triceps or shoulder problem. Train the thing that is actually missing."
+      },
+      {
+        "id": "ls.support",
+        "name": "Parallette support hold",
+        "requires": [],
+        "exercise_id": "ex.support_hold",
+        "standard": {
+          "hold_s": 45,
+          "form": [
+            "Elbows locked",
+            "Shoulders depressed — actively pushed away from the ears",
+            "Hips under, not behind, the shoulders"
+          ]
+        }
+      },
+      {
+        "id": "ls.foot_support",
+        "name": "Foot-supported L-sit",
+        "requires": ["ls.support"],
+        "exercise_id": "ex.foot_supported_l_sit",
+        "standard": {
+          "hold_s": 30,
+          "form": [
+            "Heels resting lightly, taking minimal weight",
+            "Legs straight",
+            "Shoulders stay depressed for the whole hold"
+          ]
+        }
+      },
+      {
+        "id": "ls.tuck",
+        "name": "Tuck L-sit",
+        "requires": ["ls.foot_support", "ls.compression"],
+        "exercise_id": "ex.tuck_l_sit",
+        "standard": {
+          "hold_s": 30,
+          "form": [
+            "Knees lifted to at least hip height",
+            "Elbows locked, shoulders depressed",
+            "No rocking backwards to hold the position"
+          ]
+        }
+      },
+      {
+        "id": "ls.one_leg",
+        "name": "One-leg L-sit",
+        "requires": ["ls.tuck"],
+        "exercise_id": "ex.one_leg_l_sit",
+        "standard": {
+          "hold_s": 15,
+          "form": [
+            "Extended leg straight and at least parallel to the floor",
+            "Hips square",
+            "Both sides trained equally"
+          ]
+        }
+      },
+      {
+        "id": "ls.full",
+        "name": "Full L-sit",
+        "requires": ["ls.one_leg"],
+        "exercise_id": "ex.l_sit",
+        "standard": {
+          "hold_s": 20,
+          "sessions": 2,
+          "form": [
+            "Both legs straight and at or above parallel",
+            "Knees locked",
+            "Shoulders depressed and elbows locked for the whole hold"
+          ]
+        }
+      }
+    ]
+  }
+]

@@ -1,0 +1,2056 @@
+[
+  {
+    "id": "ex.wrist_prep",
+    "name": "Wrist preparation",
+    "category": [
+      "skills",
+      "recovery"
+    ],
+    "pattern": "mobility",
+    "modality": "mobility",
+    "difficulty": 1,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Move slowly through each position",
+      "Load progressively \u2014 pressure is fine, pinching is not",
+      "Finish with fingertip pushes into the floor"
+    ],
+    "muscles": {
+      "primary": [
+        "wrists"
+      ],
+      "secondary": [
+        "forearms"
+      ]
+    },
+    "equipment": [
+      "floor"
+    ],
+    "regressions": [],
+    "progressions": [
+      "ex.wall_plank"
+    ],
+    "skill": "handstand",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.hollow_hold",
+    "name": "Hollow body hold",
+    "category": [
+      "skills",
+      "full-body"
+    ],
+    "pattern": "core-anti-extension",
+    "modality": "calisthenics",
+    "difficulty": 2,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Flatten the lower back into the floor first, then lift",
+      "Ribs down",
+      "Keep breathing \u2014 bracing without breath is a different exercise"
+    ],
+    "muscles": {
+      "primary": [
+        "abs"
+      ],
+      "secondary": [
+        "hip-flexors",
+        "quads"
+      ]
+    },
+    "equipment": [
+      "floor"
+    ],
+    "regressions": [
+      "ex.tuck_hollow"
+    ],
+    "progressions": [
+      "ex.hanging_leg_raise"
+    ],
+    "skill": null,
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.tuck_hollow",
+    "name": "Tuck hollow hold",
+    "category": [
+      "skills",
+      "full-body"
+    ],
+    "pattern": "core-anti-extension",
+    "modality": "calisthenics",
+    "difficulty": 1,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Knees tucked, lower back flat",
+      "Shoulders off the floor"
+    ],
+    "muscles": {
+      "primary": [
+        "abs"
+      ],
+      "secondary": [
+        "hip-flexors"
+      ]
+    },
+    "equipment": [
+      "floor"
+    ],
+    "regressions": [],
+    "progressions": [
+      "ex.hollow_hold"
+    ],
+    "skill": null,
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.wall_plank",
+    "name": "Wall plank",
+    "category": [
+      "skills"
+    ],
+    "pattern": "hand-balancing",
+    "modality": "calisthenics",
+    "difficulty": 3,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Shoulders stacked over hands",
+      "Ribs down, no arch",
+      "Push the floor away \u2014 elevate the shoulders"
+    ],
+    "muscles": {
+      "primary": [
+        "front-delts",
+        "scapular-stabilisers"
+      ],
+      "secondary": [
+        "abs",
+        "triceps",
+        "wrists"
+      ]
+    },
+    "equipment": [
+      "wall",
+      "floor"
+    ],
+    "regressions": [
+      "ex.wrist_prep",
+      "ex.pike_push_up"
+    ],
+    "progressions": [
+      "ex.chest_to_wall"
+    ],
+    "skill": "handstand",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.chest_to_wall",
+    "name": "Chest-to-wall handstand",
+    "category": [
+      "skills"
+    ],
+    "pattern": "hand-balancing",
+    "modality": "calisthenics",
+    "difficulty": 4,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Only the toes touch",
+      "Ears covered by the arms",
+      "Squeeze the legs together and point the toes"
+    ],
+    "muscles": {
+      "primary": [
+        "front-delts",
+        "scapular-stabilisers"
+      ],
+      "secondary": [
+        "abs",
+        "triceps",
+        "wrists"
+      ]
+    },
+    "equipment": [
+      "wall",
+      "floor"
+    ],
+    "regressions": [
+      "ex.wall_plank"
+    ],
+    "progressions": [
+      "ex.kick_up"
+    ],
+    "skill": "handstand",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.kick_up",
+    "name": "Kick-up to handstand",
+    "category": [
+      "skills"
+    ],
+    "pattern": "hand-balancing",
+    "modality": "calisthenics",
+    "difficulty": 5,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Same leading leg every time",
+      "Aim to arrive, not to arrive fast",
+      "Bail sideways, never fold backwards"
+    ],
+    "muscles": {
+      "primary": [
+        "front-delts",
+        "scapular-stabilisers"
+      ],
+      "secondary": [
+        "abs",
+        "wrists"
+      ]
+    },
+    "equipment": [
+      "floor"
+    ],
+    "regressions": [
+      "ex.chest_to_wall"
+    ],
+    "progressions": [
+      "ex.freestanding_handstand"
+    ],
+    "skill": "handstand",
+    "unit": "reps"
+  },
+  {
+    "id": "ex.freestanding_handstand",
+    "name": "Freestanding handstand",
+    "category": [
+      "skills"
+    ],
+    "pattern": "hand-balancing",
+    "modality": "calisthenics",
+    "difficulty": 7,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Correct with the fingers, not the hips",
+      "Look at a point between the hands",
+      "Stay long through the whole line"
+    ],
+    "muscles": {
+      "primary": [
+        "front-delts",
+        "scapular-stabilisers"
+      ],
+      "secondary": [
+        "abs",
+        "triceps",
+        "wrists"
+      ]
+    },
+    "equipment": [
+      "floor"
+    ],
+    "regressions": [
+      "ex.kick_up"
+    ],
+    "progressions": [],
+    "skill": "handstand",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.pull_up",
+    "name": "Pull-up",
+    "category": [
+      "pull",
+      "full-body"
+    ],
+    "pattern": "vertical-pull",
+    "modality": "calisthenics",
+    "difficulty": 4,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Dead hang at the bottom",
+      "Pull the elbows down and back",
+      "Chin clearly over the bar"
+    ],
+    "muscles": {
+      "primary": [
+        "lats"
+      ],
+      "secondary": [
+        "biceps",
+        "upper-back",
+        "forearms"
+      ]
+    },
+    "equipment": [
+      "bar"
+    ],
+    "regressions": [
+      "ex.band_pull_up",
+      "ex.ring_row"
+    ],
+    "progressions": [
+      "ex.chest_to_bar",
+      "ex.weighted_pull_up"
+    ],
+    "skill": "muscle-up",
+    "unit": "reps"
+  },
+  {
+    "id": "ex.band_pull_up",
+    "name": "Band-assisted pull-up",
+    "category": [
+      "pull"
+    ],
+    "pattern": "vertical-pull",
+    "modality": "calisthenics",
+    "difficulty": 2,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Use the lightest band that lets you finish the set strictly",
+      "Full dead hang each rep"
+    ],
+    "muscles": {
+      "primary": [
+        "lats"
+      ],
+      "secondary": [
+        "biceps",
+        "upper-back"
+      ]
+    },
+    "equipment": [
+      "bar",
+      "band"
+    ],
+    "regressions": [
+      "ex.ring_row"
+    ],
+    "progressions": [
+      "ex.pull_up"
+    ],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.ring_row",
+    "name": "Ring row",
+    "category": [
+      "pull"
+    ],
+    "pattern": "horizontal-pull",
+    "modality": "calisthenics",
+    "difficulty": 2,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Body in one line from heels to head",
+      "Pull the rings to the ribs",
+      "Squeeze the shoulder blades at the top"
+    ],
+    "muscles": {
+      "primary": [
+        "upper-back"
+      ],
+      "secondary": [
+        "lats",
+        "biceps",
+        "rear-delts"
+      ]
+    },
+    "equipment": [
+      "rings"
+    ],
+    "regressions": [],
+    "progressions": [
+      "ex.pull_up"
+    ],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.chest_to_bar",
+    "name": "Chest-to-bar pull-up",
+    "category": [
+      "pull"
+    ],
+    "pattern": "vertical-pull",
+    "modality": "calisthenics",
+    "difficulty": 6,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Sternum to the bar",
+      "Full dead hang at the bottom",
+      "Torso close to vertical"
+    ],
+    "muscles": {
+      "primary": [
+        "lats"
+      ],
+      "secondary": [
+        "biceps",
+        "upper-back"
+      ]
+    },
+    "equipment": [
+      "bar"
+    ],
+    "regressions": [
+      "ex.pull_up"
+    ],
+    "progressions": [
+      "ex.sternum_pull_up"
+    ],
+    "skill": "muscle-up",
+    "unit": "reps"
+  },
+  {
+    "id": "ex.sternum_pull_up",
+    "name": "Sternum pull-up",
+    "category": [
+      "pull"
+    ],
+    "pattern": "vertical-pull",
+    "modality": "calisthenics",
+    "difficulty": 7,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Drive the elbows back and down",
+      "Bar to the bottom of the sternum",
+      "Strict \u2014 no hip drive"
+    ],
+    "muscles": {
+      "primary": [
+        "lats"
+      ],
+      "secondary": [
+        "biceps",
+        "upper-back",
+        "abs"
+      ]
+    },
+    "equipment": [
+      "bar"
+    ],
+    "regressions": [
+      "ex.chest_to_bar"
+    ],
+    "progressions": [
+      "ex.muscle_up"
+    ],
+    "skill": "muscle-up",
+    "unit": "reps"
+  },
+  {
+    "id": "ex.straight_bar_dip",
+    "name": "Straight-bar dip",
+    "category": [
+      "push"
+    ],
+    "pattern": "vertical-push",
+    "modality": "calisthenics",
+    "difficulty": 5,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Shoulders below the elbows at the bottom",
+      "Keep the bar against the torso",
+      "Lock out without shrugging"
+    ],
+    "muscles": {
+      "primary": [
+        "chest",
+        "triceps"
+      ],
+      "secondary": [
+        "front-delts"
+      ]
+    },
+    "equipment": [
+      "bar"
+    ],
+    "regressions": [
+      "ex.bench_dip"
+    ],
+    "progressions": [
+      "ex.weighted_dip"
+    ],
+    "skill": "muscle-up",
+    "unit": "reps"
+  },
+  {
+    "id": "ex.bench_dip",
+    "name": "Bench dip",
+    "category": [
+      "push"
+    ],
+    "pattern": "vertical-push",
+    "modality": "calisthenics",
+    "difficulty": 2,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Elbows track back, not out",
+      "Stop where the shoulder stays comfortable"
+    ],
+    "muscles": {
+      "primary": [
+        "triceps"
+      ],
+      "secondary": [
+        "chest",
+        "front-delts"
+      ]
+    },
+    "equipment": [
+      "bench"
+    ],
+    "regressions": [],
+    "progressions": [
+      "ex.straight_bar_dip"
+    ],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.banded_transition",
+    "name": "Banded muscle-up transition",
+    "category": [
+      "pull",
+      "skills"
+    ],
+    "pattern": "vertical-pull",
+    "modality": "calisthenics",
+    "difficulty": 6,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Go through the transition slowly",
+      "Rotate the wrists over the bar deliberately",
+      "Stop immediately on shoulder pain"
+    ],
+    "muscles": {
+      "primary": [
+        "lats",
+        "chest"
+      ],
+      "secondary": [
+        "triceps",
+        "upper-back"
+      ]
+    },
+    "equipment": [
+      "bar",
+      "band"
+    ],
+    "regressions": [
+      "ex.sternum_pull_up"
+    ],
+    "progressions": [
+      "ex.muscle_up"
+    ],
+    "skill": "muscle-up",
+    "unit": "reps"
+  },
+  {
+    "id": "ex.muscle_up",
+    "name": "Bar muscle-up",
+    "category": [
+      "pull",
+      "skills"
+    ],
+    "pattern": "vertical-pull",
+    "modality": "calisthenics",
+    "difficulty": 8,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Dead hang start",
+      "Pull high, then drive the chest over",
+      "Control the descent"
+    ],
+    "muscles": {
+      "primary": [
+        "lats",
+        "chest"
+      ],
+      "secondary": [
+        "triceps",
+        "upper-back",
+        "biceps"
+      ]
+    },
+    "equipment": [
+      "bar"
+    ],
+    "regressions": [
+      "ex.banded_transition",
+      "ex.sternum_pull_up"
+    ],
+    "progressions": [],
+    "skill": "muscle-up",
+    "unit": "reps"
+  },
+  {
+    "id": "ex.scapular_pull_up",
+    "name": "Scapular pull-up",
+    "category": [
+      "pull",
+      "skills"
+    ],
+    "pattern": "straight-arm-scapular",
+    "modality": "calisthenics",
+    "difficulty": 2,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Elbows stay locked",
+      "Depress and retract the shoulder blades",
+      "Slow in both directions"
+    ],
+    "muscles": {
+      "primary": [
+        "scapular-stabilisers"
+      ],
+      "secondary": [
+        "lats",
+        "upper-back"
+      ]
+    },
+    "equipment": [
+      "bar"
+    ],
+    "regressions": [],
+    "progressions": [
+      "ex.tuck_front_lever"
+    ],
+    "skill": "front-lever",
+    "unit": "reps"
+  },
+  {
+    "id": "ex.tuck_front_lever",
+    "name": "Tuck front lever",
+    "category": [
+      "pull",
+      "skills"
+    ],
+    "pattern": "straight-arm-scapular",
+    "modality": "calisthenics",
+    "difficulty": 4,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Arms completely straight",
+      "Hips at shoulder height",
+      "Protract and depress \u2014 do not shrug"
+    ],
+    "muscles": {
+      "primary": [
+        "lats",
+        "abs"
+      ],
+      "secondary": [
+        "scapular-stabilisers",
+        "lower-back"
+      ]
+    },
+    "equipment": [
+      "bar"
+    ],
+    "regressions": [
+      "ex.scapular_pull_up"
+    ],
+    "progressions": [
+      "ex.adv_tuck_front_lever"
+    ],
+    "skill": "front-lever",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.adv_tuck_front_lever",
+    "name": "Advanced tuck front lever",
+    "category": [
+      "pull",
+      "skills"
+    ],
+    "pattern": "straight-arm-scapular",
+    "modality": "calisthenics",
+    "difficulty": 5,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Back flat and parallel to the floor",
+      "Knees at about 90 degrees",
+      "No sag at the hips"
+    ],
+    "muscles": {
+      "primary": [
+        "lats",
+        "abs"
+      ],
+      "secondary": [
+        "scapular-stabilisers"
+      ]
+    },
+    "equipment": [
+      "bar"
+    ],
+    "regressions": [
+      "ex.tuck_front_lever"
+    ],
+    "progressions": [
+      "ex.one_leg_front_lever"
+    ],
+    "skill": "front-lever",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.one_leg_front_lever",
+    "name": "One-leg front lever",
+    "category": [
+      "pull",
+      "skills"
+    ],
+    "pattern": "straight-arm-scapular",
+    "modality": "calisthenics",
+    "difficulty": 6,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Extended leg fully straight",
+      "Hips level, no rotation",
+      "Train both sides"
+    ],
+    "muscles": {
+      "primary": [
+        "lats",
+        "abs"
+      ],
+      "secondary": [
+        "scapular-stabilisers"
+      ]
+    },
+    "equipment": [
+      "bar"
+    ],
+    "regressions": [
+      "ex.adv_tuck_front_lever"
+    ],
+    "progressions": [
+      "ex.straddle_front_lever"
+    ],
+    "skill": "front-lever",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.straddle_front_lever",
+    "name": "Straddle front lever",
+    "category": [
+      "pull",
+      "skills"
+    ],
+    "pattern": "straight-arm-scapular",
+    "modality": "calisthenics",
+    "difficulty": 7,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Both legs straight, wide",
+      "Horizontal from shoulders to hips",
+      "Arms locked"
+    ],
+    "muscles": {
+      "primary": [
+        "lats",
+        "abs"
+      ],
+      "secondary": [
+        "scapular-stabilisers"
+      ]
+    },
+    "equipment": [
+      "bar"
+    ],
+    "regressions": [
+      "ex.one_leg_front_lever"
+    ],
+    "progressions": [
+      "ex.front_lever"
+    ],
+    "skill": "front-lever",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.front_lever",
+    "name": "Full front lever",
+    "category": [
+      "pull",
+      "skills"
+    ],
+    "pattern": "straight-arm-scapular",
+    "modality": "calisthenics",
+    "difficulty": 9,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Legs together and straight",
+      "Hips level with the shoulders",
+      "Hold it, do not pass through it"
+    ],
+    "muscles": {
+      "primary": [
+        "lats",
+        "abs"
+      ],
+      "secondary": [
+        "scapular-stabilisers",
+        "lower-back"
+      ]
+    },
+    "equipment": [
+      "bar"
+    ],
+    "regressions": [
+      "ex.straddle_front_lever"
+    ],
+    "progressions": [],
+    "skill": "front-lever",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.seated_compression",
+    "name": "Seated compression lift",
+    "category": [
+      "skills",
+      "legs"
+    ],
+    "pattern": "core-flexion",
+    "modality": "calisthenics",
+    "difficulty": 1,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Legs dead straight",
+      "Lift from the hip flexors, not by leaning back",
+      "Pause at the top"
+    ],
+    "muscles": {
+      "primary": [
+        "hip-flexors"
+      ],
+      "secondary": [
+        "abs",
+        "quads"
+      ]
+    },
+    "equipment": [
+      "floor"
+    ],
+    "regressions": [],
+    "progressions": [
+      "ex.tuck_l_sit"
+    ],
+    "skill": "l-sit",
+    "unit": "reps"
+  },
+  {
+    "id": "ex.support_hold",
+    "name": "Parallette support hold",
+    "category": [
+      "skills",
+      "push"
+    ],
+    "pattern": "vertical-push",
+    "modality": "calisthenics",
+    "difficulty": 2,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Elbows locked",
+      "Push the shoulders down away from the ears",
+      "Hips under the shoulders"
+    ],
+    "muscles": {
+      "primary": [
+        "scapular-stabilisers"
+      ],
+      "secondary": [
+        "triceps",
+        "chest",
+        "abs"
+      ]
+    },
+    "equipment": [
+      "parallettes"
+    ],
+    "regressions": [],
+    "progressions": [
+      "ex.foot_supported_l_sit"
+    ],
+    "skill": "l-sit",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.foot_supported_l_sit",
+    "name": "Foot-supported L-sit",
+    "category": [
+      "skills"
+    ],
+    "pattern": "core-flexion",
+    "modality": "calisthenics",
+    "difficulty": 2,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Heels rest lightly \u2014 take as little support as you can",
+      "Legs straight",
+      "Shoulders stay depressed"
+    ],
+    "muscles": {
+      "primary": [
+        "abs",
+        "hip-flexors"
+      ],
+      "secondary": [
+        "triceps",
+        "scapular-stabilisers"
+      ]
+    },
+    "equipment": [
+      "parallettes"
+    ],
+    "regressions": [
+      "ex.support_hold"
+    ],
+    "progressions": [
+      "ex.tuck_l_sit"
+    ],
+    "skill": "l-sit",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.tuck_l_sit",
+    "name": "Tuck L-sit",
+    "category": [
+      "skills"
+    ],
+    "pattern": "core-flexion",
+    "modality": "calisthenics",
+    "difficulty": 3,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Knees to at least hip height",
+      "Elbows locked",
+      "Do not rock backwards to hold it"
+    ],
+    "muscles": {
+      "primary": [
+        "abs",
+        "hip-flexors"
+      ],
+      "secondary": [
+        "triceps",
+        "scapular-stabilisers"
+      ]
+    },
+    "equipment": [
+      "parallettes"
+    ],
+    "regressions": [
+      "ex.foot_supported_l_sit",
+      "ex.seated_compression"
+    ],
+    "progressions": [
+      "ex.one_leg_l_sit"
+    ],
+    "skill": "l-sit",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.one_leg_l_sit",
+    "name": "One-leg L-sit",
+    "category": [
+      "skills"
+    ],
+    "pattern": "core-flexion",
+    "modality": "calisthenics",
+    "difficulty": 4,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Extended leg straight and at least parallel",
+      "Hips square",
+      "Alternate sides"
+    ],
+    "muscles": {
+      "primary": [
+        "abs",
+        "hip-flexors"
+      ],
+      "secondary": [
+        "triceps",
+        "quads"
+      ]
+    },
+    "equipment": [
+      "parallettes"
+    ],
+    "regressions": [
+      "ex.tuck_l_sit"
+    ],
+    "progressions": [
+      "ex.l_sit"
+    ],
+    "skill": "l-sit",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.l_sit",
+    "name": "Full L-sit",
+    "category": [
+      "skills"
+    ],
+    "pattern": "core-flexion",
+    "modality": "calisthenics",
+    "difficulty": 5,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Both legs straight, at or above parallel",
+      "Knees locked",
+      "Shoulders depressed throughout"
+    ],
+    "muscles": {
+      "primary": [
+        "abs",
+        "hip-flexors"
+      ],
+      "secondary": [
+        "triceps",
+        "quads",
+        "scapular-stabilisers"
+      ]
+    },
+    "equipment": [
+      "parallettes"
+    ],
+    "regressions": [
+      "ex.one_leg_l_sit"
+    ],
+    "progressions": [],
+    "skill": "l-sit",
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.push_up",
+    "name": "Push-up",
+    "category": [
+      "push",
+      "full-body"
+    ],
+    "pattern": "horizontal-push",
+    "modality": "calisthenics",
+    "difficulty": 2,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Body in one line, ribs down",
+      "Elbows about 45 degrees from the torso",
+      "Full lockout"
+    ],
+    "muscles": {
+      "primary": [
+        "chest"
+      ],
+      "secondary": [
+        "triceps",
+        "front-delts",
+        "abs"
+      ]
+    },
+    "equipment": [
+      "floor"
+    ],
+    "regressions": [
+      "ex.incline_push_up"
+    ],
+    "progressions": [
+      "ex.ring_push_up",
+      "ex.weighted_push_up"
+    ],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.incline_push_up",
+    "name": "Incline push-up",
+    "category": [
+      "push"
+    ],
+    "pattern": "horizontal-push",
+    "modality": "calisthenics",
+    "difficulty": 1,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Higher the hands, easier the rep",
+      "Same straight line as a floor push-up"
+    ],
+    "muscles": {
+      "primary": [
+        "chest"
+      ],
+      "secondary": [
+        "triceps",
+        "front-delts"
+      ]
+    },
+    "equipment": [
+      "bench"
+    ],
+    "regressions": [],
+    "progressions": [
+      "ex.push_up"
+    ],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.ring_push_up",
+    "name": "Ring push-up",
+    "category": [
+      "push"
+    ],
+    "pattern": "horizontal-push",
+    "modality": "calisthenics",
+    "difficulty": 4,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Turn the rings out at the top",
+      "Keep the rings close to the body",
+      "Resist the wobble rather than fighting it"
+    ],
+    "muscles": {
+      "primary": [
+        "chest"
+      ],
+      "secondary": [
+        "triceps",
+        "front-delts",
+        "scapular-stabilisers"
+      ]
+    },
+    "equipment": [
+      "rings"
+    ],
+    "regressions": [
+      "ex.push_up"
+    ],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.weighted_push_up",
+    "name": "Weighted push-up",
+    "category": [
+      "push"
+    ],
+    "pattern": "horizontal-push",
+    "modality": "weighted-calisthenics",
+    "difficulty": 4,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Plate sits between the shoulder blades",
+      "Same strict line as bodyweight"
+    ],
+    "muscles": {
+      "primary": [
+        "chest"
+      ],
+      "secondary": [
+        "triceps",
+        "front-delts"
+      ]
+    },
+    "equipment": [
+      "plate"
+    ],
+    "regressions": [
+      "ex.push_up"
+    ],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.weighted_dip",
+    "name": "Weighted dip",
+    "category": [
+      "push"
+    ],
+    "pattern": "vertical-push",
+    "modality": "weighted-calisthenics",
+    "difficulty": 6,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Add load only once the bodyweight version is clean at 12",
+      "Shoulders below elbows",
+      "Lean forward for chest, upright for triceps"
+    ],
+    "muscles": {
+      "primary": [
+        "chest",
+        "triceps"
+      ],
+      "secondary": [
+        "front-delts"
+      ]
+    },
+    "equipment": [
+      "parallel-bars",
+      "dip-belt"
+    ],
+    "regressions": [
+      "ex.straight_bar_dip"
+    ],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.pike_push_up",
+    "name": "Pike push-up",
+    "category": [
+      "push"
+    ],
+    "pattern": "vertical-push",
+    "modality": "calisthenics",
+    "difficulty": 3,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Hips high, head between the hands",
+      "Crown of the head to the floor",
+      "Elbows forward, not flared"
+    ],
+    "muscles": {
+      "primary": [
+        "front-delts"
+      ],
+      "secondary": [
+        "triceps",
+        "side-delts"
+      ]
+    },
+    "equipment": [
+      "floor"
+    ],
+    "regressions": [
+      "ex.incline_push_up"
+    ],
+    "progressions": [
+      "ex.wall_plank"
+    ],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.bench_press",
+    "name": "Barbell bench press",
+    "category": [
+      "push"
+    ],
+    "pattern": "horizontal-push",
+    "modality": "barbell",
+    "difficulty": 4,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Shoulder blades pinned back and down",
+      "Bar to the lower chest",
+      "Drive the feet into the floor"
+    ],
+    "muscles": {
+      "primary": [
+        "chest"
+      ],
+      "secondary": [
+        "triceps",
+        "front-delts"
+      ]
+    },
+    "equipment": [
+      "barbell",
+      "bench",
+      "rack"
+    ],
+    "regressions": [],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.ohp",
+    "name": "Overhead press",
+    "category": [
+      "push"
+    ],
+    "pattern": "vertical-push",
+    "modality": "barbell",
+    "difficulty": 4,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Squeeze the glutes \u2014 no lay-back",
+      "Bar path close to the face",
+      "Finish with the head through"
+    ],
+    "muscles": {
+      "primary": [
+        "front-delts"
+      ],
+      "secondary": [
+        "triceps",
+        "upper-back",
+        "abs"
+      ]
+    },
+    "equipment": [
+      "barbell",
+      "rack"
+    ],
+    "regressions": [],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.lateral_raise",
+    "name": "Lateral raise",
+    "category": [
+      "push"
+    ],
+    "pattern": "vertical-push",
+    "modality": "dumbbell",
+    "difficulty": 1,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Lead with the elbow",
+      "Stop at shoulder height",
+      "Slow on the way down"
+    ],
+    "muscles": {
+      "primary": [
+        "side-delts"
+      ],
+      "secondary": []
+    },
+    "equipment": [
+      "dumbbell"
+    ],
+    "regressions": [],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.weighted_pull_up",
+    "name": "Weighted pull-up",
+    "category": [
+      "pull"
+    ],
+    "pattern": "vertical-pull",
+    "modality": "weighted-calisthenics",
+    "difficulty": 6,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Only add load above 10 strict bodyweight reps",
+      "Full dead hang under load",
+      "Control the descent"
+    ],
+    "muscles": {
+      "primary": [
+        "lats"
+      ],
+      "secondary": [
+        "biceps",
+        "upper-back"
+      ]
+    },
+    "equipment": [
+      "bar",
+      "dip-belt"
+    ],
+    "regressions": [
+      "ex.pull_up"
+    ],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.barbell_row",
+    "name": "Barbell row",
+    "category": [
+      "pull"
+    ],
+    "pattern": "horizontal-pull",
+    "modality": "barbell",
+    "difficulty": 4,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Hinge to roughly 45 degrees and hold it",
+      "Pull to the navel",
+      "No jerking with the lower back"
+    ],
+    "muscles": {
+      "primary": [
+        "upper-back"
+      ],
+      "secondary": [
+        "lats",
+        "biceps",
+        "lower-back"
+      ]
+    },
+    "equipment": [
+      "barbell"
+    ],
+    "regressions": [
+      "ex.ring_row"
+    ],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.face_pull",
+    "name": "Face pull",
+    "category": [
+      "pull",
+      "recovery"
+    ],
+    "pattern": "horizontal-pull",
+    "modality": "band",
+    "difficulty": 1,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Pull to the forehead, elbows high",
+      "Externally rotate at the end",
+      "Light load, high reps"
+    ],
+    "muscles": {
+      "primary": [
+        "rear-delts"
+      ],
+      "secondary": [
+        "upper-back",
+        "scapular-stabilisers"
+      ]
+    },
+    "equipment": [
+      "band"
+    ],
+    "regressions": [],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.back_squat",
+    "name": "Back squat",
+    "category": [
+      "legs"
+    ],
+    "pattern": "squat",
+    "modality": "barbell",
+    "difficulty": 5,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Brace before you descend",
+      "Knees track over the toes",
+      "Hip crease below the knee"
+    ],
+    "muscles": {
+      "primary": [
+        "quads",
+        "glutes"
+      ],
+      "secondary": [
+        "lower-back",
+        "abs",
+        "hamstrings"
+      ]
+    },
+    "equipment": [
+      "barbell",
+      "rack"
+    ],
+    "regressions": [
+      "ex.goblet_squat"
+    ],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.goblet_squat",
+    "name": "Goblet squat",
+    "category": [
+      "legs"
+    ],
+    "pattern": "squat",
+    "modality": "dumbbell",
+    "difficulty": 2,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Elbows inside the knees at the bottom",
+      "Chest tall"
+    ],
+    "muscles": {
+      "primary": [
+        "quads",
+        "glutes"
+      ],
+      "secondary": [
+        "abs"
+      ]
+    },
+    "equipment": [
+      "dumbbell"
+    ],
+    "regressions": [],
+    "progressions": [
+      "ex.back_squat"
+    ],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.pistol_squat",
+    "name": "Pistol squat",
+    "category": [
+      "legs",
+      "skills"
+    ],
+    "pattern": "squat",
+    "modality": "calisthenics",
+    "difficulty": 6,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Free leg straight and off the floor",
+      "Heel stays down",
+      "Stand up without rocking"
+    ],
+    "muscles": {
+      "primary": [
+        "quads",
+        "glutes"
+      ],
+      "secondary": [
+        "hamstrings",
+        "abs"
+      ]
+    },
+    "equipment": [
+      "floor"
+    ],
+    "regressions": [
+      "ex.bulgarian_split_squat"
+    ],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.bulgarian_split_squat",
+    "name": "Bulgarian split squat",
+    "category": [
+      "legs"
+    ],
+    "pattern": "lunge",
+    "modality": "dumbbell",
+    "difficulty": 3,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Front shin roughly vertical",
+      "Torso slightly forward for glutes, upright for quads",
+      "Slow down, drive up"
+    ],
+    "muscles": {
+      "primary": [
+        "quads",
+        "glutes"
+      ],
+      "secondary": [
+        "hamstrings"
+      ]
+    },
+    "equipment": [
+      "bench",
+      "dumbbell"
+    ],
+    "regressions": [],
+    "progressions": [
+      "ex.pistol_squat"
+    ],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.deadlift",
+    "name": "Deadlift",
+    "category": [
+      "legs",
+      "full-body"
+    ],
+    "pattern": "hinge",
+    "modality": "barbell",
+    "difficulty": 6,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Take the slack out of the bar first",
+      "Push the floor away",
+      "Neutral spine from start to finish"
+    ],
+    "muscles": {
+      "primary": [
+        "hamstrings",
+        "glutes"
+      ],
+      "secondary": [
+        "lower-back",
+        "upper-back",
+        "forearms"
+      ]
+    },
+    "equipment": [
+      "barbell"
+    ],
+    "regressions": [
+      "ex.romanian_deadlift"
+    ],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.romanian_deadlift",
+    "name": "Romanian deadlift",
+    "category": [
+      "legs"
+    ],
+    "pattern": "hinge",
+    "modality": "barbell",
+    "difficulty": 4,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Hips back, not down",
+      "Bar stays against the legs",
+      "Stop where the back would round"
+    ],
+    "muscles": {
+      "primary": [
+        "hamstrings"
+      ],
+      "secondary": [
+        "glutes",
+        "lower-back"
+      ]
+    },
+    "equipment": [
+      "barbell"
+    ],
+    "regressions": [],
+    "progressions": [
+      "ex.deadlift"
+    ],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.nordic_curl",
+    "name": "Nordic hamstring curl",
+    "category": [
+      "legs"
+    ],
+    "pattern": "hinge",
+    "modality": "calisthenics",
+    "difficulty": 6,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Lower as slowly as you can control",
+      "Hips stay extended \u2014 do not fold",
+      "Push back up with the hands if needed"
+    ],
+    "muscles": {
+      "primary": [
+        "hamstrings"
+      ],
+      "secondary": [
+        "glutes",
+        "calves"
+      ]
+    },
+    "equipment": [
+      "floor",
+      "partner-or-anchor"
+    ],
+    "regressions": [
+      "ex.romanian_deadlift"
+    ],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.calf_raise",
+    "name": "Standing calf raise",
+    "category": [
+      "legs"
+    ],
+    "pattern": "hinge",
+    "modality": "machine",
+    "difficulty": 1,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Full stretch at the bottom",
+      "Pause at the top",
+      "Slow tempo throughout"
+    ],
+    "muscles": {
+      "primary": [
+        "calves"
+      ],
+      "secondary": []
+    },
+    "equipment": [
+      "step"
+    ],
+    "regressions": [],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.hanging_leg_raise",
+    "name": "Hanging leg raise",
+    "category": [
+      "pull",
+      "full-body"
+    ],
+    "pattern": "core-flexion",
+    "modality": "calisthenics",
+    "difficulty": 4,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Posteriorly tilt the pelvis before the legs move",
+      "No swing",
+      "Lower under control"
+    ],
+    "muscles": {
+      "primary": [
+        "abs"
+      ],
+      "secondary": [
+        "hip-flexors",
+        "forearms",
+        "lats"
+      ]
+    },
+    "equipment": [
+      "bar"
+    ],
+    "regressions": [
+      "ex.hollow_hold"
+    ],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.ab_wheel",
+    "name": "Ab wheel rollout",
+    "category": [
+      "full-body"
+    ],
+    "pattern": "core-anti-extension",
+    "modality": "calisthenics",
+    "difficulty": 5,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Ribs down and hips tucked before rolling",
+      "Go only as far as the back stays flat"
+    ],
+    "muscles": {
+      "primary": [
+        "abs"
+      ],
+      "secondary": [
+        "lats",
+        "lower-back"
+      ]
+    },
+    "equipment": [
+      "ab-wheel"
+    ],
+    "regressions": [],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.pallof_press",
+    "name": "Pallof press",
+    "category": [
+      "full-body",
+      "recovery"
+    ],
+    "pattern": "core-anti-rotation",
+    "modality": "band",
+    "difficulty": 2,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Resist the rotation rather than creating one",
+      "Press slowly, return slowly"
+    ],
+    "muscles": {
+      "primary": [
+        "obliques"
+      ],
+      "secondary": [
+        "abs",
+        "glutes"
+      ]
+    },
+    "equipment": [
+      "band"
+    ],
+    "regressions": [],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.farmers_carry",
+    "name": "Farmer's carry",
+    "category": [
+      "full-body",
+      "legs"
+    ],
+    "pattern": "carry",
+    "modality": "dumbbell",
+    "difficulty": 3,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Tall posture, shoulders back",
+      "Short controlled steps",
+      "Grip is the point \u2014 do not use straps"
+    ],
+    "muscles": {
+      "primary": [
+        "forearms"
+      ],
+      "secondary": [
+        "upper-back",
+        "abs",
+        "glutes"
+      ]
+    },
+    "equipment": [
+      "dumbbell"
+    ],
+    "regressions": [],
+    "progressions": [],
+    "skill": null,
+    "unit": "metres"
+  },
+  {
+    "id": "ex.assault_bike",
+    "name": "Bike intervals",
+    "category": [
+      "full-body",
+      "recovery"
+    ],
+    "pattern": "locomotion",
+    "modality": "conditioning",
+    "difficulty": 3,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Zone 2 means you can still hold a conversation",
+      "Intervals: hard enough that you cannot"
+    ],
+    "muscles": {
+      "primary": [],
+      "secondary": [
+        "quads",
+        "hamstrings",
+        "calves"
+      ]
+    },
+    "equipment": [
+      "bike"
+    ],
+    "regressions": [],
+    "progressions": [],
+    "skill": null,
+    "unit": "minutes"
+  },
+  {
+    "id": "ex.jefferson_curl",
+    "name": "Jefferson curl",
+    "category": [
+      "recovery",
+      "skills"
+    ],
+    "pattern": "mobility",
+    "modality": "mobility",
+    "difficulty": 3,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Very light load \u2014 this is a mobility exercise, not a lift",
+      "Roll down one vertebra at a time",
+      "Never load it heavy"
+    ],
+    "muscles": {
+      "primary": [
+        "lower-back"
+      ],
+      "secondary": [
+        "hamstrings"
+      ]
+    },
+    "equipment": [
+      "dumbbell"
+    ],
+    "regressions": [],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.shoulder_dislocate",
+    "name": "Shoulder dislocate",
+    "category": [
+      "recovery",
+      "skills"
+    ],
+    "pattern": "mobility",
+    "modality": "mobility",
+    "difficulty": 1,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Widest grip that lets the arms stay straight",
+      "Slow, no forcing",
+      "Narrow the grip over months, not weeks"
+    ],
+    "muscles": {
+      "primary": [
+        "scapular-stabilisers"
+      ],
+      "secondary": [
+        "front-delts",
+        "rear-delts"
+      ]
+    },
+    "equipment": [
+      "band"
+    ],
+    "regressions": [],
+    "progressions": [],
+    "skill": null,
+    "unit": "reps"
+  },
+  {
+    "id": "ex.couch_stretch",
+    "name": "Couch stretch",
+    "category": [
+      "recovery"
+    ],
+    "pattern": "mobility",
+    "modality": "mobility",
+    "difficulty": 2,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Squeeze the glute of the stretching side",
+      "Keep the ribs down",
+      "Breathe \u2014 this is where the length comes from"
+    ],
+    "muscles": {
+      "primary": [
+        "hip-flexors"
+      ],
+      "secondary": [
+        "quads"
+      ]
+    },
+    "equipment": [
+      "wall"
+    ],
+    "regressions": [],
+    "progressions": [],
+    "skill": null,
+    "unit": "seconds"
+  },
+  {
+    "id": "ex.nasal_breathing",
+    "name": "Down-regulation breathing",
+    "category": [
+      "recovery"
+    ],
+    "pattern": "mobility",
+    "modality": "mobility",
+    "difficulty": 1,
+    "video_url": null,
+    "diagram_url": null,
+    "cues": [
+      "Longer exhale than inhale \u2014 roughly double",
+      "Through the nose",
+      "Five minutes is enough to matter"
+    ],
+    "muscles": {
+      "primary": [],
+      "secondary": []
+    },
+    "equipment": [],
+    "regressions": [],
+    "progressions": [],
+    "skill": null,
+    "unit": "minutes"
+  }
+]

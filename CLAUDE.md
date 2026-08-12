@@ -428,10 +428,44 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **856/856 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **933/933 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
 vitest) and **`npm run build` produces exactly 41 routes** (34 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
+
+**HYBRID — the Health OS engine — landed 2026-08-12** at `src/lib/hybrid/`, and it is
+**foundation only: no UI, no tables, no adapter.** Nothing in the app looks different
+because of it yet. The rule that makes it worth having: **nothing in `hybrid/` imports
+from outside `hybrid/`** — no Supabase, no React, no BRAIN tables — which is why 77 tests
+can cover it with zero database. The adapter mapping `health_days` rows onto `Reading[]`
+belongs OUTSIDE that boundary and does not exist yet.
+
+It inherits this system's three laws into a new domain. *Absence is not zero*: readiness
+is a weighted mean over PRESENT signals only, never imputing a missing one as average,
+and it reports **confidence** — the share of possible evidence that showed up — beside
+the score, returning **no score at all below 35%**. *Surface, never decide*: nothing
+returns `allowed: false`; a red day is a smaller session with a reason and the full
+session one tap away, and readiness cuts **volume harder than intensity** because the
+stimulus lives in the top-end effort while the fatigue lives in the volume. *Judge
+against yourself*: every physiological signal scores against a rolling 60-day personal
+baseline, today excluded from its own baseline, zero SD treated as a stuck sensor.
+
+Also worth knowing: self-report is weighted as a **peer** of HRV, not a fallback (Saw,
+Main & Gastin, BJSM 2016 — subjective measures tracked load with greater sensitivity
+than objective ones). Skill trees are **DAGs, not ladders**, because real progressions
+converge; every standard carries form criteria and must be proved across **separate
+days**; mastery is DERIVED from the attempt log, never stored — the venture-dormancy
+discipline. Volume uses Israetel landmarks with two no barbell chart carries
+(**scapular stabilisers** and **wrists**, what actually cap lever and hand-balancing
+progress), and `at-ceiling` is kept separate from `over` so the top of the productive
+range is not flagged red. Acute:chronic workload is used as a conversation, never a
+gate, because the evidence is genuinely contested.
+
+**What it is waiting for, in order:** the Health Connect companion running on the phone
+(`health_days` is EMPTY — 0 rows — so readiness honestly returns "nothing to go on yet"
+every day until then), the `health_days` → `Reading[]` adapter, then any UI. Nutrition
+and mental-health engines are specced but deliberately deferred until the training core
+is proven.
 
 **The Samsung Health ingest path landed 2026-08-11** — stage one of two, and the
 staging is the design. Samsung Health has **no consumer cloud API**; what it has is its
@@ -1077,7 +1111,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 856 tests — must be green before build
+npm test                       # 933 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 
