@@ -13,6 +13,8 @@ import { type Advice, advise } from "@/lib/cog";
 import { loadCogBundle } from "@/lib/cogserver";
 import { COG_ENABLED } from "@/lib/flags";
 import Momentum from "@/components/Momentum";
+import { setupLine, setupSteps } from "@/lib/setup";
+import { loadSetupFacts } from "@/lib/setupserver";
 import {
   allReadings as bodySignals,
   type CookedMealRow,
@@ -455,6 +457,17 @@ export default async function TheBrain({
    * about attention. A lapsed MOT gets nothing: the world is not
    * interested in how his week went.
    */
+  /* -- what the system still needs ----------------------------------- *
+   *
+   * One line, or none. Wrapped for the same reason THE COG is: a failure
+   * in the newest thing on the page must not take down the page. */
+  let setupNeeded: string | null = null;
+  try {
+    setupNeeded = setupLine(setupSteps(await loadSetupFacts()));
+  } catch {
+    setupNeeded = null;
+  }
+
   /* -- THE COG ------------------------------------------------------ *
    *
    * Fetched here rather than from the client so the card arrives with the
@@ -752,6 +765,35 @@ export default async function TheBrain({
               )}
             </div>
           </div>
+
+          {/* -- setup, while anything is missing --------------------- *
+           *
+           * ONE line, and none at all once it is done. Every module here
+           * reports "unmeasured" rather than inventing a zero, which is
+           * why the numbers can be trusted — and also why a system with
+           * empty tables looks broken instead of hungry. This is the
+           * difference, said once.
+           *
+           * It sits below the advice rather than above it, because it is
+           * about making the system better at its job rather than about
+           * today. And it vanishes completely when the work is done: a
+           * prompt that congratulates you daily for being set up is a
+           * prompt you train yourself to skip, and the one line at the top
+           * of this card needs that habit intact. */}
+          {setupNeeded && (
+            <Link
+              href="/setup"
+              className="panel card-hover no-underline text-[var(--text)] flex items-baseline gap-3"
+            >
+              <span className="mono text-[0.62rem] uppercase tracking-[0.1em] shrink-0 text-[var(--faint)]">
+                Setup
+              </span>
+              <span className="text-[0.8rem] leading-snug flex-1 min-w-0 text-[var(--muted)]">
+                {setupNeeded}
+              </span>
+              <span className="mono text-[0.66rem] text-[var(--faint)] shrink-0">→</span>
+            </Link>
+          )}
 
           {/* -- THE COG ---------------------------------------------- *
            *

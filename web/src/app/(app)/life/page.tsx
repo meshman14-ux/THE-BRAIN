@@ -333,6 +333,18 @@ export default async function LifeOs() {
       {gaps.length > 0 && (
         <Panel title="◌ Not yet known" hint="each one edits here">
           <Unknowns items={gaps} values={gapValues} />
+          {/* This panel only knows about money and vehicles, because those
+              are the two things this page is about. The setup list is the
+              same idea across the whole system — and it is where the
+              fourth vehicle date lives, which this panel has never asked
+              for. */}
+          <Link
+            href="/setup"
+            className="inline-block mono text-[0.68rem] font-bold no-underline mt-2.5"
+            style={{ color: "var(--accent)" }}
+          >
+            Everything the system is missing →
+          </Link>
         </Panel>
       )}
 

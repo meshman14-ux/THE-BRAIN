@@ -437,10 +437,37 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **1167/1167 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **1195/1195 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
-vitest) and **`npm run build` produces exactly 47 routes** (36 pages + 11 API routes).
+vitest) and **`npm run build` produces exactly 48 routes** (37 pages + 11 API routes).
 `npx tsc --noEmit` is clean.
+
+**`/setup` — the list that makes the rest of it work — landed 2026-08-12** at
+`src/lib/setup.ts` (pure, 28 tests), `src/lib/setupserver.ts` (the queries, shared with
+the dashboard) and `src/components/SetupList.tsx`.
+
+Every module here reports "unmeasured" rather than inventing a zero, which is why the
+numbers can be trusted — and also why a system with empty tables looks broken instead of
+hungry. The admissions were scattered across eight screens. This is all of them in one
+list, ranked, each either typed inline or one tap away.
+
+The ordering rule: **the world outranks the system.** Exactly one step is
+`worldPunishes` — the MOT/tax/insurance dates — because a lapsed MOT is a fine and every
+other gap is this system being unable to score something. Everything else ranks by how
+many modules stop saying "unmeasured" when it is filled. The service date was split into
+its own non-legal step for the same reason: sixteen rows under one red heading would have
+said a late service and a lapsed MOT were the same kind of thing, and that is how a
+warning label stops working.
+
+The dashboard carries **one line while anything is missing and nothing once it is
+filled** (`setupLine`) — a prompt that congratulates you daily for being set up is a
+prompt you train yourself to skip, and the one line above it needs that habit intact.
+Finished steps stay on the page, greyed and folded, because a list that quietly shortens
+gives no sense of having got anywhere.
+
+It also closes a real gap: `unknowns()` on `/life` has only ever asked for three of the
+four vehicle dates, so `next_service` was editable everywhere except the one place that
+asks for it.
 
 **THE COG — the daily momentum engine — landed 2026-08-12** at `src/lib/cog/` (pure
 engine), `src/lib/cogstate.ts` (the mapping, tested) and `src/lib/cogserver.ts` (the
@@ -1197,7 +1224,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1167 tests — must be green before build
+npm test                       # 1195 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 
