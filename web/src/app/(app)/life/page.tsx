@@ -18,6 +18,7 @@ import {
   currentStreak,
   dueWithin,
   countsByPillar,
+  type PersonRow,
   areasFor,
   openCount,
   isUntouched,
@@ -30,7 +31,9 @@ import {
   daysUntil,
   isOverdue,
 } from "@/lib/logic";
-import AreaBars from "@/components/AreaBars";
+import Standing, { type StandingArea } from "@/components/Standing";
+import { bodyContract, moneyContract } from "@/lib/lifeos";
+import { standingAverage, standingBoard } from "@/lib/standing";
 import Habits from "@/components/Habits";
 import BucketList from "@/components/BucketList";
 import Unknowns from "@/components/Unknowns";
@@ -63,6 +66,10 @@ export default async function LifeOs() {
     { data: habitLogs },
     { data: debtRows },
     { data: vehicleRows },
+    { data: peopleRows },
+    { data: workoutRows },
+    { data: healthRows },
+    { data: journalRows },
   ] = await Promise.all([
     supabase
       .from("pillars")
@@ -96,8 +103,24 @@ export default async function LifeOs() {
       .order("sort_order"),
     supabase
       .from("vehicles")
-      .select("id, name, registration, status, tax_due, mot_due, insurance_due")
+      .select("id, name, registration, status, tax_due, mot_due, insurance_due, next_service")
       .order("sort_order"),
+    // What STANDING scores the areas FROM. Every one of these is a row
+    // that already exists — no new typing anywhere.
+    supabase
+      .from("people")
+      .select("id, name, relationship, last_contact, cadence_days, birthday, pillar_id"),
+    supabase.from("workouts").select("on_date").order("on_date", { ascending: false }).limit(60),
+    supabase
+      .from("health_days")
+      .select("on_date, ate_well")
+      .order("on_date", { ascending: false })
+      .limit(14),
+    supabase
+      .from("journal")
+      .select("entry_date")
+      .order("entry_date", { ascending: false })
+      .limit(40),
   ]);
 
   // The gaps, gathered. Every figure the system is missing across debts and
@@ -131,6 +154,65 @@ export default async function LifeOs() {
 
   const allPillars = (pillars ?? []) as Pillar[];
   const life = areasFor(allPillars, "life");
+
+  /* -- STANDING · the eight areas, mostly computed ------------------ *
+   *
+   * The keystone of LIFE_OS v2. Each area is scored FROM the module
+   * beneath it wherever a module exists, so the summary and the thing it
+   * summarises finally have a wire between them. Nothing here asks Jay
+   * for anything: every input is a row that already exists.
+   */
+  // `pillar_id` lives on the row, not on PersonRow — the cadence helpers
+  // deliberately know nothing about areas — so the two are kept apart and
+  // joined here, which is the only place that needs both.
+  const peopleWithArea = (peopleRows ?? []) as (PersonRow & {
+    pillar_id: string | null;
+  })[];
+  const peopleForStanding: PersonRow[] = peopleWithArea;
+  const pillarNameById = new Map(allPillars.map((p) => [p.id, p.name]));
+  const standingInput = {
+    body: bodyContract({
+      trainingDays: ((workoutRows ?? []) as { on_date: string }[]).map((w) => w.on_date),
+      readinessBand: null,
+      todayIso: today,
+    }),
+    money: moneyContract({
+      debts: (debtRows ?? []) as { current_balance: number | null; status: string }[],
+      missedPayments: 0,
+      debtFreeDate: null,
+    }),
+    people: peopleForStanding,
+    personArea: Object.fromEntries(
+      peopleWithArea.map((p) => [
+        p.id,
+        p.pillar_id ? (pillarNameById.get(p.pillar_id) ?? null) : null,
+      ])
+    ),
+    ateWell: ((healthRows ?? []) as { ate_well: boolean | null }[]).map((h) => h.ate_well),
+    journalDates: ((journalRows ?? []) as { entry_date: string }[]).map((j) => j.entry_date),
+    vehicles: ((vehicleRows ?? []) as {
+      tax_due: string | null;
+      mot_due: string | null;
+      insurance_due: string | null;
+      next_service: string | null;
+    }[]).map((v) => ({
+      tax_due: v.tax_due,
+      mot_due: v.mot_due,
+      insurance_due: v.insurance_due,
+      next_service: v.next_service ?? null,
+    })),
+    debtsTotal: ((debtRows ?? []) as unknown[]).length,
+    todayIso: today,
+  };
+  const board = standingBoard(
+    life.map((p) => ({ name: p.name, score: p.score ?? null })),
+    standingInput
+  );
+  const standingAreas: StandingArea[] = board.map((b) => {
+    const pillar = life.find((p) => p.name === b.area)!;
+    return { ...b, id: pillar.id, emoji: pillar.emoji, standard: pillar.standard };
+  });
+  const average = standingAverage(board);
   const lifeIds = new Set(life.map((p) => p.id));
 
   const allGoals = (goals ?? []) as Goal[];
@@ -399,8 +481,11 @@ export default async function LifeOs() {
 
       {/* -- areas + status ----------------------------------------- */}
       <div className="grid gap-5 xl:grid-cols-[3fr_2fr] items-start">
-        <Panel title="Life areas · needs attention first" hint="worst first, on purpose">
-          <AreaBars areas={life} today={today} />
+        <Panel
+          title="Standing · the eight areas"
+          hint={`${average.computed} of ${average.of} computed, worst first`}
+        >
+          <Standing areas={standingAreas} average={average} />
         </Panel>
 
         <Panel title="Area status" hint="one honest line each">

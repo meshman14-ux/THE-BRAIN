@@ -429,7 +429,7 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **989/989 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **1015/1015 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
 vitest) and **`npm run build` produces exactly 43 routes** (36 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
@@ -1160,7 +1160,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 989 tests — must be green before build
+npm test                       # 1015 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 

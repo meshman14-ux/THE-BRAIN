@@ -166,11 +166,13 @@ describe("peopleContract", () => {
  * ================================================================== */
 
 describe("rhythmContract", () => {
-  const tally = (key: string, counted: boolean) => ({
-    key,
+  // A settled month is one that is over: `current` is the month still
+  // being lived, and momentum() excludes it from the rate.
+  const tally = (month: string, counted: boolean) => ({
+    month,
     counted,
-    finishes: counted ? 1 : 0,
-    settled: true,
+    count: counted ? 1 : 0,
+    current: false,
   });
 
   it("carries the capacity the season supports — what EMPIRE_OS reads", () => {
