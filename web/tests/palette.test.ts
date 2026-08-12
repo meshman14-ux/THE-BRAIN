@@ -379,3 +379,71 @@ describe("palette · legibility on every ground", () => {
     }
   });
 });
+
+/* ------------------------------------------------------------------ *
+ * Channel zero — decoration, and only decoration
+ *
+ * The enrichment pass (2026-08-12) added depth: gradients, glows,
+ * sheens and growth. The whole bargain is that none of it MEANS
+ * anything — the four channels keep that job, and a decoration that
+ * carries information is a fifth channel wearing a disguise. These
+ * tests are what stop the bargain quietly lapsing.
+ * ------------------------------------------------------------------ */
+
+describe("palette · channel zero is decoration only", () => {
+  it("gives every ground its own depth tokens, so nothing is hardcoded", () => {
+    // A literal colour in a component is a colour that cannot follow the
+    // theme or the machine — the same reason --accent exists at all.
+    for (const [name, t] of Object.entries(GROUNDS)) {
+      for (const token of [
+        "--lift",
+        "--hero",
+        "--fill-accent",
+        "--glow-accent",
+        "--sheen",
+        "--shadow-lift",
+      ]) {
+        expect(t[token], `${name} is missing ${token}`).toBeDefined();
+      }
+    }
+  });
+
+  it("never lets decoration name a priority — the absence is still the design", () => {
+    // The enrichment added gradients called --fill-*; none of them may be
+    // a priority, because priority is shape and this is the file where
+    // that rule would be easiest to break by accident.
+    expect(css).not.toMatch(/--fill-(high|med|low)\s*:/i);
+    expect(css).not.toMatch(/--glow-(high|med|low)\s*:/i);
+  });
+
+  it("keeps the status trio as the only tones a fill may take", () => {
+    // --fill-* exists for accent, good and warn. A --fill-bad would put a
+    // gradient on the one colour that must never be decorative.
+    expect(css).not.toMatch(/--fill-bad\s*:/);
+  });
+
+  it("holds its contrast promises after the enrichment", () => {
+    // The gradients sit ON the card, so the card's own token is still what
+    // text is read against — this is the assertion that would fail if a
+    // --lift were ever darkened past its --card.
+    for (const [name, t] of Object.entries(GROUNDS)) {
+      expect(t["--lift"], `${name}: --lift must be a gradient, not a colour`).toContain(
+        "gradient"
+      );
+      expect(t["--hero"], `${name}: --hero must be a gradient`).toContain("gradient");
+    }
+  });
+
+  it("lets a reduced-motion reader opt out of every animation", () => {
+    // Growth and celebration are the only new motion, and both are
+    // animations — so the existing blanket rule already covers them. This
+    // asserts that rule is still there, because the enrichment is exactly
+    // the kind of change that would tempt someone to make an exception.
+    const block = css.match(
+      /@media \(prefers-reduced-motion: reduce\)\s*\{([\s\S]*?)\n\}/
+    );
+    expect(block, "the reduced-motion block is missing").not.toBeNull();
+    expect(block![1]).toContain("animation: none !important");
+    expect(block![1]).toContain("transition: none !important");
+  });
+});

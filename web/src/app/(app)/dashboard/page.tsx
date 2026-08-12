@@ -506,7 +506,10 @@ export default async function TheBrain({
            * "Good afternoon, Jay" to three. Wrapping is the behaviour that
            * was wanted; `flex-1` is the one thing that prevents it.
            */}
-          <div className="card p-4 sm:p-5 flex items-start gap-4 flex-wrap">
+          {/* `.panel-hero` is depth 3: the day's ground, lit from the top
+              left in whichever machine is being worn. Decoration only —
+              every fact here is in the text. */}
+          <div className="panel-hero flex items-start gap-4 flex-wrap">
             <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
               <p
                 className="text-[0.66rem] font-bold tracking-[0.16em] uppercase"
@@ -1088,12 +1091,18 @@ export default async function TheBrain({
                   {bars.map((hit, i) => (
                     <div
                       key={i}
-                      className="flex-1 rounded-[2px]"
+                      className={`flex-1 rounded-[2px]${hit ? " lit" : ""}`}
                       style={{
                         height: hit ? `${30 + (i % 3) * 3}%` : "14%",
                         minHeight: 5,
-                        background: hit ? "var(--warn)" : "var(--border)",
+                        background: hit ? "var(--fill-warn)" : "var(--border)",
                         opacity: hit ? 1 : 0.7,
+                        // Each bar arrives a beat after the one before it, so
+                        // the fortnight draws itself left to right.
+                        animation: hit
+                          ? `grow-y 0.4s cubic-bezier(0.22,1,0.36,1) both ${i * 30}ms`
+                          : undefined,
+                        transformOrigin: "bottom center",
                       }}
                       title={hit ? "trained" : "no log"}
                     />

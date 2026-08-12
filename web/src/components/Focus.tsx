@@ -100,11 +100,14 @@ export default function Focus({
         aria-label={t.done ? `Reopen: ${t.title}` : `Done: ${t.title}`}
         disabled={busy === t.id}
         onClick={() => toggle(t)}
-        className="shrink-0 w-6 h-6 rounded-[7px] border cursor-pointer mt-[1px]"
+        className={`shrink-0 w-6 h-6 rounded-[7px] border cursor-pointer mt-[1px]${
+          t.done ? " pop lit" : ""
+        }`}
         style={{
           borderColor: t.done ? "var(--good)" : "var(--border-bright)",
           background: t.done ? "var(--good)" : "transparent",
           color: "var(--on-accent)",
+          transition: "background 0.15s ease, border-color 0.15s ease",
         }}
       >
         {t.done ? "✓" : ""}

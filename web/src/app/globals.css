@@ -110,6 +110,35 @@
   --headtrack: -0.02em;
 
   --shadow: 0 6px 24px rgba(32, 36, 43, 0.08);
+
+  /* ---------------------------------------------------------------- *
+   * CHANNEL ZERO · depth and light — decoration, and ONLY decoration
+   *
+   * Everything below is texture: gradients, glows, sheens and lifts.
+   * None of it is ever the only thing saying something, because the
+   * four channels have that job and a decoration that carries meaning
+   * is a fifth channel wearing a disguise. Deleting this whole block
+   * would make the app plainer and no less truthful — that is the test
+   * for whether something belongs here.
+   *
+   * They are tokens rather than literals so both themes and both
+   * machines resolve them themselves, exactly as the accent does.
+   * ---------------------------------------------------------------- */
+
+  /* The lift: a card is a surface with light falling on it, not a box. */
+  --lift: linear-gradient(180deg, #ffffff 0%, #fdfcfa 100%);
+  --lift-hover: linear-gradient(180deg, #ffffff 0%, #f8f6f2 100%);
+  /* The hero's ground — the first thing seen each morning. */
+  --hero: radial-gradient( 120% 140% at 0% 0%, rgba(59, 71, 184, 0.09) 0%, rgba(59, 71, 184, 0) 55% ), linear-gradient(160deg, #ffffff 0%, #f7f5f1 100%);
+  /* A filled bar with light along it, rather than a flat block. */
+  --fill-accent: linear-gradient(90deg, #4b57c9 0%, #3b47b8 60%, #2f3aa0 100%);
+  --fill-good: linear-gradient(90deg, #2c9a5f 0%, #1d7f4a 100%);
+  --fill-warn: linear-gradient(90deg, #c47a18 0%, #ab6608 100%);
+  /* Glow: soft on paper, because daylight does not bloom. */
+  --glow-accent: 0 0 0 1px rgba(59, 71, 184, 0.16), 0 6px 20px rgba(59, 71, 184, 0.14);
+  --glow-good: 0 0 0 1px rgba(29, 127, 74, 0.18), 0 6px 20px rgba(29, 127, 74, 0.16);
+  --sheen: rgba(255, 255, 255, 0.55);
+  --shadow-lift: 0 2px 4px rgba(32, 36, 43, 0.04), 0 12px 32px rgba(32, 36, 43, 0.09);
 }
 
 /* ------------------------------------------------------------------ *
@@ -154,6 +183,20 @@
   --p-connecting: #ef85c6;
 
   --shadow: 0 10px 40px rgba(0, 0, 0, 0.45);
+
+  /* Channel zero, dark. A dark room is where light can actually bloom,
+     so the glows earn a little more here than they do on paper — still
+     decoration, still deletable without losing a single fact. */
+  --lift: linear-gradient(180deg, #171b27 0%, #131722 100%);
+  --lift-hover: linear-gradient(180deg, #1c2130 0%, #161a26 100%);
+  --hero: radial-gradient( 120% 140% at 0% 0%, rgba(139, 150, 245, 0.16) 0%, rgba(139, 150, 245, 0) 55% ), linear-gradient(160deg, #171b27 0%, #10131c 100%);
+  --fill-accent: linear-gradient(90deg, #a3adff 0%, #8b96f5 60%, #6f7ce8 100%);
+  --fill-good: linear-gradient(90deg, #7ce4b1 0%, #63d79f 100%);
+  --fill-warn: linear-gradient(90deg, #f7c470 0%, #f0b357 100%);
+  --glow-accent: 0 0 0 1px rgba(139, 150, 245, 0.25), 0 8px 28px rgba(139, 150, 245, 0.22);
+  --glow-good: 0 0 0 1px rgba(99, 215, 159, 0.25), 0 8px 28px rgba(99, 215, 159, 0.2);
+  --sheen: rgba(255, 255, 255, 0.06);
+  --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.35), 0 16px 44px rgba(0, 0, 0, 0.5);
 }
 
 * {
@@ -191,24 +234,154 @@ h2.serif,
   font-variant-numeric: tabular-nums;
 }
 
+/* `--lift` is a gradient, so a card is a surface with light falling on
+   it rather than a flat rectangle. It resolves per theme AND per machine,
+   so this one line is warm paper, dark graphite or EMPIRE cyan-lit
+   depending on where it lands. Nothing about it carries meaning. */
 .card {
-  background: var(--card);
+  background: var(--lift);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  transition: background 0.18s ease, border-color 0.18s ease,
+    box-shadow 0.18s ease, transform 0.18s ease;
 }
 .card-hover:hover {
-  background: var(--card-hover);
+  background: var(--lift-hover);
   border-color: var(--border-bright);
+  box-shadow: var(--shadow-lift);
 }
 
 /* The density-carrying panel. `.card` sets the skin; `.panel` sets the
    skin AND the breathing room, so a mode that tightens --pad actually
    tightens the page rather than only its corners. */
 .panel {
-  background: var(--card);
+  background: var(--lift);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   padding: var(--pad);
+}
+
+/* ------------------------------------------------------------------ *
+ * Hierarchy — three depths, so the page stops being one texture
+ *
+ * Everything used to be the same rectangle at the same height, which is
+ * why a screen of them reads as a wall. These say "this one matters
+ * more" with light rather than with colour, so they cost the four
+ * channels nothing.
+ * ------------------------------------------------------------------ */
+
+/* Depth 3 — the hero. One per screen, the first thing seen. */
+.panel-hero {
+  background: var(--hero);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  padding: calc(var(--pad) * 1.15);
+  box-shadow: var(--shadow-lift);
+  position: relative;
+  overflow: hidden;
+}
+/* The light along its top edge. Purely a highlight — 1px of nothing. */
+.panel-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--sheen) 35%,
+    var(--sheen) 65%,
+    transparent 100%
+  );
+}
+
+/* Depth 2 — a panel that wants to be noticed among its siblings. */
+.panel-raised {
+  background: var(--lift);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius);
+  padding: var(--pad);
+  box-shadow: var(--shadow-lift);
+}
+
+/* Depth 0 — deliberately recessed. For the quiet halves: dormant work,
+   standing bills, kept-not-counted habits. Sunken, never hidden. */
+.panel-quiet {
+  background: var(--bg-2);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  padding: var(--pad);
+}
+
+/* ------------------------------------------------------------------ *
+ * Progress that looks alive
+ *
+ * A filled bar gets light along it and grows on load, because the things
+ * measuring a life should not look like a spreadsheet. The WIDTH is the
+ * fact; the gradient and the growth are decoration, and a reduced-motion
+ * reader gets the same width instantly.
+ * ------------------------------------------------------------------ */
+
+.fill {
+  background: var(--fill-accent);
+  border-radius: 999px;
+  transform-origin: left center;
+  animation: grow 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.fill[data-tone="good"] {
+  background: var(--fill-good);
+}
+.fill[data-tone="warn"] {
+  background: var(--fill-warn);
+}
+.fill[data-tone="flat"] {
+  background: var(--faint);
+}
+
+/* A dot/bar that is "done" — the streak squares, the habit ticks. */
+.lit {
+  box-shadow: var(--glow-good);
+}
+.lit-accent {
+  box-shadow: var(--glow-accent);
+}
+
+@keyframes grow {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* The same idea stood on its end, for column charts like the training
+   fortnight. Set `transform-origin: bottom` at the call site. */
+@keyframes grow-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* The finish celebration. Fires once, on the thing that just closed —
+   completion is the reward loop this whole system runs on, and it was
+   the one moment the UI never marked. */
+@keyframes finish {
+  0% {
+    box-shadow: 0 0 0 0 var(--accent-soft);
+  }
+  55% {
+    box-shadow: 0 0 0 10px transparent;
+  }
+  100% {
+    box-shadow: 0 0 0 0 transparent;
+  }
+}
+.celebrate {
+  animation: finish 0.7s ease-out;
 }
 
 .input {
@@ -408,6 +581,20 @@ h2.serif,
   --pad: 13px;
 
   --shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+
+  /* Channel zero, EMPIRE. The machine is tighter and harder, so its
+     light is too: flatter lifts, a cooler hero, cyan where LIFE glows
+     indigo. Density is channel 1's job — this only follows it. */
+  --lift: linear-gradient(180deg, #21262f 0%, #1c2028 100%);
+  --lift-hover: linear-gradient(180deg, #262c36 0%, #20242d 100%);
+  --hero: radial-gradient( 120% 140% at 0% 0%, rgba(58, 201, 224, 0.14) 0%, rgba(58, 201, 224, 0) 55% ), linear-gradient(160deg, #21262f 0%, #171b21 100%);
+  --fill-accent: linear-gradient(90deg, #6bdcee 0%, #3ac9e0 60%, #29a9bd 100%);
+  --fill-good: linear-gradient(90deg, #83e6b6 0%, #6bdca5 100%);
+  --fill-warn: linear-gradient(90deg, #f8cb7c 0%, #f5bb63 100%);
+  --glow-accent: 0 0 0 1px rgba(58, 201, 224, 0.28), 0 8px 26px rgba(58, 201, 224, 0.2);
+  --glow-good: 0 0 0 1px rgba(107, 220, 165, 0.26), 0 8px 26px rgba(107, 220, 165, 0.18);
+  --sheen: rgba(255, 255, 255, 0.05);
+  --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.4), 0 14px 40px rgba(0, 0, 0, 0.55);
 }
 
 /* Nav items declare the modes they belong to; the rest are hidden. Written

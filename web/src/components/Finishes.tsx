@@ -39,6 +39,9 @@ export default function Finishes({
   const [kind, setKind] = useState<FinishKind>("milestone");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  // Marks the moment a finish lands. Completion is the reward loop this
+  // whole system runs on, and it was the one moment the UI never marked.
+  const [justFinished, setJustFinished] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -55,6 +58,8 @@ export default function Finishes({
     }
     setTitle("");
     setOpen(false);
+    setJustFinished(true);
+    setTimeout(() => setJustFinished(false), 800);
     router.refresh();
   }
 
@@ -66,7 +71,7 @@ export default function Finishes({
         : "var(--accent)";
 
   return (
-    <div className="panel">
+    <div className={`panel${justFinished ? " celebrate" : ""}`}>
       <div className="flex items-baseline gap-3 flex-wrap">
         <p className="label">◆ Months that counted</p>
         <p className="mono text-[0.8rem] font-bold ml-auto" style={{ color: tone }}>

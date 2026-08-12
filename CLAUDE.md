@@ -200,10 +200,31 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 
     | channel | carries | encoded by |
     |---|---|---|
+    | 0 · depth | **nothing** | gradient, glow, sheen, growth — decoration only |
     | 1 · system | which OS | hue + surface + typeface + density |
     | 2 · status | how it is going | green/amber/red, permanently reserved |
     | 3 · priority | how urgent | **shape and weight, never hue** |
     | 4 · module | what kind | glyph + micro-label, no colour |
+
+    **Channel zero was added 2026-08-12 (the enrichment pass) and carries no meaning by
+    definition.** `--lift`, `--lift-hover`, `--hero`, `--fill-*`, `--glow-*`, `--sheen`
+    and `--shadow-lift` are tokens on every ground, so a gradient follows the theme AND
+    the machine exactly as the accent does — paper lifts warm, dark lifts deep, EMPIRE
+    lifts graphite-and-cyan. The test for whether something belongs in channel zero:
+    **deleting the whole block would make the app plainer and no less truthful.** Three
+    depths give the page hierarchy without spending colour — `.panel-hero` (one per
+    screen, lit from the top-left, sheen line along its edge), `.panel-raised`, and
+    `.panel-quiet` (recessed and dashed, for the deliberately silent halves: dormant
+    work, standing bills, kept-not-counted habits). `.fill` puts light along a bar and
+    grows it on load — the WIDTH is the fact, the gradient and the growth are not.
+    `.celebrate` marks a finish landing, because completion is the reward loop the whole
+    system runs on and it was the one moment the UI never marked. Five tests in
+    `palette.test.ts` hold the bargain: every ground must define the depth tokens, no
+    `--fill-high/med/low` or `--glow-high/med/low` may ever exist (priority is shape, and
+    this is the file where that would be easiest to break by accident), no `--fill-bad`
+    (the one colour that must never be decorative), `--lift`/`--hero` must stay gradients
+    rather than becoming flat colours behind text, and the blanket
+    `prefers-reduced-motion` rule must keep covering every animation.
 
     **Priority may not have a colour, and that is structural rather than fussy.** The two
     colours it would reach for are already spoken for: red means "something is wrong"
@@ -407,7 +428,7 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **851/851 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **856/856 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
 vitest) and **`npm run build` produces exactly 41 routes** (34 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
@@ -1056,7 +1077,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 851 tests — must be green before build
+npm test                       # 856 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 

@@ -191,10 +191,12 @@ export function Bar({
       role="presentation"
     >
       <div
-        className="h-full rounded-full transition-[width] duration-300"
+        className="h-full rounded-full transition-[width] duration-300 fill"
         style={{
           width: `${percent}%`,
-          background: colour,
+          // A caller that names a colour still wins — the gradient is the
+          // default, never an override of a deliberate choice.
+          background: colour === "var(--accent)" ? undefined : colour,
           opacity: muted ? 0.45 : 1,
         }}
       />
