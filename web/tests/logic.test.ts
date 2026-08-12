@@ -1084,6 +1084,7 @@ const REAL_ROUTES = [
   "/life/vehicles",
   "/life/money",
   "/life/health",
+  "/life/food",
   "/life/people",
   "/checkin",
   "/empire",

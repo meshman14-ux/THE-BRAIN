@@ -191,6 +191,43 @@ export type Task = {
 };
 
 /* ------------------------------------------------------------------ *
+ * Food — the meal library (migration 20260811222457_meals)
+ * ------------------------------------------------------------------ */
+
+export type Meal = {
+  id: string;
+  name: string;
+  slug: string;
+  category: string;
+  cuisine: string | null;
+  image_url: string | null;
+  servings: number;
+  prep_min: number | null;
+  cook_min: number | null;
+  /**
+   * Grams per serving — an ESTIMATE while `estimates` is true, and the UI
+   * says so on every card rather than presenting a guess as measured.
+   */
+  protein_g: number | null;
+  kcal: number | null;
+  estimates: boolean;
+  tags: string[];
+  method: string[];
+  favourite: boolean;
+  last_cooked_on: string | null;
+  times_cooked: number;
+};
+
+export type MealIngredient = {
+  meal_id: string;
+  item: string;
+  qty: number | string | null;
+  unit: string | null;
+  sort_order: number;
+  optional: boolean;
+};
+
+/* ------------------------------------------------------------------ *
  * EMPIRE_OS
  * ------------------------------------------------------------------ */
 

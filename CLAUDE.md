@@ -312,7 +312,7 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 ## A4. Database (live project)
 
 Supabase project **`qttroyuajpyelfrbxzzt`** · https://qttroyuajpyelfrbxzzt.supabase.co
-Region eu-west-2 (London), free tier. **RLS owner-only on all 31 tables.** pgvector enabled.
+Region eu-west-2 (London), free tier. **RLS owner-only on all 33 tables.** pgvector enabled.
 
 ```
 command centre : vision · pillars · goals · projects · tasks · inbox · links · reviews
@@ -320,14 +320,16 @@ command centre : vision · pillars · goals · projects · tasks · inbox · lin
 vault          : notes
 LIFE_OS        : habits · habit_logs · journal · people · people_contacts
                  metrics · metric_readings · debts · debt_payments · vehicles
-                 health_days · workouts · lifts
+                 health_days · workouts · lifts · meals · meal_ingredients
 EMPIRE_OS      : ventures · assets · investments · opportunities
 calendar       : calendar_sync · integrations
 ```
 
-> The `seasons` and `finishes` migrations (2026-08-11, cloud session) and
-> `diagnostic_runs` are **already applied to the live project — do not re-apply any of
-> them.** `seasons` carries a partial unique index enforcing exactly one open season.
+> The `seasons`, `finishes`, `diagnostic_runs` and `meals`/`meal_ingredients`
+> migrations (2026-08-11, cloud sessions) are **already applied to the live project —
+> do not re-apply any of them.** `seasons` carries a partial unique index enforcing
+> exactly one open season; `meals` arrived seeded with the fifty (50 meals, 387
+> ingredient rows — re-running its migration would duplicate them all).
 
 > The count said 20 for a while and was wrong: `debts`, `debt_payments` and `vehicles`
 > shipped with the debts/vehicles work and `integrations` with the calendar. The v2 pass
@@ -405,9 +407,9 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **798/798 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **811/811 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
-vitest) and **`npm run build` produces exactly 39 routes** (32 pages + 7 API routes).
+vitest) and **`npm run build` produces exactly 40 routes** (33 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
 
 **The Samsung Health ingest path landed 2026-08-11** — stage one of two, and the
@@ -752,6 +754,12 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
                        alternative ordering in pounds and months
 /(app)/life/health     readiness band · load spike detector · the Big 4 ·
                        the nutrition ladder
+/(app)/life/food       the meal library: fifty meals, protein first, no beef
+                       in any recipe. Filters compose (category · under 25
+                       min · batchable · 40g+ · search down to ingredient
+                       level); the star outranks the sort; "Cooked it" is
+                       one tap, once per day, and builds times_cooked —
+                       the honest answer to "what do we actually eat?"
 /(app)/life/people     cadence watchtower (at most three) · occasions strip ·
                        the roster with one-tap tiers and contact logging
 /(app)/life            LIFE_OS — the 8 personal areas, scores, habits (#habits),
@@ -1019,7 +1027,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 798 tests — must be green before build
+npm test                       # 811 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 

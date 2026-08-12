@@ -50,12 +50,9 @@ export const PLACEHOLDERS: Placeholder[] = [
   // "health" left 2026-08-10: the hub is built at /life/health — readiness
   // band, load spike detector, the Big 4 and the nutrition ladder. It is in
   // BUILT_BRANCHES below, so /health forwards there.
-  {
-    slug: "food",
-    name: "Food",
-    what: "Meal planning and the shopping that follows from it. House rule: no beef, ever.",
-    phase: "Phase 4 · LIFE_OS",
-  },
+  // "food" left 2026-08-11: the meal library is built at /life/food —
+  // fifty meals, protein first, no beef in any recipe. It is in
+  // BUILT_BRANCHES below, so /food forwards there.
   // "kathleen-st" left with the other divisions: it is a venture, and its
   // cockpit is built at /empire/kathleen-st.
   // "vehicles" was retired 2026-08-01: the view it promised is built at
@@ -169,6 +166,7 @@ export const BUILT_BRANCHES: Record<string, { name: string; href: string }> = {
   advisor: { name: "Advisor", href: "/advisor" },
   health: { name: "Health", href: "/life/health" },
   finance: { name: "Finance", href: "/life/money" },
+  food: { name: "Food", href: "/life/food" },
   "debt-payoff": { name: "Debt payoff plan", href: "/life/money" },
   family: { name: "Family", href: "/life/people" },
   ...Object.fromEntries(
