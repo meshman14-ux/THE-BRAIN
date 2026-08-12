@@ -388,17 +388,17 @@ export default async function TheBrain({
     { label: "Kathleen St", href: "/kathleen-st" },
     { label: "Vehicles", href: "/life/vehicles" },
     { label: "Family", href: "/family" },
-    { label: "Personal", href: "/personal" },
   ];
+  // Personal, Daily Wall, Mind Map and Me left this sidebar on 2026-08-12.
+  // Each was an honest placeholder, but a sidebar entry that never delivers
+  // is a promise being broken every time the page loads, and the cost is
+  // paid by the entries that DO work — they get read with the same doubt.
   const plan: NavItem[] = [
-    { label: "Daily Wall", href: "/daily-wall" },
-    { label: "Mind Map", href: "/map" },
     { label: "Motivation", href: "/motivation" },
     { label: "Library", href: "/library" },
     { label: "Principles", href: "/library/principles" },
     { label: "Documents", href: "/documents" },
     { label: "Reviews", href: "/reviews" },
-    { label: "Me", href: "/me" },
   ];
 
   return (
@@ -444,19 +444,9 @@ export default async function TheBrain({
             ]}
           />
           <NavGroup title="Workspace" items={workspace} />
-          <NavGroup
-            title="Mind Map · My Arms"
-            items={arms}
-            foot={
-              <Link
-                href="/map"
-                className="mono text-[0.66rem] font-bold no-underline"
-                style={{ color: "var(--accent)" }}
-              >
-                MAP ↗
-              </Link>
-            }
-          />
+          {/* The "MAP ↗" foot went with /map — a link to a page that only
+              ever said it did not exist yet. The group keeps its name. */}
+          <NavGroup title="My Arms" items={arms} />
           <NavGroup title="Plan" items={plan} />
           <NavGroup
             title="Pinned"

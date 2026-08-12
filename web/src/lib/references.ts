@@ -842,13 +842,9 @@ export const BRANCH_RELATED: Record<
     routes: [{ label: "EMPIRE_OS — the venture at stabilise", href: "/empire" }],
   },
   family: { pillars: ["Family", "Friends & Network"] },
-  personal: { pillars: ["Mind & Growth"], routes: [{ label: "LIFE_OS", href: "/life" }] },
-  map: { routes: [{ label: "THE BRAIN — the map in list form, for now", href: "/dashboard" }] },
-  "daily-wall": { routes: [{ label: "Today's three", href: "/dashboard" }] },
   motivation: {},
   documents: { routes: [{ label: "Library — the reference shelves", href: "/library" }] },
   reviews: { routes: [{ label: "Goals — what the review walks", href: "/goals" }] },
-  me: {},
   "debt-payoff": {
     pillars: ["Money & Security"],
     routes: [

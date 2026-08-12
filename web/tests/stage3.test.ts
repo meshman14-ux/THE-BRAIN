@@ -721,6 +721,17 @@ describe("a branch that graduated to a real route", () => {
     expect(branchName("nothing-like-this")).toBe("nothing-like-this");
   });
 
+  it("keeps the four sidebar ghosts deleted", () => {
+    // LIFE_OS v2, step 1. These four were honest placeholders and were
+    // removed anyway: a sidebar entry that never delivers is a promise
+    // broken on every page load, and the cost is paid by the entries that
+    // DO work. If one comes back it must come back as a real page.
+    for (const slug of ["personal", "daily-wall", "map", "me"]) {
+      expect(placeholderFor(slug), `${slug} is a placeholder again`).toBeUndefined();
+      expect(BUILT_BRANCHES[slug], `${slug} claims to be built`).toBeUndefined();
+    }
+  });
+
   it("food graduated: named, and forwarded to the meal library", () => {
     expect(branchName("food")).toBe("Food");
     expect(BUILT_BRANCHES["food"].href).toBe("/life/food");

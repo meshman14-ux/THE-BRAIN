@@ -53,6 +53,13 @@ export const PLACEHOLDERS: Placeholder[] = [
   // "food" left 2026-08-11: the meal library is built at /life/food —
   // fifty meals, protein first, no beef in any recipe. It is in
   // BUILT_BRANCHES below, so /food forwards there.
+  // The four sidebar ghosts left 2026-08-12 (LIFE_OS v2, step 1): Personal,
+  // Mind Map, Daily Wall and Me. They were honest — each said what it would
+  // be — but they were promises the sidebar kept making and never keeping,
+  // and an entry that never delivers teaches you to stop reading the ones
+  // that do. Their futures are not cancelled: Personal and Daily Wall are
+  // absorbed by STANDING and /day, and Mind Map and Me can return as real
+  // pages when there is something behind them.
   // "kathleen-st" left with the other divisions: it is a venture, and its
   // cockpit is built at /empire/kathleen-st.
   // "vehicles" was retired 2026-08-01: the view it promised is built at
@@ -64,24 +71,6 @@ export const PLACEHOLDERS: Placeholder[] = [
     name: "Opportunities",
     what: "The deal board: what is on the table, what it would cost, and what it would return. EMPIRE_OS carries the table already — this becomes the view over it.",
     phase: "Phase 5 · EMPIRE_OS",
-  },
-  {
-    slug: "personal",
-    name: "Personal",
-    what: "Profile, principles, and the standards you hold yourself to.",
-    phase: "Phase 6 · Review rituals",
-  },
-  {
-    slug: "map",
-    name: "Mind Map",
-    what: "The whole system as one picture — pillars, ventures, goals and how they hang together.",
-    phase: "Phase 6+",
-  },
-  {
-    slug: "daily-wall",
-    name: "Daily Wall",
-    what: "The printable daily sheet: constraint, three, hours. The old app's Daily Sheet, rebuilt on real data.",
-    phase: "Phase 6 · Review rituals",
   },
   {
     slug: "motivation",
@@ -98,12 +87,6 @@ export const PLACEHOLDERS: Placeholder[] = [
   // "reviews" was retired 2026-08-05: the weekly review is built and lives
   // at the same address, /reviews, so the real route simply wins over the
   // catch-all. Its shelf and its name now come from BUILT_BRANCHES below.
-  {
-    slug: "me",
-    name: "Me",
-    what: "Profile and settings — who the system is for, and how it should behave.",
-    phase: "Phase 6+",
-  },
 
   /* -- EMPIRE_OS divisions are no longer placeholders ---------------
    *

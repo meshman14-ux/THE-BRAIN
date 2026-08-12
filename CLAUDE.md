@@ -429,7 +429,7 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **960/960 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **961/961 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
 vitest) and **`npm run build` produces exactly 43 routes** (36 pages + 7 API routes).
 `npx tsc --noEmit` is clean.
@@ -1078,6 +1078,14 @@ Open items:
    renders an honest "not built yet" page. When one gets built, delete its registry row in the
    same commit — `reviews` left the registry this way on 2026-08-05, and all 17 divisions
    left it on 2026-08-06 when `/empire/[id]` shipped.
+
+   **A placeholder can also leave by being deleted, and four did on 2026-08-12** (LIFE_OS v2,
+   step 1): Personal, Daily Wall, Mind Map and Me. They were honest — each said what it would
+   be — and they were removed anyway, because a sidebar entry that never delivers is a promise
+   broken on every page load and the cost is paid by the entries that DO work: they get read
+   with the same doubt. This reverses the founding note at the top of `placeholders.ts` for
+   these four only; the registry keeps its job for views genuinely on the build order.
+   `tests/stage3.test.ts` holds them deleted, so one can only return as a real page.
 8. **The obstacle tally has no data yet.** `reviews` is empty, so `/reviews` shows its
    "stays quiet until three" state. It starts saying something after Jay's third weekly
    review — worth checking then that the sentence reads the way he wanted.
@@ -1152,7 +1160,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 960 tests — must be green before build
+npm test                       # 961 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 
