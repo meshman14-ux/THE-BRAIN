@@ -60,6 +60,16 @@ export type StandingInput = {
   personArea: Record<string, string | null>;
   /** ate_well flags across the recent window, most recent first. */
   ateWell: (boolean | null)[];
+  /**
+   * Days in the last week with a cooked meal logged, from `fedState`.
+   * Null when the kitchen has no history at all.
+   *
+   * Free truth, and it is NOT used as a score — `meals` keeps only the
+   * last cooking of each meal, so this always undercounts, and scoring a
+   * lossy count would punish him for the system's own gaps. It is used to
+   * make the unmeasured line say what IS known instead of "nothing".
+   */
+  cookedDays?: number | null;
   /** Journal entry dates, for the reflection rhythm. */
   journalDates: string[];
   /** Vehicles and their four dates. Null means never recorded. */
@@ -98,12 +108,19 @@ export function scoreTraining(i: StandingInput): AreaScore {
 export function scoreNutrition(i: StandingInput): AreaScore {
   const answered = i.ateWell.filter((a): a is boolean => a != null);
   if (answered.length === 0) {
+    // The kitchen is not silent even when the check-in is, so say what is
+    // actually known before asking for another tap. It still does not
+    // become a score: cooked days undercount by design, and a number that
+    // punishes him for the system's lossiness is worse than no number.
+    const cooked = i.cookedDays;
     return {
       area: "Nutrition & Recovery",
       score: null,
       source: "unmeasured",
       working:
-        "Nothing logged. One tap a day on the health page — ate to plan, yes or no — is all this needs.",
+        cooked == null || cooked === 0
+          ? "Nothing logged. One tap a day on the health page — ate to plan, yes or no — is all this needs."
+          : `${cooked} cooked day${cooked === 1 ? "" : "s"} logged this week, which feeds readiness but is not enough to score by — it only sees meals cooked from the library. One tap a day on the health page closes the gap.`,
     };
   }
   const good = answered.filter(Boolean).length;

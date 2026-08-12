@@ -34,6 +34,7 @@ import {
 import Standing, { type StandingArea } from "@/components/Standing";
 import { bodyContract, moneyContract } from "@/lib/lifeos";
 import { standingAverage, standingBoard } from "@/lib/standing";
+import { type CookedMealRow, fedState } from "@/lib/training";
 import Habits from "@/components/Habits";
 import BucketList from "@/components/BucketList";
 import Unknowns from "@/components/Unknowns";
@@ -70,6 +71,7 @@ export default async function LifeOs() {
     { data: workoutRows },
     { data: healthRows },
     { data: journalRows },
+    { data: cookedRows },
   ] = await Promise.all([
     supabase
       .from("pillars")
@@ -121,6 +123,11 @@ export default async function LifeOs() {
       .select("entry_date")
       .order("entry_date", { ascending: false })
       .limit(40),
+    // The kitchen. Free truth: the cook button already writes this.
+    supabase
+      .from("meals")
+      .select("last_cooked_on, protein_g, estimates")
+      .not("last_cooked_on", "is", null),
   ]);
 
   // The gaps, gathered. Every figure the system is missing across debts and
@@ -189,6 +196,7 @@ export default async function LifeOs() {
       ])
     ),
     ateWell: ((healthRows ?? []) as { ate_well: boolean | null }[]).map((h) => h.ate_well),
+    cookedDays: fedState((cookedRows ?? []) as CookedMealRow[], today).cookedDays,
     journalDates: ((journalRows ?? []) as { entry_date: string }[]).map((j) => j.entry_date),
     vehicles: ((vehicleRows ?? []) as {
       tax_due: string | null;

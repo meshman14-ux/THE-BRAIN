@@ -107,6 +107,41 @@ describe("scoreNutrition", () => {
     expect(s.score).toBe(6);
     expect(s.working).toContain("3 of the 5");
   });
+
+  it("says what the kitchen knows instead of claiming nothing is logged", () => {
+    // The check-in is silent but meals were cooked. "Nothing logged" would
+    // be false, and a system that tells you it knows nothing while holding
+    // the evidence is a system you stop believing.
+    const s = scoreNutrition(input({ ateWell: [null, null], cookedDays: 4 }));
+    expect(s.source).toBe("unmeasured");
+    expect(s.working).toContain("4 cooked days");
+  });
+
+  it("still refuses to score from cooked days", () => {
+    // `meals` keeps only the LAST cooking of each meal, so this always
+    // undercounts. Scoring it would punish him for the system's lossiness.
+    expect(scoreNutrition(input({ ateWell: [null], cookedDays: 6 })).score).toBeNull();
+  });
+
+  it("admits the undercount in the same breath as the number", () => {
+    const s = scoreNutrition(input({ ateWell: [null], cookedDays: 2 }));
+    expect(s.working).toContain("only sees meals cooked from the library");
+  });
+
+  it("falls back to the plain ask when the kitchen is silent too", () => {
+    for (const cookedDays of [null, 0, undefined]) {
+      const s = scoreNutrition(input({ ateWell: [null], cookedDays }));
+      expect(s.working).toContain("Nothing logged");
+    }
+  });
+
+  it("prefers the direct answer over the derived one when both exist", () => {
+    // ate_well is Jay saying it. Cooking evidence is the system inferring
+    // it. When he has spoken, the inference does not get a vote.
+    const s = scoreNutrition(input({ ateWell: [true, true], cookedDays: 0 }));
+    expect(s.source).toBe("computed");
+    expect(s.score).toBe(10);
+  });
 });
 
 describe("scoreMind", () => {

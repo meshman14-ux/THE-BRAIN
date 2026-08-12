@@ -8,6 +8,13 @@ import {
   momentum,
   monthsCounted,
 } from "@/lib/finishes";
+import { readinessFor } from "@/lib/hybrid";
+import {
+  allReadings as bodySignals,
+  type CookedMealRow,
+  type HealthDayRow,
+  type JournalRow,
+} from "@/lib/training";
 import {
   type Season,
   SEASON_LABEL,
@@ -124,6 +131,9 @@ export default async function TheBrain({
     { data: tonight },
     { data: creed },
     { data: vehicles },
+    { data: healthDays },
+    { data: journalHistory },
+    { data: cookedMeals },
   ] = await Promise.all([
     supabase
       .from("pillars")
@@ -155,6 +165,25 @@ export default async function TheBrain({
     supabase
       .from("vehicles")
       .select("id, name, status, tax_due, mot_due, insurance_due, next_service"),
+    /* BODY absorbs HEALTH and FOOD (v2 step 8). The dashboard's body
+     * contract used to report a null readiness band because nothing here
+     * ever asked for one — a stub, and the honest fix is to ask. All
+     * three feeds are free: two already sync, and the third is written by
+     * the cook button. */
+    supabase
+      .from("health_days")
+      .select("on_date, rmssd, resting_hr, sleep_hours, steps, active_minutes, source")
+      .order("on_date", { ascending: false })
+      .limit(90),
+    supabase
+      .from("journal")
+      .select("entry_date, mood, energy")
+      .order("entry_date", { ascending: false })
+      .limit(90),
+    supabase
+      .from("meals")
+      .select("last_cooked_on, protein_g, estimates")
+      .not("last_cooked_on", "is", null),
   ]);
 
   // A failed read must never masquerade as an empty account — the seed
@@ -365,10 +394,22 @@ export default async function TheBrain({
    * which is the product. Everything else exists to earn the right to
    * print it.
    */
+  /* Readiness, from every feed that speaks — wearable, check-in, kitchen.
+   * The engine returns a null band rather than a guess when the evidence
+   * is too thin, and that null travels all the way through: the contract
+   * carries it, the standing board treats it as unmeasured, and nothing
+   * downstream invents a number to fill the hole. */
+  const bodyReadings = bodySignals(
+    (healthDays ?? []) as HealthDayRow[],
+    (journalHistory ?? []) as JournalRow[],
+    (cookedMeals ?? []) as CookedMealRow[]
+  );
+  const readinessToday = readinessFor(bodyReadings, today);
+
   const lifeContracts = {
     body: bodyContract({
       trainingDays: trainingDays,
-      readinessBand: null,
+      readinessBand: readinessToday.band,
       todayIso: today,
     }),
     money: moneyContract({

@@ -147,12 +147,23 @@ export function readingsFromJournal(rows: JournalRow[]): Reading[] {
   return out;
 }
 
-/** Everything the readiness engine can hear, from every table that speaks. */
+/**
+ * Everything the readiness engine can hear, from every table that speaks.
+ *
+ * `meals` is optional so that a caller with no food data gets exactly what
+ * it always got — the kitchen adds a voice, it does not become a
+ * requirement.
+ */
 export function allReadings(
   health: HealthDayRow[],
-  journal: JournalRow[]
+  journal: JournalRow[],
+  meals: CookedMealRow[] = []
 ): Reading[] {
-  return [...readingsFromHealthDays(health), ...readingsFromJournal(journal)];
+  return [
+    ...readingsFromHealthDays(health),
+    ...readingsFromJournal(journal),
+    ...readingsFromMeals(meals),
+  ];
 }
 
 /* ------------------------------------------------------------------ *
@@ -315,5 +326,121 @@ export function todaysKind(
   return {
     kind: next ?? shape[0] ?? "full-body",
     everythingRecent: next == null,
+  };
+}
+
+/* ------------------------------------------------------------------ *
+ * FOOD becomes an input to readiness
+ *
+ * LIFE_OS v2, step 8. Health and Food were two modules that never spoke,
+ * which is absurd: what he ate is one of the larger inputs to whether he
+ * can train, and the system already knew both halves separately.
+ *
+ * THE LAW decides the shape of this. Truth must be free — a food log
+ * that costs a manual entry will not survive a busy season, and asking
+ * for one would be building the module that gets abandoned in March. So
+ * nothing here asks Jay for anything. Cooking a meal is already a button
+ * he presses for his own reasons, and `last_cooked_on` is already
+ * written. This reads that, and nothing else.
+ *
+ * What it CANNOT do, said plainly rather than papered over: `meals` keeps
+ * only the LAST cooking of each meal, so the history is lossy. Cook the
+ * same chilli three weeks running and only the third shows. That makes
+ * this an UNDERCOUNT, never an overcount, which is the safe direction —
+ * and it is why a day with no cooked meal emits NO reading rather than a
+ * zero one. Absence of evidence that he ate is not evidence that he did
+ * not; it is the system not knowing, and the engine already handles not
+ * knowing by letting the signal go stale and quietly stop counting.
+ * ------------------------------------------------------------------ */
+
+export type CookedMealRow = {
+  last_cooked_on: string | null;
+  protein_g: number | null;
+  /** True when the macros are the seeded estimate rather than measured. */
+  estimates: boolean;
+};
+
+/**
+ * Protein per cooked day, as readings.
+ *
+ * The VALUE is protein grams, not a count of meals, because protein is
+ * the macro that actually gates recovery and because it varies — a
+ * signal that is 1 every time it appears has no baseline and tells the
+ * engine nothing. Two meals cooked on one day sum: a day's fuel is the
+ * day's total, not its most recent plate.
+ *
+ * The SOURCE is `derived` whenever any of the day's numbers is a seeded
+ * estimate, which discounts it to 0.6 reliability in the engine. A guess
+ * that knows it is a guess is worth having; one that presents itself as
+ * measured is not.
+ */
+export function readingsFromMeals(rows: CookedMealRow[]): Reading[] {
+  const byDay = new Map<string, { protein: number; estimated: boolean }>();
+  for (const r of rows) {
+    // No cook date is no evidence, and no protein figure is no reading —
+    // a meal whose macros were never filled in must not read as a day he
+    // ate nothing.
+    if (r.last_cooked_on == null || r.protein_g == null) continue;
+    const held = byDay.get(r.last_cooked_on) ?? { protein: 0, estimated: false };
+    byDay.set(r.last_cooked_on, {
+      protein: held.protein + r.protein_g,
+      estimated: held.estimated || r.estimates,
+    });
+  }
+  return [...byDay.entries()]
+    .map(([on, d]): Reading => ({
+      key: "nutrition",
+      value: d.protein,
+      source: d.estimated ? "derived" : "import",
+      on,
+    }))
+    .sort((a, b) => (a.on < b.on ? -1 : 1));
+}
+
+/** How many days back "recently fed" looks. A week of eating, not a day. */
+export const FED_WINDOW_DAYS = 7;
+
+export type FedState = {
+  /** Days in the window with a cooked meal on them. Null when unknowable. */
+  cookedDays: number | null;
+  /** The plainest true sentence about it. */
+  line: string;
+};
+
+/**
+ * What the kitchen says about the last week.
+ *
+ * Separate from the readiness score because it answers a different
+ * question: not "can he train today" but "is he feeding himself at all".
+ * It refuses to speak when there is no cooking history whatsoever, since
+ * a brand-new meals table and a fortnight of takeaways look identical
+ * from here, and only one of those is worth mentioning.
+ */
+export function fedState(rows: CookedMealRow[], todayIso: string): FedState {
+  const cooked = rows
+    .map((r) => r.last_cooked_on)
+    .filter((d): d is string => d != null);
+  if (cooked.length === 0) {
+    return {
+      cookedDays: null,
+      line: "Nothing cooked has been logged yet, so this says nothing about how you are eating.",
+    };
+  }
+  const days = new Set(
+    cooked.filter((d) => {
+      const ago = Math.round(
+        (Date.parse(todayIso + "T00:00:00") - Date.parse(d + "T00:00:00")) /
+          86_400_000
+      );
+      return ago >= 0 && ago < FED_WINDOW_DAYS;
+    })
+  );
+  const n = days.size;
+  return {
+    cookedDays: n,
+    line:
+      n === 0
+        ? `Nothing cooked in ${FED_WINDOW_DAYS} days — though this only sees meals logged from the kitchen, so it may be undercounting.`
+        : `${n} of the last ${FED_WINDOW_DAYS} days had a cooked meal logged.`,
   };
 }

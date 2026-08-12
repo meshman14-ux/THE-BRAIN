@@ -19,10 +19,12 @@ import {
 import {
   allReadings,
   attemptsFrom,
+  fedState,
   profileFrom,
   sessionsFrom,
   todaysKind,
   type AthleteProfileRow,
+  type CookedMealRow,
   type HealthDayRow,
   type JournalRow,
   type SkillAttemptRow,
@@ -54,6 +56,7 @@ export default async function TrainPage() {
     { data: attempts },
     { data: profileRow },
     { data: seasons },
+    { data: cooked },
   ] = await Promise.all([
     supabase
       .from("health_days")
@@ -80,14 +83,24 @@ export default async function TrainPage() {
       .select("bodyweight_kg, sessions_per_week, equipment, focus_skills, landmarks")
       .maybeSingle(),
     supabase.from("seasons").select("id, kind, started_on, ended_on, note"),
+    // BODY absorbs FOOD. What he cooked is one of the larger inputs to
+    // whether he can train, and `last_cooked_on` is already written by a
+    // button he presses for his own reasons — so this costs him nothing.
+    supabase
+      .from("meals")
+      .select("last_cooked_on, protein_g, estimates")
+      .not("last_cooked_on", "is", null),
   ]);
 
   /* -- adapt ------------------------------------------------------- */
 
+  const meals = (cooked ?? []) as CookedMealRow[];
   const readings = allReadings(
     (healthDays ?? []) as HealthDayRow[],
-    (journal ?? []) as JournalRow[]
+    (journal ?? []) as JournalRow[],
+    meals
   );
+  const fed = fedState(meals, today);
   const sessions = sessionsFrom(
     (workouts ?? []) as WorkoutRow[],
     (sets ?? []) as TrainingSetRow[]
@@ -212,6 +225,20 @@ export default async function TrainPage() {
             )}
           </div>
         )}
+
+        {/* -- the kitchen ------------------------------------------- *
+         *
+         * Shown whether or not there is a score, because "am I feeding
+         * myself" is a different question from "can I train today" and
+         * the answer to it survives the engine having nothing to say.
+         * It links to Food rather than restating it: two modules, one
+         * body, and this is the seam between them. */}
+        <p className="text-[0.74rem] text-[var(--muted)] leading-relaxed mt-3 pt-2.5 border-t border-[var(--border)] m-0">
+          {fed.line}{" "}
+          <Link href="/life/food" className="no-underline" style={{ color: "var(--accent)" }}>
+            Food →
+          </Link>
+        </p>
       </Panel>
 
       {/* -- the session ---------------------------------------------- */}
