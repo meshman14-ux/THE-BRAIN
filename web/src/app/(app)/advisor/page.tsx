@@ -8,6 +8,7 @@ import {
   type Task,
   type Venture,
 } from "@/lib/types";
+import { splitDebts } from "@/lib/season";
 import {
   areasFor,
   debtTotal,
@@ -73,7 +74,7 @@ export default async function AdvisorPage() {
     supabase.from("projects").select("id, venture_id, status"),
     supabase.from("habits").select("id, name").eq("active", true),
     supabase.from("habit_logs").select("habit_id, done_on"),
-    supabase.from("debts").select("id, creditor, kind, current_balance, status, plan_amount, plan_frequency, sort_order"),
+    supabase.from("debts").select("id, creditor, kind, current_balance, status, plan_amount, plan_frequency, sort_order, recurring"),
     supabase.from("calendar_sync").select("id, task_id, conflict"),
   ]);
 
@@ -100,7 +101,9 @@ export default async function AdvisorPage() {
     todayIso: today,
   });
 
-  const total = debtTotal((debts ?? []) as Debt[]);
+  // Only what can actually reach zero. A standing bill in the advisor's
+  // headline would make "clear the debt" a sentence that never comes true.
+  const total = debtTotal(splitDebts((debts ?? []) as Debt[]).closing);
   const scheduled = allTasks.filter((t) => belongsOnCalendar(t, today));
   const mapped = new Set(allLinks.map((l) => l.task_id).filter(Boolean));
 

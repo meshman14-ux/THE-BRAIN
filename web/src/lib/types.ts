@@ -659,6 +659,16 @@ export type Habit = {
   pillar_id: string | null;
   active: boolean;
   target_count?: number;
+  /**
+   * Whether the habit counts, streaks and appears on the board.
+   * Untracked is NOT inactive: keep doing it, stop counting it. Six
+   * permanently-open checkboxes is six chances to fail before breakfast,
+   * and a habit board never finishes — which is fatal for someone whose
+   * reward system only pays out on completion.
+   */
+  tracked?: boolean;
+  /** The one habit the system leads with. At most one is true. */
+  keystone?: boolean;
   meta?: Record<string, unknown> | null;
 };
 
@@ -814,6 +824,13 @@ export type Debt = {
   original_amount: number | null;
   /** NULL means not yet confirmed with the creditor. It does NOT mean zero. */
   current_balance: number | null;
+  /**
+   * True for a bill that never reaches zero — car tax, insurance, an
+   * ongoing council tax liability. Excluded from the debt-free total and
+   * from payoff order, because a thing that cannot close cannot be a
+   * finish, and closing accounts is what actually predicts payoff.
+   */
+  recurring?: boolean;
   status: string;
   plan_amount: number | null;
   plan_frequency: PlanFrequency | null;

@@ -246,3 +246,159 @@ describe("activeSetStatus", () => {
     expect(activeSetStatus(2, "minimum").over).toBe(true);
   });
 });
+
+/* ------------------------------------------------------------------ *
+ * The watchtower, told what season it is
+ * ------------------------------------------------------------------ */
+
+import {
+  NEVER_SUPPRESSED,
+  alertsForSeason,
+  closingTotal,
+  keystoneHabit,
+  splitDebts,
+  suppressesAlert,
+  trackedHabits,
+  untrackedHabits,
+} from "../src/lib/season";
+
+const alert = (kind: string) => ({ kind });
+
+describe("season suppression", () => {
+  it("silences empire bookkeeping in a busy season", () => {
+    // An untouched division in a busy month is parked, not dropped.
+    expect(suppressesAlert("drift", "busy")).toBe(true);
+    expect(suppressesAlert("lowprofit", "busy")).toBe(true);
+    expect(suppressesAlert("unscored", "minimum")).toBe(true);
+  });
+
+  it("silences nothing at all in the building window", () => {
+    for (const k of ["drift", "lowprofit", "unscored", "overdue", "person"]) {
+      expect(suppressesAlert(k, "quiet"), k).toBe(false);
+    }
+  });
+
+  it("never suppresses a deadline, in any season", () => {
+    // Due and overdue are facts about the world, and the world does not
+    // care what season it is. Hiding one would be the system lying in the
+    // flattering direction.
+    for (const season of SEASON_KINDS) {
+      for (const k of ["overdue", "due"]) {
+        expect(suppressesAlert(k, season), `${k}/${season}`).toBe(false);
+      }
+    }
+  });
+
+  it("never suppresses a person, in any season", () => {
+    // A busy month is exactly when staying in touch stops happening.
+    for (const season of SEASON_KINDS) {
+      expect(suppressesAlert("person", season), season).toBe(false);
+      expect(suppressesAlert("birthday", season), season).toBe(false);
+    }
+    expect(NEVER_SUPPRESSED).toContain("person");
+  });
+
+  it("returns both halves so nothing is silently dropped", () => {
+    const { shown, silenced } = alertsForSeason(
+      [alert("overdue"), alert("drift"), alert("person"), alert("lowprofit")],
+      "busy"
+    );
+    expect(shown.map((a) => a.kind)).toEqual(["overdue", "person"]);
+    expect(silenced.map((a) => a.kind)).toEqual(["drift", "lowprofit"]);
+    expect(shown.length + silenced.length).toBe(4);
+  });
+
+  it("shows everything in a quiet season", () => {
+    const all = [alert("overdue"), alert("drift"), alert("lowprofit")];
+    expect(alertsForSeason(all, "quiet").silenced).toHaveLength(0);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Debts that close vs bills that recur
+ * ------------------------------------------------------------------ */
+
+describe("splitDebts", () => {
+  const d = (o: Record<string, unknown> = {}) => ({
+    current_balance: (o.current_balance ?? null) as number | null,
+    recurring: (o.recurring ?? false) as boolean,
+  });
+
+  it("keeps arrears and standing bills apart", () => {
+    const s = splitDebts([d({ recurring: false }), d({ recurring: true })]);
+    expect(s.closing).toHaveLength(1);
+    expect(s.recurring).toHaveLength(1);
+  });
+
+  it("treats an unflagged debt as one that closes — nothing is reclassified", () => {
+    // The flag defaults false on purpose: council tax ARREARS do close, and
+    // only Jay knows which of his are which.
+    expect(splitDebts([{ current_balance: 100 }]).closing).toHaveLength(1);
+  });
+
+  it("excludes recurring bills from the debt-free total", () => {
+    const total = closingTotal([
+      d({ current_balance: 500 }),
+      d({ current_balance: 200 }),
+      d({ current_balance: 9999, recurring: true }),
+    ]);
+    expect(total).toBe(700);
+  });
+
+  it("returns null rather than zero when nothing is confirmed", () => {
+    // A total of zero and a total nobody has entered are different facts.
+    expect(closingTotal([d(), d()])).toBeNull();
+    expect(closingTotal([])).toBeNull();
+  });
+
+  it("ignores unconfirmed balances rather than counting them as zero", () => {
+    expect(closingTotal([d({ current_balance: 300 }), d()])).toBe(300);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * One habit that counts
+ * ------------------------------------------------------------------ */
+
+describe("habits", () => {
+  const h = (o: Record<string, unknown> = {}) => ({
+    name: String(o.name ?? "h"),
+    active: (o.active ?? true) as boolean,
+    tracked: (o.tracked ?? true) as boolean,
+    keystone: (o.keystone ?? false) as boolean,
+  });
+
+  it("finds the one the system leads with", () => {
+    const rows = [h({ name: "Water" }), h({ name: "Training", keystone: true })];
+    expect(keystoneHabit(rows)?.name).toBe("Training");
+  });
+
+  it("has no keystone until one is named", () => {
+    expect(keystoneHabit([h(), h()])).toBeNull();
+  });
+
+  it("never leads with an inactive habit", () => {
+    expect(keystoneHabit([h({ keystone: true, active: false })])).toBeNull();
+  });
+
+  it("counts only what is tracked", () => {
+    const rows = [
+      h({ name: "Training", keystone: true }),
+      h({ name: "Water", tracked: false }),
+      h({ name: "Bed", tracked: false }),
+    ];
+    expect(trackedHabits(rows).map((x) => x.name)).toEqual(["Training"]);
+    expect(untrackedHabits(rows).map((x) => x.name)).toEqual(["Water", "Bed"]);
+  });
+
+  it("treats untracked as still doing it, not as deleted", () => {
+    // Keep doing them; stop counting them. Nothing here removes a habit.
+    const rows = [h({ name: "Water", tracked: false })];
+    expect(untrackedHabits(rows)).toHaveLength(1);
+    expect(rows[0].active).toBe(true);
+  });
+
+  it("defaults an untagged habit to tracked, so nothing vanishes on migration", () => {
+    expect(trackedHabits([{ active: true }])).toHaveLength(1);
+  });
+});

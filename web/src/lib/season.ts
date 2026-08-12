@@ -274,3 +274,123 @@ export function activeSetStatus(
       : `${liveCount} of ${slots} active. Room for ${slots - liveCount} more.`,
   };
 }
+
+/* ------------------------------------------------------------------ *
+ * The watchtower, told what season it is
+ *
+ * A watchtower that cries wolf for half the year is a watchtower nobody
+ * reads for the other half. In a busy season an untouched division is
+ * PARKED, not dropped — and the whole point of declaring the season is
+ * that the system stops treating a deliberate choice as a failure.
+ *
+ * Two rules keep the suppression honest:
+ *
+ *   · **Deadlines are never suppressed.** Due and overdue are facts about
+ *     the world, and the world does not care what season it is. Hiding a
+ *     real deadline because the month is busy would be the system lying in
+ *     the flattering direction — the same reason a task with a due_date
+ *     never goes dormant.
+ *   · **People are never suppressed.** "47 days since you spoke, you said
+ *     14" is the one insight nothing else in the system can produce, and a
+ *     busy month is exactly when it stops happening. The alert is already
+ *     gentle and already capped; it does not need a season's permission.
+ *
+ * What IS suppressed is empire bookkeeping — progress drift and the
+ * profit-floor gate — because those measure attention, and attention is
+ * precisely what a busy season has already been declared not to have.
+ * ------------------------------------------------------------------ */
+
+/** Alert kinds that a narrowed season silences. Deliberately short. */
+export const SEASON_SUPPRESSES: Record<SeasonKind, readonly string[]> = {
+  quiet: [],
+  busy: ["drift", "lowprofit", "unscored"],
+  minimum: ["drift", "lowprofit", "unscored"],
+};
+
+/** Deadlines and people survive every season, whatever else is silenced. */
+export const NEVER_SUPPRESSED = ["overdue", "due", "person", "birthday"] as const;
+
+export function suppressesAlert(kind: string, season: SeasonKind): boolean {
+  if ((NEVER_SUPPRESSED as readonly string[]).includes(kind)) return false;
+  return SEASON_SUPPRESSES[season].includes(kind);
+}
+
+/**
+ * The watchtower, filtered. Returns both halves so a screen can say "3
+ * more, quiet this season" rather than silently dropping them — hidden is
+ * not the same as gone, and the difference is what keeps it trustworthy.
+ */
+export function alertsForSeason<T extends { kind: string }>(
+  alerts: T[],
+  season: SeasonKind
+): { shown: T[]; silenced: T[] } {
+  const shown: T[] = [];
+  const silenced: T[] = [];
+  for (const a of alerts) (suppressesAlert(a.kind, season) ? silenced : shown).push(a);
+  return { shown, silenced };
+}
+
+/* ------------------------------------------------------------------ *
+ * Debts that close, and bills that recur
+ * ------------------------------------------------------------------ */
+
+type Debtish = { current_balance?: number | null; recurring?: boolean | null };
+
+/**
+ * Split the arrears from the standing bills.
+ *
+ * A recurring bill never reaches zero, so it can never leave a
+ * thermometer and can never be a finish. Gal & McShane (JMR 2012, ~6,000
+ * debtors) found that the number of accounts CLOSED — independent of the
+ * amounts — predicted eliminating all debt. Mixing a thing that closes
+ * with a thing that cannot means "clear the debt" can never become true,
+ * and the one measure that actually predicts payoff is diluted by rows
+ * that will still be there in twenty years.
+ */
+export function splitDebts<T extends Debtish>(
+  debts: T[]
+): { closing: T[]; recurring: T[] } {
+  const closing: T[] = [];
+  const recurring: T[] = [];
+  for (const d of debts) (d.recurring ? recurring : closing).push(d);
+  return { closing, recurring };
+}
+
+/**
+ * The debt-free total: only what can actually reach zero.
+ *
+ * Returns null rather than 0 when nothing is confirmed, because a total of
+ * zero and a total nobody has entered are different facts — the same rule
+ * `formatGBP(null)` has always held.
+ */
+export function closingTotal<T extends Debtish>(debts: T[]): number | null {
+  const known = splitDebts(debts).closing
+    .map((d) => d.current_balance)
+    .filter((b): b is number => typeof b === "number");
+  return known.length === 0 ? null : known.reduce((a, b) => a + b, 0);
+}
+
+/* ------------------------------------------------------------------ *
+ * Habits: one that counts
+ * ------------------------------------------------------------------ */
+
+type Habitish = { active: boolean; tracked?: boolean | null; keystone?: boolean | null };
+
+/** The habit the system leads with, if one has been named. */
+export function keystoneHabit<T extends Habitish>(habits: T[]): T | null {
+  return habits.find((h) => h.active && h.keystone) ?? null;
+}
+
+/**
+ * Habits that count. Untracked ones are still active and still worth
+ * doing — they simply stop being scored, because the board was never the
+ * point and six open checkboxes is what stopped it being used.
+ */
+export function trackedHabits<T extends Habitish>(habits: T[]): T[] {
+  return habits.filter((h) => h.active && h.tracked !== false);
+}
+
+/** Still doing them, no longer counting them. Shown quietly, never scored. */
+export function untrackedHabits<T extends Habitish>(habits: T[]): T[] {
+  return habits.filter((h) => h.active && h.tracked === false);
+}

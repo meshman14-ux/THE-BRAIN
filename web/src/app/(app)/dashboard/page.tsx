@@ -8,7 +8,13 @@ import {
   momentum,
   monthsCounted,
 } from "@/lib/finishes";
-import { type Season, daysInSeason, seasonKind } from "@/lib/season";
+import {
+  type Season,
+  SEASON_LABEL,
+  alertsForSeason,
+  daysInSeason,
+  seasonKind,
+} from "@/lib/season";
 import {
   type Metric,
   type MetricReading,
@@ -310,7 +316,7 @@ export default async function TheBrain({
 
   /* -- the watchtower ----------------------------------------------- */
 
-  const alerts = watchtowerAlerts({
+  const everyAlert = watchtowerAlerts({
     tasks: allTasks,
     people: (people ?? []) as {
       id: string;
@@ -323,6 +329,14 @@ export default async function TheBrain({
     pillars: allPillars,
     todayIso: today,
   });
+
+  /* The watchtower, told what season it is.
+   *
+   * In a busy or minimum season an untouched division is PARKED, not
+   * dropped, so the empire bookkeeping alerts go quiet — but they are
+   * counted and said out loud rather than silently removed, and deadlines
+   * and people are never suppressed by any season. */
+  const { shown: alerts, silenced } = alertsForSeason(everyAlert, season);
 
   /* -- ventures ----------------------------------------------------- */
 
@@ -692,6 +706,14 @@ export default async function TheBrain({
                     the system has nothing to tell you, which is the point of
                     it having its own tab.
                   </Empty>
+                  {silenced.length > 0 && (
+                    <p className="text-[0.74rem] text-[var(--faint)] mt-3 leading-relaxed m-0">
+                      {silenced.length} empire alert
+                      {silenced.length === 1 ? " is" : "s are"} quiet this{" "}
+                      {SEASON_LABEL[season].toLowerCase()} — parked on purpose,
+                      not missed. They come back when the season does.
+                    </p>
+                  )}
                 </Panel>
               ) : (
                 <section className="panel" style={{ borderColor: "var(--bad)" }}>
@@ -731,6 +753,15 @@ export default async function TheBrain({
                       </Link>
                     ))}
                   </div>
+                  {silenced.length > 0 && (
+                    <p className="text-[0.72rem] text-[var(--faint)] mt-3 pt-2.5 border-t border-[var(--border)] leading-relaxed m-0">
+                      {silenced.length} more, quiet this{" "}
+                      {SEASON_LABEL[season].toLowerCase()} — empire bookkeeping
+                      measures attention, and this season has already been
+                      declared not to have it. Deadlines and people are never
+                      silenced.
+                    </p>
+                  )}
                 </section>
               )}
 

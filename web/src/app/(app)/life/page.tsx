@@ -86,7 +86,7 @@ export default async function LifeOs() {
     supabase.from("metric_readings").select("metric_id, taken_on, value"),
     supabase
       .from("habits")
-      .select("id, name, cadence, pillar_id, active, meta")
+      .select("id, name, cadence, pillar_id, active, meta, tracked, keystone")
       .eq("active", true)
       .order("name"),
     supabase.from("habit_logs").select("habit_id, done_on"),

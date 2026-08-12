@@ -13,7 +13,7 @@ export default async function DebtsPage() {
     supabase
       .from("debts")
       .select(
-        "id, creditor, kind, reference, original_amount, current_balance, status, plan_amount, plan_frequency, plan_day, plan_start, pillar_id, venture_id, notes, sort_order"
+        "id, creditor, kind, reference, original_amount, current_balance, status, plan_amount, plan_frequency, plan_day, plan_start, pillar_id, venture_id, notes, sort_order, recurring"
       )
       .order("sort_order"),
     supabase
