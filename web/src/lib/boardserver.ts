@@ -21,16 +21,29 @@ import { type CookedMealRow, fedState } from "./training";
 import type { ParentReport } from "./parents";
 import {
   bodyReport,
+  empireParentReport,
   horizonReport,
   moneyReport,
   peopleReport,
   standingReport,
 } from "./reports";
+import {
+  type DivisionRow,
+  divisionsFrom,
+  divisionsIn,
+  empireShape,
+  type EmpireShape,
+} from "./empire";
+import { EMPIRE_PARENTS } from "./parents";
 
 export type LifeBoard = {
   reports: ParentReport[];
   /** The full standing board, so `/life` does not fetch it twice. */
   standing: AreaScore[];
+  /** One report per EMPIRE parent, worst first. */
+  empire: ParentReport[];
+  /** The ratio the grouping exists to produce. */
+  shape: EmpireShape;
 };
 
 export async function loadLifeBoard(todayIso: string = toIso(new Date())): Promise<LifeBoard> {
@@ -47,6 +60,8 @@ export async function loadLifeBoard(todayIso: string = toIso(new Date())): Promi
     { data: cookedRows },
     { data: paymentRows },
     { data: goalRows },
+    { data: ventureRows },
+    { data: runRows },
   ] = await Promise.all([
     supabase.from("pillars").select("id, name, system"),
     supabase
@@ -60,6 +75,8 @@ export async function loadLifeBoard(todayIso: string = toIso(new Date())): Promi
     supabase.from("meals").select("last_cooked_on, protein_g, estimates").not("last_cooked_on", "is", null),
     supabase.from("debt_payments").select("due_on, paid_on"),
     supabase.from("goals").select("target_date, status"),
+    supabase.from("ventures").select("id, name, status, stage, one_liner, created_at, meta"),
+    supabase.from("diagnostic_runs").select("subject_id, completed_at").not("completed_at", "is", null),
   ]);
 
   const pillars = (pillarRows ?? []) as { id: string; name: string; system: string }[];
@@ -164,8 +181,42 @@ export async function loadLifeBoard(todayIso: string = toIso(new Date())): Promi
     .sort((a, b) => b.days - a.days);
   const tracked = peopleWithArea.filter((p) => p.cadence_days != null).length;
 
+  /* -- the empire --------------------------------------------------- *
+   *
+   * A diagnostic run is the only per-division action the schema
+   * timestamps, so it is what "touched" means here — the same definition
+   * dormancy already uses, rather than a second one that disagrees. */
+  const divisions = divisionsFrom((ventureRows ?? []) as DivisionRow[]);
+  const lastRun = new Map<string, string>();
+  for (const r of (runRows ?? []) as { subject_id: string; completed_at: string }[]) {
+    const held = lastRun.get(r.subject_id);
+    if (!held || r.completed_at > held) lastRun.set(r.subject_id, r.completed_at);
+  }
+  const ageOf = (id: string): number | null => {
+    const at = lastRun.get(id);
+    if (!at) return null;
+    return Math.round(
+      (Date.parse(todayIso + "T00:00:00Z") - Date.parse(at.slice(0, 10) + "T00:00:00Z")) /
+        86_400_000
+    );
+  };
+
+  const empire = EMPIRE_PARENTS.map((p) =>
+    empireParentReport(
+      p.id,
+      p.name,
+      divisionsIn(divisions, p.id).map((d) => ({
+        name: d.name,
+        live: d.live,
+        lastTouchedDays: ageOf(d.id),
+      }))
+    )
+  );
+
   return {
     standing,
+    empire,
+    shape: empireShape(divisions),
     reports: [
       standingReport(standing, todayIso),
       bodyReport(body, todayIso),

@@ -81,14 +81,19 @@ Written to match the repo, not the plan. Where a thing is proposed rather than b
                          Review, Advisor, Diagnose, Library, Setup
          ↑ contracts up, season context down
     LIFE_OS              Standing · Body · Money · People · Horizon   [five parents]
-    EMPIRE_OS            [FLAT] divisions, dormancy split at read time
+    EMPIRE_OS            Property · Trade · Product · Digital · Pipeline  [five parents]
+                         grouped by HOW EACH DIVISION EARNS, not by category
     THE COG              daily momentum engine, behind NEXT_PUBLIC_COG
     HYBRID               training engine, wired to /life/health/train
 
-**PROPOSED, not built:** the EMPIRE_OS half — Property · Trade · Product · Digital · Pipeline,
-grouped by HOW EACH DIVISION EARNS rather than by category, so the system can answer "how much
-of this earns without me". `EMPIRE_PARENTS` ships EMPTY until Jay confirms the placements: a
-board built on a guess reports the guess as a fact.
+**The EMPIRE grouping is by maintenance load, not category**, because that is the only filing
+that can answer the sentence the empire exists to satisfy: *how much of this earns without me,
+and how much stops the day I stop?* Placements live on `ventures.meta.parent`, confirmed by Jay
+13 Aug 2026 — so a division can be refiled without a deploy. Three facts the grouping alone
+could not settle ride on the rows too: `meta.proving` (A to Z Traderz, the one being proved end
+to end), `meta.operated` (MAINFRAME is a platform he also runs, so the passive count names the
+caveat), and `meta.pipeline` (`queue` = will start, `menu` = might, and only the first is a
+promise).
 
 **Parent page pattern:** one scrolling page, a tab bar that FILTERS it, each tab
 deep-linkable as `?tab=`. Tabs narrow what is already rendered — they do not fetch. The shared
@@ -122,14 +127,15 @@ second-copy failure rule 11 exists to prevent, and a draft did precisely that.
     web/src/lib/setup.ts      every gap in the system, ranked by what it unlocks
     web/src/lib/parents.ts    the parent registry and the report contract
     web/src/lib/reports.ts    contracts in, reports out — measures nothing
-    web/src/lib/boardserver.ts one loader for /life and the dashboard tile
+    web/src/lib/empire.ts     the division filing, and the earns-without-me ratio
+    web/src/lib/boardserver.ts one loader for /life, /empire and the dashboard
     web/src/lib/nav.ts        the nav registry, tested for membership
 
 ## Verification, every time
 
     cd web
     npx tsc --noEmit
-    npx vitest run          # 1286 tests as of 13 Aug 2026
+    npx vitest run          # 1307 tests as of 13 Aug 2026
     npm run build           # 49 routes (38 pages + 11 API)
 
 All three must pass before a commit. No exceptions.

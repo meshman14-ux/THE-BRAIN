@@ -43,10 +43,23 @@ describe("the parent registry", () => {
     expect(LIFE_PARENTS).toHaveLength(5);
   });
 
-  it("leaves EMPIRE empty until the placements are confirmed", () => {
-    // Its five parents group divisions by HOW EACH ONE EARNS, and several
-    // placements are guesses. A board built on a guess reports it as fact.
-    expect(EMPIRE_PARENTS).toHaveLength(0);
+  it("gives EMPIRE five parents too, once the placements were confirmed", () => {
+    // Shipped empty on 13 Aug because several placements were guesses, and
+    // a board built on a guess reports the guess as a fact. Jay confirmed
+    // them the same day, so the registry is real.
+    expect(EMPIRE_PARENTS).toHaveLength(5);
+  });
+
+  it("groups the empire by how each division EARNS, not by category", () => {
+    // Filed by category the empire cannot score itself against the one
+    // sentence it exists to satisfy: how much of this earns without me.
+    expect(EMPIRE_PARENTS.map((p) => p.id)).toEqual([
+      "property",
+      "trade",
+      "product",
+      "digital",
+      "pipeline",
+    ]);
   });
 
   it("has no duplicate ids", () => {
@@ -88,7 +101,7 @@ describe("the parent registry", () => {
 
   it("keeps the layers separable", () => {
     expect(parentsFor("life")).toHaveLength(5);
-    expect(parentsFor("empire")).toHaveLength(0);
+    expect(parentsFor("empire")).toHaveLength(5);
   });
 });
 

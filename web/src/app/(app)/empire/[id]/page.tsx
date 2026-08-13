@@ -40,6 +40,8 @@ import {
 import { divisionHref, refsForBranch, ventureSlug } from "@/lib/references";
 import { readVentureMonths } from "@/lib/logic";
 import { Panel, Empty, Kpi, Bar, Tag, DriftNote } from "@/components/ui";
+import { parentById } from "@/lib/parents";
+import EmpireParent from "@/components/EmpireParent";
 import DivisionMonth from "@/components/DivisionMonth";
 
 export const dynamic = "force-dynamic";
@@ -57,10 +59,27 @@ export const dynamic = "force-dynamic";
  */
 export default async function DivisionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
 }) {
   const { id } = await params;
+
+  /* -- an EMPIRE parent, not a division ----------------------------- *
+   *
+   * `/empire/property` and `/empire/kathleen-st` sit at the same level of
+   * the path, and Next.js will not accept two differently-named dynamic
+   * segments as siblings. So this route owns both and asks which it is.
+   *
+   * Parents are checked FIRST and their ids are a closed set of five, so
+   * a division can only be shadowed by being named exactly "property",
+   * "trade", "product", "digital" or "pipeline" — none is, and any that
+   * were would be a confusing name for a division regardless. */
+  const asParent = parentById(id);
+  if (asParent?.layer === "empire") {
+    return <EmpireParent parentId={id} tab={(await searchParams).tab} />;
+  }
   const supabase = await createClient();
   const today = toIso(new Date());
 

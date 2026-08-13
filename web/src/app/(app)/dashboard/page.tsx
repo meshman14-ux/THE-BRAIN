@@ -470,8 +470,13 @@ export default async function TheBrain({
    * and the page showing it in full cannot disagree. Wrapped, because a
    * failure here must cost a panel and not the dashboard. */
   let board: ParentReport[] = [];
+  let empireBoard: ParentReport[] = [];
+  let empireShapeLine = "";
   try {
-    board = (await loadLifeBoard(today)).reports;
+    const loaded = await loadLifeBoard(today);
+    board = loaded.reports;
+    empireBoard = loaded.empire;
+    empireShapeLine = loaded.shape.line;
   } catch {
     board = [];
   }
@@ -791,7 +796,26 @@ export default async function TheBrain({
            * line says the single thing that needs him today, the pulse
            * says what to do next, and this says how the whole picture
            * stands. Specific first, general after. */}
-          {board.length > 0 && <Board reports={board} />}
+          {board.length > 0 && (
+            <Board
+              reports={board}
+              title="LIFE_OS · the board"
+              href="/life"
+              foot="Five areas, each answering one question."
+            />
+          )}
+
+          {/* EMPIRE, grouped by HOW EACH DIVISION EARNS rather than by
+              category — the only filing that can answer the sentence the
+              whole thing exists to satisfy, which is printed underneath. */}
+          {empireBoard.length > 0 && (
+            <Board
+              reports={empireBoard}
+              title="EMPIRE_OS · the board"
+              href="/empire"
+              foot={empireShapeLine}
+            />
+          )}
 
           {/* -- setup, while anything is missing --------------------- *
            *

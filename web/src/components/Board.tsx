@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LIFE_PARENTS, boardLine, parentById, type ParentReport } from "@/lib/parents";
+import { boardLine, parentById, type ParentReport } from "@/lib/parents";
 
 /* ------------------------------------------------------------------ *
  * The board — five areas, five lines, one panel
@@ -24,14 +24,25 @@ const TONE: Record<ParentReport["state"], string> = {
   warn: "var(--bad)",
 };
 
-export default function Board({ reports }: { reports: ParentReport[] }) {
+export default function Board({
+  reports,
+  title,
+  href,
+  foot,
+}: {
+  reports: ParentReport[];
+  title: string;
+  href: string;
+  /** One sentence under the tiles. The shape, for EMPIRE. */
+  foot?: string;
+}) {
   return (
     <section className="panel">
       <div className="flex items-baseline gap-3 flex-wrap">
-        <p className="label m-0">LIFE_OS · the board</p>
+        <p className="label m-0">{title}</p>
         <p className="text-[0.78rem] font-semibold m-0">{boardLine(reports)}</p>
         <Link
-          href="/life"
+          href={href}
           className="text-[0.7rem] no-underline ml-auto"
           style={{ color: "var(--accent)" }}
         >
@@ -91,11 +102,11 @@ export default function Board({ reports }: { reports: ParentReport[] }) {
         })}
       </ul>
 
-      <p className="text-[0.68rem] text-[var(--faint)] mt-3 pt-2.5 border-t border-[var(--border)] leading-relaxed m-0">
-        {LIFE_PARENTS.length} areas, each answering one question. EMPIRE_OS joins the board
-        once its five parents are confirmed — grouping the divisions by how each one earns is
-        a judgement only you can make.
-      </p>
+      {foot && (
+        <p className="text-[0.68rem] text-[var(--faint)] mt-3 pt-2.5 border-t border-[var(--border)] leading-relaxed m-0">
+          {foot}
+        </p>
+      )}
     </section>
   );
 }

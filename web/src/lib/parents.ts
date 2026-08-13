@@ -170,15 +170,86 @@ export const LIFE_PARENTS: ParentArea[] = [
 ];
 
 /**
- * EMPIRE_OS — not built.
+ * EMPIRE_OS — five parents, grouped by HOW EACH DIVISION EARNS.
  *
- * Its five parents group the divisions by HOW EACH ONE EARNS rather than
- * by category, which is the only filing that can answer "how much of this
- * earns without me". Several placements are genuinely uncertain and Jay
- * has not confirmed them, so the registry stays empty rather than
- * shipping a guess the board would then report as fact.
+ * Not by category, and the difference is the whole point. Filed by
+ * category — property, retail, software — the empire cannot score itself
+ * against the sentence it exists to satisfy. Filed by maintenance load it
+ * can, and the answer falls straight out of the grouping:
+ *
+ *     how much of this earns without me,
+ *     and how much of it stops the day I stop?
+ *
+ * Confirmed with Jay on 13 Aug 2026 along with three things the grouping
+ * alone could not settle: A to Z Traderz is the PROVING GROUND, MAINFRAME
+ * is a platform he also operates rather than a passive one, and the
+ * Pipeline splits into things he will start and things he might.
+ *
+ * The placements live on `ventures.meta.parent`, not here. A division can
+ * be refiled without a deploy, and a venture added tomorrow does not need
+ * a code change to appear.
  */
-export const EMPIRE_PARENTS: ParentArea[] = [];
+export const EMPIRE_PARENTS: ParentArea[] = [
+  {
+    id: "property",
+    layer: "empire",
+    name: "Property",
+    href: "/empire/property",
+    icon: "⌂",
+    question: "What earns without me?",
+    views: [
+      { id: "let", label: "Let", hint: "earning now" },
+      { id: "works", label: "Works", hint: "not yet earning" },
+    ],
+    cost: "monthly",
+  },
+  {
+    id: "trade",
+    layer: "empire",
+    name: "Trade",
+    href: "/empire/trade",
+    icon: "⚒",
+    question: "What am I selling my hours to?",
+    views: [
+      { id: "active", label: "Active", hint: "running now" },
+      { id: "numbers", label: "Numbers", hint: "the five that matter" },
+    ],
+    cost: "monthly",
+  },
+  {
+    id: "product",
+    layer: "empire",
+    name: "Product",
+    href: "/empire/product",
+    icon: "◈",
+    question: "What am I making?",
+    views: [{ id: "lines", label: "Lines", hint: "what is made and sold" }],
+    cost: "monthly",
+  },
+  {
+    id: "digital",
+    layer: "empire",
+    name: "Digital",
+    href: "/empire/digital",
+    icon: "◉",
+    question: "What is built once and kept?",
+    views: [{ id: "builds", label: "Builds", hint: "software and platforms" }],
+    cost: "none",
+  },
+  {
+    id: "pipeline",
+    layer: "empire",
+    name: "Pipeline",
+    href: "/empire/pipeline",
+    icon: "✦",
+    question: "What is not started yet?",
+    views: [
+      { id: "queue", label: "Queue", hint: "things you will start" },
+      { id: "menu", label: "Menu", hint: "things you might, no expectation" },
+    ],
+    cost: "none",
+  },
+];
 
 export const ALL_PARENTS = [...LIFE_PARENTS, ...EMPIRE_PARENTS];
 
