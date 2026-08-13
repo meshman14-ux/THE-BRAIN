@@ -287,11 +287,26 @@ export function monthNudge(
     : `Nothing has visibly finished this month yet, with ${left} day${left === 1 ? "" : "s"} left.`;
 }
 
-/** Half-lives, in days, for the truths that genuinely cost typing. */
+/**
+ * Half-lives, in days, for the truths that genuinely cost typing.
+ *
+ * ONE table, and it stays one. The parent-area work wanted its own
+ * per-parent version and that would have been two tables disagreeing
+ * within a month — so a parent maps to the truth it depends on
+ * (`PARENT_TRUTH` in `parents.ts`) and reads the half-life from here.
+ *
+ * Each number is the honest half-life of the thing itself, not a uniform
+ * policy: a debt balance moves weekly, an MOT date does not move at all
+ * until it does, and a goal can sit untouched for six months without
+ * having gone off.
+ */
 export const STALE_AFTER: Record<string, number> = {
   "debt balances": 35,
   "vehicle dates": 90,
   "area scores": 21,
+  "health data": 7,
+  "the roster": 30,
+  goals: 180,
 };
 
 export type StaleTruth = { what: string; days: number; overBy: number };
