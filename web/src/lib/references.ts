@@ -817,7 +817,6 @@ export const BRANCH_RELATED: Record<
   string,
   { routes?: RelatedLink[]; pillars?: string[] }
 > = {
-  search: { routes: [{ label: "Capture — the writing half", href: "/capture" }] },
   today: {
     routes: [
       { label: "Today's three on THE BRAIN", href: "/dashboard" },

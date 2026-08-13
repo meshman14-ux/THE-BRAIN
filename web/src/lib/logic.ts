@@ -3915,18 +3915,33 @@ export function nextToSet(people: PersonRow[]): PersonRow | null {
 }
 
 /* ------------------------------------------------------------------ *
- * Money — four views of the same question
+ * Money — the MONEY parent area
  *
- * Jay wanted all four, so all four exist as tabs on one page rather than
- * four pages: they answer the same question at four ranges, and splitting
- * them across routes makes the comparison the point of having them.
+ * Six views of one question, on one page. Four of them answer "where do I
+ * stand" at four ranges, and splitting those across routes would have
+ * destroyed the comparison that is the point of having them.
+ *
+ * Two more joined when LIFE_OS compressed into parent areas. Accounts was
+ * /life/debts and Vehicles was /life/vehicles; both were SIBLINGS of Money
+ * when they are plainly parts of it. A vehicle is a recurring cost and a
+ * set of deadlines, and filing it as neither is why its MOT date never
+ * reached the watchtower.
  * ------------------------------------------------------------------ */
 
-export const MONEY_TABS = ["debt", "worth", "cashflow", "buffer"] as const;
+export const MONEY_TABS = [
+  "debt",
+  "accounts",
+  "vehicles",
+  "worth",
+  "cashflow",
+  "buffer",
+] as const;
 export type MoneyTab = (typeof MONEY_TABS)[number];
 
 export const MONEY_TAB_LABEL: Record<MoneyTab, string> = {
   debt: "Debt",
+  accounts: "Accounts",
+  vehicles: "Vehicles",
   worth: "Net worth",
   cashflow: "Cashflow",
   buffer: "Buffer",
@@ -3934,6 +3949,8 @@ export const MONEY_TAB_LABEL: Record<MoneyTab, string> = {
 
 export const MONEY_TAB_QUESTION: Record<MoneyTab, string> = {
   debt: "What do I owe, and when is it gone?",
+  accounts: "Creditor by creditor — what closes, and what just recurs?",
+  vehicles: "What is taxed, tested and insured, and what expires next?",
   worth: "What am I actually worth?",
   cashflow: "Does more come in than goes out?",
   buffer: "How long could I survive with nothing coming in?",

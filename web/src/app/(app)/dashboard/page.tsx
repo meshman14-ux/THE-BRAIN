@@ -15,6 +15,9 @@ import { COG_ENABLED } from "@/lib/flags";
 import Momentum from "@/components/Momentum";
 import { setupLine, setupSteps } from "@/lib/setup";
 import { loadSetupFacts } from "@/lib/setupserver";
+import { loadLifeBoard } from "@/lib/boardserver";
+import Board from "@/components/Board";
+import type { ParentReport } from "@/lib/parents";
 import {
   allReadings as bodySignals,
   type CookedMealRow,
@@ -457,6 +460,22 @@ export default async function TheBrain({
    * about attention. A lapsed MOT gets nothing: the world is not
    * interested in how his week went.
    */
+  /* -- the parent board ---------------------------------------------- *
+   *
+   * Five LIFE_OS areas, each reporting its one truth. THE BRAIN reads the
+   * reports and never the tables underneath — that is what stops a command
+   * centre from slowly becoming a second copy of everything below it.
+   *
+   * Shared with /life through one loader, so the tile summarising Standing
+   * and the page showing it in full cannot disagree. Wrapped, because a
+   * failure here must cost a panel and not the dashboard. */
+  let board: ParentReport[] = [];
+  try {
+    board = (await loadLifeBoard(today)).reports;
+  } catch {
+    board = [];
+  }
+
   /* -- what the system still needs ----------------------------------- *
    *
    * One line, or none. Wrapped for the same reason THE COG is: a failure
@@ -765,6 +784,14 @@ export default async function TheBrain({
               )}
             </div>
           </div>
+
+          {/* -- THE BOARD -------------------------------------------- *
+           *
+           * Below the one line and the pulse, and that order holds: the
+           * line says the single thing that needs him today, the pulse
+           * says what to do next, and this says how the whole picture
+           * stands. Specific first, general after. */}
+          {board.length > 0 && <Board reports={board} />}
 
           {/* -- setup, while anything is missing --------------------- *
            *

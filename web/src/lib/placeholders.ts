@@ -20,30 +20,6 @@ export type Placeholder = {
 };
 
 export const PLACEHOLDERS: Placeholder[] = [
-  {
-    slug: "search",
-    name: "Search everything",
-    what: "One box over tasks, goals and captures. Searching your notes already works — the advisor does it, with citations. What is missing is everything that is not a note.",
-    phase: "Phase 3 · Notes + links",
-  },
-  {
-    slug: "today",
-    name: "Today",
-    what: "The day view: your three, the diary hours, and nothing else. The dashboard's Today panel is the seed of it.",
-    phase: "Phase 6 · Review rituals",
-  },
-  {
-    slug: "diary",
-    name: "Work Diary",
-    what: "Hour-by-hour record of where the day actually went, feeding the weekly review.",
-    phase: "Phase 6 · Review rituals",
-  },
-  {
-    slug: "feed",
-    name: "Feed the System",
-    what: "Imports: Samsung Health screenshots, bill photos, bank statements. The OCR parsers from the old app get ported here.",
-    phase: "Phase 4 · LIFE_OS",
-  },
   // "finance" left 2026-08-10: the four money views are built at
   // /life/money. "debt-payoff" went with it — the pinned plan it promised
   // IS the Debt tab, order of attack and projected clear date included.
@@ -53,13 +29,30 @@ export const PLACEHOLDERS: Placeholder[] = [
   // "food" left 2026-08-11: the meal library is built at /life/food —
   // fifty meals, protein first, no beef in any recipe. It is in
   // BUILT_BRANCHES below, so /food forwards there.
-  // The four sidebar ghosts left 2026-08-12 (LIFE_OS v2, step 1): Personal,
-  // Mind Map, Daily Wall and Me. They were honest — each said what it would
-  // be — but they were promises the sidebar kept making and never keeping,
-  // and an entry that never delivers teaches you to stop reading the ones
-  // that do. Their futures are not cancelled: Personal and Daily Wall are
-  // absorbed by STANDING and /day, and Mind Map and Me can return as real
-  // pages when there is something behind them.
+  // -- the ghosts, cleared 12-13 Aug 2026 -------------------------------
+  //
+  // Ten branches promised views that did not exist. An entry that never
+  // delivers teaches you to stop reading the ones that do.
+  //
+  // Step 1 DELETED four of them — Personal, Mind Map, Daily Wall, Me —
+  // which broke house rule 12: never delete a route, redirect it. For a
+  // day /personal and /me returned 404 rather than landing somewhere
+  // true. They are FORWARDED now, along with the rest, because a
+  // bookmark that dies is worse than a page that says "not yet".
+  //
+  // Eight had a real home already and go to it (see BUILT_BRANCHES):
+  //   today, daily-wall → /day        the day planner IS the daily sheet
+  //   diary               → /week       hour-by-hour, printable
+  //   feed                → /life/body  where the Samsung importer lives
+  //   personal, me        → /life       Standing holds the areas and standards
+  //   motivation          → /library/principles   the Gita layer, ported
+  //   documents           → /inbox      captures and their attachments
+  //
+  // Two had no home and stay deleted rather than kept as a wish:
+  //   search — the advisor already searches notes WITH CITATIONS, and a
+  //     box over everything else was never specced beyond a sentence.
+  //   map — a picture of the whole system. The parent areas are now that
+  //     map, in list form.
   // "kathleen-st" left with the other divisions: it is a venture, and its
   // cockpit is built at /empire/kathleen-st.
   // "vehicles" was retired 2026-08-01: the view it promised is built at
@@ -71,18 +64,6 @@ export const PLACEHOLDERS: Placeholder[] = [
     name: "Opportunities",
     what: "The deal board: what is on the table, what it would cost, and what it would return. EMPIRE_OS carries the table already — this becomes the view over it.",
     phase: "Phase 5 · EMPIRE_OS",
-  },
-  {
-    slug: "motivation",
-    name: "Motivation",
-    what: "The Gita layer — verse of the day, deterministic, surfaced across the system. Worth porting intact.",
-    phase: "Phase 6+",
-  },
-  {
-    slug: "documents",
-    name: "Documents",
-    what: "The vault: filed papers, photographed bills, anything that must not rot in a drawer.",
-    phase: "Phase 3 · Notes + links",
   },
   // "reviews" was retired 2026-08-05: the weekly review is built and lives
   // at the same address, /reviews, so the real route simply wins over the
@@ -145,6 +126,15 @@ export const DIVISION_NAMES = [
  */
 export const BUILT_BRANCHES: Record<string, { name: string; href: string }> = {
   reviews: { name: "Reviews", href: "/reviews" },
+  // Retired ghosts, forwarded to where the thing they promised already is.
+  today: { name: "Today", href: "/day" },
+  "daily-wall": { name: "Daily Wall", href: "/day" },
+  diary: { name: "Work Diary", href: "/week" },
+  feed: { name: "Feed the System", href: "/life/body" },
+  personal: { name: "Personal", href: "/life" },
+  me: { name: "Me", href: "/life" },
+  motivation: { name: "Motivation", href: "/library/principles" },
+  documents: { name: "Documents", href: "/inbox" },
   calendar: { name: "Calendar", href: "/calendar" },
   advisor: { name: "Advisor", href: "/advisor" },
   health: { name: "Health", href: "/life/health" },

@@ -1079,7 +1079,11 @@ const SEEDED_VENTURES = [
 
 const REAL_ROUTES = [
   "/dashboard",
+  "/day",
   "/life",
+  "/life/body",
+  // Still real routes: both now REDIRECT into the Money parent rather than
+  // rendering, so an old bookmark lands on the tab that holds the thing.
   "/life/debts",
   "/life/vehicles",
   "/life/money",

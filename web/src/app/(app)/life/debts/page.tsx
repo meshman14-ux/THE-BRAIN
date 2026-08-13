@@ -1,44 +1,17 @@
-import { createClient } from "@/lib/supabase/server";
-import DebtsView from "@/components/Debts";
-import type { Debt, DebtPayment } from "@/lib/types";
-import { toIso } from "@/lib/logic";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default async function DebtsPage() {
-  const supabase = await createClient();
-  const today = toIso(new Date());
-
-  const [{ data: debts }, { data: payments }] = await Promise.all([
-    supabase
-      .from("debts")
-      .select(
-        "id, creditor, kind, reference, original_amount, current_balance, status, plan_amount, plan_frequency, plan_day, plan_start, pillar_id, venture_id, notes, sort_order, recurring"
-      )
-      .order("sort_order"),
-    supabase
-      .from("debt_payments")
-      .select("id, debt_id, amount, due_on, paid_on, status")
-      .order("due_on"),
-  ]);
-
-  return (
-    <div className="sys-life grid gap-7">
-      <header>
-        <p className="label">LIFE_OS · Money & Security</p>
-        <h1 className="text-[1.7rem] font-semibold mt-1.5">Debts</h1>
-        <p className="text-sm text-[var(--muted)] mt-2 max-w-[62ch] leading-relaxed">
-          Every creditor, what is owed, and the plan. A balance you have not
-          confirmed stays blank rather than counting as zero — the total says
-          how much of the picture is real.
-        </p>
-      </header>
-
-      <DebtsView
-        debts={(debts ?? []) as Debt[]}
-        payments={(payments ?? []) as DebtPayment[]}
-        today={today}
-      />
-    </div>
-  );
+/**
+ * Debts is no longer a sibling of Money — it is a part of it.
+ *
+ * A creditor list filed NEXT TO a money page rather than inside it is how
+ * you end up with two answers to "what do I owe", and the compression
+ * into parent areas exists to stop exactly that.
+ *
+ * The route survives as a redirect rather than being deleted, because a
+ * deleted route breaks every bookmark and reference-shelf entry pointing
+ * at it. That is house rule 12, and it is here specifically because
+ * LIFE_OS v2 step 1 broke it four times and had to be corrected.
+ */
+export default function DebtsPage() {
+  redirect("/life/money?tab=accounts");
 }

@@ -713,20 +713,44 @@ describe("a branch that graduated to a real route", () => {
   });
 
   it("still names and routes an ordinary placeholder", () => {
-    // "finance" graduated 2026-08-10 (/life/money) and "food" on
-    // 2026-08-11 (/life/food) — each was this test's example in its day.
-    // "feed" is genuinely still unbuilt, which is what this test needs.
-    expect(branchName("feed")).toBe("Feed the System");
-    expect(branchHref("feed")).toBe("/feed");
+    // "finance" graduated 2026-08-10 (/life/money), "food" on 2026-08-11,
+    // and "feed" was forwarded to /life/body on 2026-08-13 when the ghosts
+    // were cleared. "opportunities" is the last genuinely unbuilt one — it
+    // becomes the EMPIRE_OS Pipeline parent.
+    expect(branchName("opportunities")).toBe("Opportunities");
+    expect(branchHref("opportunities")).toBe("/opportunities");
     expect(branchName("nothing-like-this")).toBe("nothing-like-this");
   });
 
-  it("keeps the four sidebar ghosts deleted", () => {
-    // LIFE_OS v2, step 1. These four were honest placeholders and were
-    // removed anyway: a sidebar entry that never delivers is a promise
-    // broken on every page load, and the cost is paid by the entries that
-    // DO work. If one comes back it must come back as a real page.
-    for (const slug of ["personal", "daily-wall", "map", "me"]) {
+  it("retires a ghost to where the thing it promised actually lives", () => {
+    // LIFE_OS v2 step 1 DELETED four of these, which broke house rule 12 —
+    // never delete a route, redirect it — and for a day /personal and /me
+    // returned 404 instead of landing somewhere true. A bookmark that dies
+    // is worse than a page that says "not yet".
+    //
+    // All eight with a real home are FORWARDED to it now, and none is a
+    // placeholder any more.
+    const forwarded: Record<string, string> = {
+      today: "/day",
+      "daily-wall": "/day",
+      diary: "/week",
+      feed: "/life/body",
+      personal: "/life",
+      me: "/life",
+      motivation: "/library/principles",
+      documents: "/inbox",
+    };
+    for (const [slug, href] of Object.entries(forwarded)) {
+      expect(placeholderFor(slug), `${slug} is a placeholder again`).toBeUndefined();
+      expect(branchHref(slug), `${slug} does not forward`).toBe(href);
+    }
+  });
+
+  it("keeps the two ghosts with no home deleted", () => {
+    // "search" — the advisor already searches notes WITH CITATIONS, and a
+    // box over everything else was never specced beyond a sentence.
+    // "map" — the parent areas are now that map, in list form.
+    for (const slug of ["search", "map"]) {
       expect(placeholderFor(slug), `${slug} is a placeholder again`).toBeUndefined();
       expect(BUILT_BRANCHES[slug], `${slug} claims to be built`).toBeUndefined();
     }

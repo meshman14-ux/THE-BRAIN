@@ -78,12 +78,32 @@ export const NAV: NavItem[] = [
     phoneModes: [],
   },
 
-  /* -- LIFE_OS ----------------------------------------------------- */
+  /* -- LIFE_OS · five parent areas ---------------------------------
+   *
+   * Was six items, and four of them were SUB-MODULES wearing a nav entry.
+   * Vehicles is part of Money. Health is part of Body. Habits is part of
+   * Standing. A nav that lists sub-modules beside their parents has no
+   * hierarchy, which is a nav you scan rather than read.
+   *
+   * The order is deliberate and it is not alphabetical: Standing first
+   * because it is the summary of the other four, then the three that feed
+   * it, then Horizon because it is the only one about the future.
+   */
   {
-    key: "areas",
+    key: "standing",
     href: "/life",
-    label: "Areas",
+    label: "Standing",
     icon: "◧",
+    modes: ["life"],
+    phoneModes: ["life"],
+  },
+  {
+    key: "body",
+    href: "/life/body",
+    label: "Body",
+    icon: "◍",
+    // Readiness and Food are tabs on this page. Both old routes still
+    // answer at their own addresses.
     modes: ["life"],
     phoneModes: ["life"],
   },
@@ -92,17 +112,20 @@ export const NAV: NavItem[] = [
     href: "/life/money",
     label: "Money",
     icon: "£",
-    // The four views are one page, so the nav carries one item. Debts is
-    // reachable from the Debt tab, where the creditor detail belongs.
+    // Debt, Accounts, Vehicles, Net worth, Cashflow and Buffer are all
+    // tabs here. Six sub-modules, one nav entry.
     modes: ["life"],
-    phoneModes: ["life"],
-  },
-  {
-    key: "health",
-    href: "/life/health",
-    label: "Health",
-    icon: "◍",
-    modes: ["life"],
+    // OFF the phone bar, which holds exactly five. Body took the slot, and
+    // Money is the honest thing to give up: the parent registry declares
+    // its own cost as "monthly", the lowest of the five, and confirming a
+    // debt balance is a desk job — the same reasoning that already keeps
+    // Calendar and Week off the bar. It is one tap from the top bar.
+    //
+    // NOT the daily close, which is what the drop this came from dropped.
+    // The close is the free-truth mechanism everything downstream reads:
+    // it writes the mood and energy that THE COG derives the morning bands
+    // from, and making the one ritual that feeds the system harder to
+    // reach is the opposite of what a phone bar is for.
     phoneModes: [],
   },
   {
@@ -113,23 +136,6 @@ export const NAV: NavItem[] = [
     modes: ["life"],
     phoneModes: [],
   },
-  {
-    key: "vehicles",
-    href: "/life/vehicles",
-    label: "Vehicles",
-    icon: "⛭",
-    modes: ["life"],
-    phoneModes: [],
-  },
-  {
-    key: "habits",
-    href: "/life#habits",
-    label: "Habits",
-    icon: "✓",
-    modes: ["life"],
-    phoneModes: [],
-  },
-
   /* -- EMPIRE_OS --------------------------------------------------- */
   {
     key: "divisions",
@@ -152,9 +158,16 @@ export const NAV: NavItem[] = [
   {
     key: "goals",
     href: "/goals",
-    label: "Goals",
-    icon: "◎",
-    modes: ["brain", "empire"],
+    // "Horizon" is the LIFE_OS parent this route became: goals, the
+    // bucket list and the vision, answering "where is this going?".
+    //
+    // ONE entry rather than a second life-mode one called Horizon. Two
+    // nav entries pointing at one route under two names is how a nav
+    // starts feeling arbitrary — you learn the address twice and trust
+    // neither label.
+    label: "Horizon",
+    icon: "◇",
+    modes: ["brain", "life", "empire"],
     phoneModes: ["empire"],
   },
   {

@@ -119,17 +119,22 @@ describe("modes", () => {
 describe("nav by mode", () => {
   const labels = (m: Mode) => navForMode(NAV, m).map((n) => n.label);
 
-  it("gives LIFE_OS its own operating system", () => {
+  it("gives LIFE_OS five parent areas, not eleven flat items", () => {
     // "Plan" replaced "Week" here on 2026-08-12: one planning door instead
     // of two, pointing at /day. Week is one tap away inside it.
+    //
+    // Then on 13 Aug the six LIFE items became five parents. Vehicles,
+    // Health and Habits no longer earn a nav entry of their own: they are
+    // SUB-MODULES of Money, Body and Standing. A nav that lists sub-modules
+    // alongside their parents has no hierarchy, which is a nav you scan
+    // rather than read. Standing leads because it summarises the rest.
     expect(labels("life")).toEqual([
       "Plan",
-      "Areas",
+      "Standing",
+      "Body",
       "Money",
-      "Health",
       "People",
-      "Vehicles",
-      "Habits",
+      "Horizon",
       "Close",
       "Calendar",
       "Capture",
@@ -141,7 +146,10 @@ describe("nav by mode", () => {
     expect(labels("empire")).toEqual([
       "Divisions",
       "Opportunities",
-      "Goals",
+      // /goals became the HORIZON parent and carries that name everywhere.
+      // Two nav entries pointing at one route under two names is how a nav
+      // starts feeling arbitrary.
+      "Horizon",
       "Diagnose",
       "Capture",
       "Inbox",
@@ -158,7 +166,7 @@ describe("nav by mode", () => {
       // entry at all.
       "Plan",
       "Review",
-      "Goals",
+      "Horizon",
       "Close",
       "Calendar",
       "Diagnose",

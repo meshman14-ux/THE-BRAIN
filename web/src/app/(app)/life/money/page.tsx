@@ -16,16 +16,26 @@ import {
   type PayoffDebt,
 } from "@/lib/logic";
 import MoneyTabs from "@/components/MoneyTabs";
+import DebtsView from "@/components/Debts";
+import Vehicles from "@/components/Vehicles";
+import type { Debt, DebtPayment, Vehicle } from "@/lib/types";
+import { upcomingDeadlines } from "@/lib/logic";
 import { Panel, Kpi, Empty } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
 /* ------------------------------------------------------------------ *
- * Money & Security — four views of the same question.
+ * Money & Security — the MONEY parent area.
  *
- * Jay wanted all four, so all four are tabs on one page rather than four
- * routes: they answer the same question at four different ranges, and the
- * comparison between them is most of the value.
+ * Six views of one question on one page. Four answer "where do I stand" at
+ * four different ranges, and the comparison between them is most of the
+ * value — which is why they were never four routes.
+ *
+ * Accounts and Vehicles joined when LIFE_OS compressed into parent areas.
+ * Both were sibling ROUTES to this page when they are plainly parts of it:
+ * a creditor list filed next to a money page is two answers to "what do I
+ * owe", and a vehicle is a recurring cost and a set of legal deadlines.
+ * The old addresses redirect here rather than 404ing.
  *
  * The rule the whole page obeys is the one formatGBP already encoded:
  * an unknown renders as a dash, never as a zero. That matters most here,
@@ -52,6 +62,9 @@ export default async function MoneyPage({
     { data: investmentRows },
     { data: metricRows },
     { data: readingRows },
+    { data: creditorRows },
+    { data: paymentRows },
+    { data: vehicleRows },
   ] = await Promise.all([
     supabase
       .from("debts")
@@ -63,7 +76,31 @@ export default async function MoneyPage({
     supabase.from("investments").select("current_value"),
     supabase.from("metrics").select("id, name, unit, direction, pillar_id"),
     supabase.from("metric_readings").select("metric_id, taken_on, value"),
+    // Accounts and Vehicles were sibling ROUTES until the compression.
+    // They are parts of Money, so they are fetched here and rendered as
+    // tabs on the same page.
+    supabase
+      .from("debts")
+      .select(
+        "id, creditor, kind, reference, original_amount, current_balance, status, plan_amount, plan_frequency, plan_day, plan_start, pillar_id, venture_id, notes, sort_order, recurring"
+      )
+      .order("sort_order"),
+    supabase
+      .from("debt_payments")
+      .select("id, debt_id, amount, due_on, paid_on, status")
+      .order("due_on"),
+    supabase
+      .from("vehicles")
+      .select(
+        "id, name, registration, make_model, tax_due, mot_due, insurance_due, last_service, next_service, status, pillar_id, sort_order, notes"
+      )
+      .order("sort_order"),
   ]);
+
+  const creditors = (creditorRows ?? []) as Debt[];
+  const payments = (paymentRows ?? []) as DebtPayment[];
+  const vehicles = (vehicleRows ?? []) as Vehicle[];
+  const vehicleDue = upcomingDeadlines(vehicles, today, 30);
 
   const raw = (debtRows ?? []) as (PayoffDebt & { meta: unknown })[];
   const debts: PayoffDebt[] = raw.map((d) => ({
@@ -155,14 +192,32 @@ export default async function MoneyPage({
             Interest rates, references, payment days and the plan schedule live
             on{" "}
             <Link
-              href="/life/debts"
+              href="/life/money?tab=accounts"
               className="font-semibold no-underline"
               style={{ color: "var(--accent)" }}
             >
-              the creditor list
+              the Accounts tab
             </Link>
             .
           </p>
+        </>
+      )}
+
+      {tab === "accounts" && (
+        <DebtsView debts={creditors} payments={payments} today={today} />
+      )}
+
+      {tab === "vehicles" && (
+        <>
+          {/* A vehicle is a set of deadlines, and this is the tab that says
+              so. A blank date means NOT RECORDED, never clear — the
+              distinction that let one MOT lapse unnoticed. */}
+          <p className="text-[0.82rem] text-[var(--muted)] leading-relaxed m-0 max-w-[62ch]">
+            {vehicleDue.length > 0
+              ? `${vehicleDue.length} thing${vehicleDue.length === 1 ? "" : "s"} needs attention in the next 30 days.`
+              : "Nothing due in the next 30 days. A blank date means not recorded, not clear."}
+          </p>
+          <Vehicles vehicles={vehicles} today={today} />
         </>
       )}
 

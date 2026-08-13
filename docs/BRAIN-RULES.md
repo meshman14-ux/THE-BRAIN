@@ -62,10 +62,12 @@ what stops the command centre becoming a second copy of everything below it.
 Old links, bookmarks and reference shelves must keep landing somewhere true. A nav that promises
 and does not deliver teaches the user to distrust the nav.
 
-> **Known breach, 12 Aug 2026.** LIFE_OS v2 step 1 DELETED four placeholder branches rather than
-> forwarding them, so `/personal`, `/me`, `/daily-wall` and `/map` currently 404. The parent-area
-> work forwards them instead (`personal`/`me` → `/life`, `daily-wall` → `/day`), which is what
-> rule 12 requires. Until that lands, this rule is aspirational in four places.
+> **Breach, opened 12 Aug and closed 13 Aug.** LIFE_OS v2 step 1 DELETED four placeholder
+> branches rather than forwarding them, so `/personal`, `/me`, `/daily-wall` and `/map` returned
+> 404 for a day. All eight ghosts with a real home now forward to it — `personal`/`me` → `/life`,
+> `today`/`daily-wall` → `/day`, `diary` → `/week`, `feed` → `/life/body`, `motivation` →
+> `/library/principles`, `documents` → `/inbox`. Only `search` and `map` stay deleted, because
+> neither had anywhere true to land.
 
 ---
 
@@ -78,19 +80,17 @@ Written to match the repo, not the plan. Where a thing is proposed rather than b
                          tools: Planner, Day, Week, Calendar, Capture, Inbox,
                          Review, Advisor, Diagnose, Library, Setup
          ↑ contracts up, season context down
-    LIFE_OS              [FLAT, 11 nav items] Areas · Money · Health · People ·
-                         Vehicles · Habits · Food · Debts · Body(—) · Horizon(—)
+    LIFE_OS              Standing · Body · Money · People · Horizon   [five parents]
     EMPIRE_OS            [FLAT] divisions, dormancy split at read time
     THE COG              daily momentum engine, behind NEXT_PUBLIC_COG
     HYBRID               training engine, wired to /life/health/train
 
-**PROPOSED, not built:** the five-parent compression of each subsystem
-(`parents.ts`, `reports.ts`, `ParentShell.tsx`). LIFE_OS → Standing · Body · Money · People ·
-Horizon. EMPIRE_OS → Property · Trade · Product · Digital · Pipeline, grouped by HOW EACH
-DIVISION EARNS rather than by category, so the system can answer "how much of this earns
-without me".
+**PROPOSED, not built:** the EMPIRE_OS half — Property · Trade · Product · Digital · Pipeline,
+grouped by HOW EACH DIVISION EARNS rather than by category, so the system can answer "how much
+of this earns without me". `EMPIRE_PARENTS` ships EMPTY until Jay confirms the placements: a
+board built on a guess reports the guess as a fact.
 
-**Parent page pattern, when it lands:** one scrolling page, a tab bar that FILTERS it, each tab
+**Parent page pattern:** one scrolling page, a tab bar that FILTERS it, each tab
 deep-linkable as `?tab=`. Tabs narrow what is already rendered — they do not fetch. The shared
 tools band is a filtered window onto the planner, never a second task list.
 
@@ -103,9 +103,10 @@ Four things currently summarise. This is the live architectural question, not a 
     oneline.ts      one ranked sentence a day, or legible silence
     cog/            momentum, three priorities, one focus block, one pulse
 
-A fifth (`reports.ts`) is proposed. It must CALL the four above rather than re-derive them —
-`bodyReport` and `bodyContract` measuring "four a week over a fortnight" twice is exactly the
-second-copy failure rule 11 exists to prevent.
+`reports.ts` turns those into parent reports and MEASURES NOTHING ITSELF — it takes contracts
+as arguments, never rows. Three tests read its source to keep it that way, because
+`bodyReport` and `bodyContract` both measuring "four a week over a fortnight" is exactly the
+second-copy failure rule 11 exists to prevent, and a draft did precisely that.
 
 ## Key files
 
@@ -119,14 +120,17 @@ second-copy failure rule 11 exists to prevent.
     web/src/lib/hybrid/       the training engine (pure; boundary enforced by test)
     web/src/lib/cog/          the momentum engine (pure; boundary enforced by test)
     web/src/lib/setup.ts      every gap in the system, ranked by what it unlocks
+    web/src/lib/parents.ts    the parent registry and the report contract
+    web/src/lib/reports.ts    contracts in, reports out — measures nothing
+    web/src/lib/boardserver.ts one loader for /life and the dashboard tile
     web/src/lib/nav.ts        the nav registry, tested for membership
 
 ## Verification, every time
 
     cd web
     npx tsc --noEmit
-    npx vitest run          # 1232 tests as of 13 Aug 2026
-    npm run build           # 48 routes (37 pages + 11 API)
+    npx vitest run          # 1286 tests as of 13 Aug 2026
+    npm run build           # 49 routes (38 pages + 11 API)
 
 All three must pass before a commit. No exceptions.
 

@@ -862,8 +862,19 @@ const planned = (over: Partial<PayoffDebt> = {}): PayoffDebt =>
   debt({ current_balance: 1000, plan_amount: 100, plan_frequency: "monthly", ...over });
 
 describe("money tabs", () => {
-  it("is exactly Debt · Net worth · Cashflow · Buffer", () => {
-    expect(MONEY_TABS).toEqual(["debt", "worth", "cashflow", "buffer"]);
+  it("carries the six sub-modules of the MONEY parent area", () => {
+    // Accounts and Vehicles joined on 13 Aug: both were sibling ROUTES to
+    // Money when they are plainly parts of it. A vehicle is a recurring
+    // cost and a set of legal deadlines, and filing it as neither is why
+    // four MOT dates went unrecorded and the Zafira's lapsed unnoticed.
+    expect(MONEY_TABS).toEqual([
+      "debt",
+      "accounts",
+      "vehicles",
+      "worth",
+      "cashflow",
+      "buffer",
+    ]);
     for (const t of MONEY_TABS) {
       expect(MONEY_TAB_LABEL[t]).toBeTruthy();
       expect(MONEY_TAB_QUESTION[t]).toMatch(/\?$/);
