@@ -78,11 +78,32 @@ export default function Money({
     }
     setBusy(id);
     setErr("");
+
+    // The existing meta is read and MERGED. Writing `meta: { ... }` whole
+    // — which this did until 13 Aug 2026 — replaces the jsonb object and
+    // destroys every other key on the row. Two debts carried a `restore`
+    // block recording what their `recurring` flag used to be, and a single
+    // balance confirmation would have erased both without a trace.
+    const { data: current } = await supabase
+      .from("debts")
+      .select("meta")
+      .eq("id", id)
+      .maybeSingle();
+    const held =
+      typeof current?.meta === "object" && current.meta !== null && !Array.isArray(current.meta)
+        ? (current.meta as Record<string, unknown>)
+        : {};
+
     const { error } = await supabase
       .from("debts")
       .update({
         current_balance: value,
-        meta: { balance_confirmed_on: today },
+        meta:
+          value === null
+            ? Object.fromEntries(
+                Object.entries(held).filter(([k]) => k !== "balance_confirmed_on")
+              )
+            : { ...held, balance_confirmed_on: today },
       })
       .eq("id", id);
     setBusy(null);

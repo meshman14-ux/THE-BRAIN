@@ -22,6 +22,16 @@ export type InlineField = {
   table: string;
   column: string;
   kind: InlineKind;
+  /**
+   * A `meta` key stamped with today's date whenever this field is written.
+   *
+   * Without it a figure entered today and a figure entered in March are
+   * indistinguishable, and the staleness test — which exists precisely to
+   * tell them apart — has nothing to read. The stamp travels with the
+   * FIELD rather than the screen, so every path that writes the value
+   * records when, including this one and the monthly Money prompt.
+   */
+  stamp?: string;
   /** What the dash means here, said in his words. */
   label: string;
   /** The prompt shown when the value is missing. Never "N/A". */
@@ -42,6 +52,7 @@ export const INLINE_FIELDS = {
     table: "debts",
     column: "current_balance",
     kind: "money",
+    stamp: "balance_confirmed_on",
     label: "Balance",
     placeholder: "not confirmed",
     min: 0,

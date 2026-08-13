@@ -135,7 +135,7 @@ second-copy failure rule 11 exists to prevent, and a draft did precisely that.
 
     cd web
     npx tsc --noEmit
-    npx vitest run          # 1314 tests as of 13 Aug 2026
+    npx vitest run          # 1316 tests as of 13 Aug 2026
     npm run build           # 50 routes (39 pages + 11 API)
 
 All three must pass before a commit. No exceptions.

@@ -8,6 +8,7 @@ import {
   setupSteps,
   sortSteps,
 } from "../src/lib/setup";
+import { inlineField } from "../src/lib/inline";
 
 /** A system with nothing in it — which is, today, the real one. */
 const empty = (over: Partial<SetupFacts> = {}): SetupFacts => ({
@@ -281,5 +282,27 @@ describe("sortSteps", () => {
     const order = input.map((s) => s.id);
     sortSteps(input);
     expect(input.map((s) => s.id)).toEqual(order);
+  });
+});
+
+/* ================================================================== *
+ * The stamp — so a figure knows when it was confirmed
+ * ================================================================== */
+
+describe("inline fields that stamp a confirmation date", () => {
+  it("stamps the debt balance, because staleness has to read something", () => {
+    // Without this, a balance entered today and one entered in March are
+    // indistinguishable, and the staleness test — which exists precisely
+    // to tell them apart — has nothing to read. /setup writes through the
+    // inline editor, so the stamp has to travel with the FIELD rather
+    // than with the screen that happens to be showing it.
+    expect(inlineField("debts.current_balance").stamp).toBe("balance_confirmed_on");
+  });
+
+  it("does not stamp fields that carry their own date", () => {
+    // An MOT date IS a date. Recording when it was typed adds nothing.
+    for (const key of ["vehicles.mot_due", "vehicles.tax_due", "vehicles.next_service"] as const) {
+      expect(inlineField(key).stamp, key).toBeUndefined();
+    }
   });
 });

@@ -61,10 +61,39 @@ export default function InlineValue({
     setEditing(false);
     if (parsed.value === (value ?? null)) return;
     setBusy(true);
-    const { error } = await supabase
-      .from(f.table)
-      .update({ [f.column]: parsed.value })
-      .eq("id", id);
+
+    /* -- the write, and the stamp that has to go with it -------------- *
+     *
+     * A stamped field records WHEN it was confirmed, because a balance
+     * entered today and one entered in March are different facts and only
+     * the second should make the page ask again.
+     *
+     * The existing `meta` is read first and MERGED, never replaced. That
+     * is not defensive habit — the monthly Money prompt used to write
+     * `meta: { balance_confirmed_on: today }` and silently destroyed every
+     * other key on the row, which is how an audit trail written in one
+     * place disappears from another. */
+    const patch: Record<string, unknown> = { [f.column]: parsed.value };
+    if (f.stamp) {
+      const { data: current } = await supabase
+        .from(f.table)
+        .select("meta")
+        .eq("id", id)
+        .maybeSingle();
+      const held =
+        typeof current?.meta === "object" && current.meta !== null && !Array.isArray(current.meta)
+          ? (current.meta as Record<string, unknown>)
+          : {};
+      // Clearing a value clears its stamp: "unknown, last confirmed in
+      // March" is a contradiction, and leaving the date behind would let a
+      // blank pass the staleness test.
+      patch.meta =
+        parsed.value === null
+          ? Object.fromEntries(Object.entries(held).filter(([k]) => k !== f.stamp))
+          : { ...held, [f.stamp]: new Date().toISOString().slice(0, 10) };
+    }
+
+    const { error } = await supabase.from(f.table).update(patch).eq("id", id);
     setBusy(false);
     if (error) {
       setErr(error.message);
