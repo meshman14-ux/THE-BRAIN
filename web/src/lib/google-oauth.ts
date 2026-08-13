@@ -10,15 +10,29 @@
  */
 
 /**
- * Read-write on calendars this app created, and a read of the calendar
- * list so the primary can be identified and then avoided. Notably NOT
- * `calendar` or `calendar.readonly` on the whole account: THE BRAIN has no
- * business reading his real diary, and asking for less is the version of
- * "blast radius contained" that happens at the consent screen.
+ * Read-write on calendars this app created, a read of the calendar list so
+ * the primary can be identified and then avoided, and free/busy.
+ *
+ * Notably NOT `calendar` or `calendar.readonly` on the whole account: THE
+ * BRAIN has no business reading his real diary, and asking for less is the
+ * version of "blast radius contained" that happens at the consent screen —
+ * the one place the limit is visible to the person granting it.
+ *
+ * `calendar.freebusy` was added when THE COG started reading real
+ * commitments for its focus block. It is the SMALLEST scope that answers
+ * "is he busy at 10am": it returns intervals and nothing else — no titles,
+ * no attendees, no locations, no descriptions. `calendar.readonly` would
+ * also have worked and would have handed over the entire diary to do it,
+ * which is a different trade and a worse one.
+ *
+ * Without this, `freeBusy` returns 403, the adapter catches it, and the
+ * focus block silently falls back to planner pins forever — a calendar
+ * that looks connected and never informs anything.
  */
 export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/calendar.app.created",
   "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+  "https://www.googleapis.com/auth/calendar.freebusy",
 ].join(" ");
 
 export const AUTH_ENDPOINT = "https://accounts.google.com/o/oauth2/v2/auth";

@@ -869,9 +869,21 @@ describe("the consent URL", () => {
     expect(url().searchParams.get("prompt")).toBe("consent");
   });
 
+  it("asks for free/busy, which is what the focus block reads", () => {
+    // Added when THE COG started reading real commitments. Without it
+    // freeBusy returns 403, the adapter catches it, and the focus block
+    // falls back to planner pins forever — a calendar that looks connected
+    // and never informs anything.
+    const scope = url().searchParams.get("scope") ?? "";
+    expect(scope.split(" ")).toContain("https://www.googleapis.com/auth/calendar.freebusy");
+  });
+
   it("asks only for calendars it made, never the whole account", () => {
     const scope = url().searchParams.get("scope") ?? "";
     expect(scope).toContain("calendar.app.created");
+    // freebusy returns intervals and nothing else. calendar.readonly would
+    // have answered the same question by handing over the entire diary,
+    // which is a different trade and a worse one.
     // The scopes that would let it read or write his real diary.
     expect(scope).not.toContain("auth/calendar ");
     expect(scope.split(" ")).not.toContain("https://www.googleapis.com/auth/calendar");
