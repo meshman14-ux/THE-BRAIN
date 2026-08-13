@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { inlineField, parseInline, type InlineKey } from "@/lib/inline";
@@ -35,6 +36,7 @@ export default function InlineValue({
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value == null ? "" : String(value));
   const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState(false);
   const [err, setErr] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const router = useRouter();
@@ -47,9 +49,35 @@ export default function InlineValue({
     if (!editing) setDraft(value == null ? "" : String(value));
   }, [value, editing]);
 
+  // A fallback only. The focus that matters happens synchronously inside
+  // the tap handler — see `open()` below.
   useEffect(() => {
     if (editing) inputRef.current?.focus();
   }, [editing]);
+
+  /**
+   * Open the field, and focus it WITHIN the tap that asked for it.
+   *
+   * This is the whole reason the component was rewritten. `setEditing(true)`
+   * schedules a render; the input does not exist until after it, so the
+   * `useEffect` above calls `.focus()` once the gesture has already ended.
+   * Desktop browsers do not care. **iOS Safari refuses to open the keyboard
+   * for a focus that is not inside a user gesture**, so the box appeared,
+   * no keyboard came up, and the next tap blurred it shut again — which
+   * from the outside looks exactly like tapping doing nothing at all.
+   *
+   * `flushSync` forces the render to complete before the handler returns,
+   * so the input exists and can be focused while the gesture is still
+   * live. It is the documented escape hatch for precisely this case.
+   */
+  function open() {
+    flushSync(() => setEditing(true));
+    inputRef.current?.focus();
+    // Selecting makes overtyping an existing figure one action rather than
+    // a clear-then-type, which on a phone is the difference between a tap
+    // and a fiddle.
+    inputRef.current?.select();
+  }
 
   async function commit() {
     const parsed = parseInline(field, draft);
@@ -99,6 +127,8 @@ export default function InlineValue({
       setErr(error.message);
       return;
     }
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1600);
     onSaved?.();
     router.refresh();
   }
@@ -149,10 +179,13 @@ export default function InlineValue({
   const missing = value == null;
   return (
     <button
-      onClick={() => setEditing(true)}
+      onClick={open}
       disabled={busy}
       title={`Edit ${f.label.toLowerCase()}`}
-      className={`bg-transparent border-0 border-b border-dashed p-0 font-[inherit] text-[inherit] cursor-pointer text-left ${className}`}
+      // px/py rather than p-0: this is the tap target for every figure in
+      // the system, and a bare inline button is about 18px tall — under
+      // half the 44px minimum a thumb can reliably hit.
+      className={`bg-transparent border-0 border-b border-dashed px-2 py-2 -mx-2 font-[inherit] text-[inherit] cursor-pointer text-left touch-manipulation ${className}`}
       style={{
         borderBottomColor: "var(--border-bright)",
         color: missing ? "var(--faint)" : "var(--text)",
@@ -161,6 +194,13 @@ export default function InlineValue({
       }}
     >
       {missing ? f.placeholder : display(f.kind, value)}
+      {/* A write you cannot see is a write you do not trust, and the whole
+          point of blur-to-save is that nothing confirms it. */}
+      {saved && (
+        <span className="ml-1.5 text-[0.7rem]" style={{ color: "var(--good)" }}>
+          saved
+        </span>
+      )}
     </button>
   );
 }
