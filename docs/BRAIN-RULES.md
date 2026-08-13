@@ -135,8 +135,8 @@ second-copy failure rule 11 exists to prevent, and a draft did precisely that.
 
     cd web
     npx tsc --noEmit
-    npx vitest run          # 1307 tests as of 13 Aug 2026
-    npm run build           # 49 routes (38 pages + 11 API)
+    npx vitest run          # 1314 tests as of 13 Aug 2026
+    npm run build           # 50 routes (39 pages + 11 API)
 
 All three must pass before a commit. No exceptions.
 
@@ -152,6 +152,20 @@ separate drops. Verify before applying any patch or plan:
 
 Also: `git am` fails on this repo ("sha1 information is lacking" — the patches lack blob
 ancestry). Use `git apply --reject` and hand-merge.
+
+## Sign-in
+
+Password FIRST, magic link second — changed 13 Aug 2026 after the link locked Jay out of his
+own system. With a link, the email provider IS the login: every sign-in depended on a message
+arriving, and Supabase's built-in mail service is capped at two an hour and documented as not
+for production use.
+
+A password moves email off the daily path and onto the RECOVERY path, where that cap is fine.
+The link stays, because removing it would move the single point of failure rather than remove
+it. `MIN_PASSWORD` is 10, not Supabase's default 6.
+
+Set one at `/account`. That route is in the nav in all three modes and on no phone bar: needed
+exactly once, so reachable from anywhere and prominent nowhere.
 
 ## The two facts about the user that drive most design decisions
 

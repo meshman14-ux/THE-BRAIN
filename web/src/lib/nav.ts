@@ -226,6 +226,21 @@ export const NAV: NavItem[] = [
     phoneModes: ["brain", "life", "empire"],
   },
   {
+    key: "account",
+    href: "/account",
+    label: "Account",
+    icon: "◌",
+    // In every mode and on no phone bar. It is the one page you need
+    // exactly once — to set a password — and then almost never again, so
+    // it must be REACHABLE from anywhere and prominent nowhere.
+    //
+    // The patch that added /account did not link it at all, which would
+    // have made the fix for being locked out a page you could only reach
+    // by typing the address of.
+    modes: ["brain", "life", "empire"],
+    phoneModes: [],
+  },
+  {
     key: "inbox",
     href: "/inbox",
     label: "Inbox",

@@ -138,6 +138,7 @@ describe("nav by mode", () => {
       "Close",
       "Calendar",
       "Capture",
+      "Account",
       "Inbox",
     ]);
   });
@@ -152,6 +153,7 @@ describe("nav by mode", () => {
       "Horizon",
       "Diagnose",
       "Capture",
+      "Account",
       "Inbox",
     ]);
   });
@@ -172,6 +174,7 @@ describe("nav by mode", () => {
       "Diagnose",
       "Advisor",
       "Capture",
+      "Account",
       "Inbox",
     ]);
   });
