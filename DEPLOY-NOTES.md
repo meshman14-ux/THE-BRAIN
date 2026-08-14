@@ -161,6 +161,14 @@ the message to the sender.**
 no email. That is a different symptom from the one this section opens with, and it means the
 credentials, not the cap.
 
+**A third symptom, seen 2026-08-14 and NOT what this section originally described:**
+`504: context deadline exceeded` on `/otp` — nine of them across one day. That is the built-in
+sender not answering at all, not the rate limit and not a bad key, and it means "wait an hour"
+is the wrong advice: waiting does nothing, and the only fixes are the password (already set)
+or custom SMTP above. The tell in the logs is the word `deadline` where a 429 says
+`over_email_send_rate_limit`. Password sign-in kept working throughout, which is exactly the
+job it was added to do.
+
 Until this is configured, one mistimed request costs an hour — and `signInMessage()` in
 `src/lib/auth.ts` already says so on screen rather than showing the raw Supabase error.
 
