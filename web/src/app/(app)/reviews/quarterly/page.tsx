@@ -16,6 +16,8 @@ import QuarterlyReset, {
   type ResetPillar,
 } from "@/components/QuarterlyReset";
 import { Panel } from "@/components/ui";
+import SurfaceTabs from "@/components/SurfaceTabs";
+import { REVIEW_VIEWS } from "@/lib/surfaces";
 
 export const dynamic = "force-dynamic";
 
@@ -223,6 +225,7 @@ export default async function QuarterlyPage() {
 
   return (
     <div className="grid gap-5 max-w-[760px]">
+      <SurfaceTabs label="Review" views={REVIEW_VIEWS} active="quarterly" />
       <div>
         <p className="label">The quarterly reset · {bounds.label}</p>
         <h1 className="text-[1.5rem] font-semibold leading-tight mt-1">

@@ -225,11 +225,14 @@ export const NAV: NavItem[] = [
     href: "/diagnose",
     label: "Diagnose",
     icon: "⌖",
-    // Brain and Empire: it reads across ventures AND life areas, so the
-    // command centre carries it; Empire carries it because that is where
-    // the ritual usually starts. A desk job — no phone slot, same
-    // reasoning as Calendar.
-    modes: ["brain", "empire"],
+    // EMPIRE only since 2026-08-14, when Diagnose joined the ASK strip
+    // beside Advisor (step 5 of the organisation plan). In brain mode
+    // Advisor is the door and Diagnose is one chip past it — the same
+    // shape as Calendar inside Plan. Empire keeps its own entry because
+    // Advisor is not in the empire nav, and a surface must never be
+    // reachable from a mode only by knowing the address.
+    // Brain drops from twelve items to eleven.
+    modes: ["empire"],
     phoneModes: [],
   },
   {

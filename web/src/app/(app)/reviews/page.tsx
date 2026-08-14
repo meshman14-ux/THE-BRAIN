@@ -15,6 +15,8 @@ import {
 import { refsForBranch } from "@/lib/references";
 import WeeklyReview from "@/components/WeeklyReview";
 import { Panel, Bar } from "@/components/ui";
+import SurfaceTabs from "@/components/SurfaceTabs";
+import { REVIEW_VIEWS } from "@/lib/surfaces";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +51,7 @@ export default async function Reviews() {
 
   return (
     <div className="max-w-[860px] mx-auto grid gap-7">
+      <SurfaceTabs label="Review" views={REVIEW_VIEWS} active="weekly" />
       <header>
         <div className="flex items-baseline gap-3 flex-wrap">
           <p className="label">Rituals</p>

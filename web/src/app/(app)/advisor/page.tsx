@@ -29,6 +29,8 @@ import {
 } from "@/lib/advisor";
 import { isConfigured, missingConfig } from "@/lib/claude";
 import Advisor from "@/components/Advisor";
+import SurfaceTabs from "@/components/SurfaceTabs";
+import { ASK_VIEWS } from "@/lib/surfaces";
 
 export const dynamic = "force-dynamic";
 
@@ -141,6 +143,8 @@ export default async function AdvisorPage() {
   const pushable = briefSources(allNotes);
 
   return (
+    <>
+    <SurfaceTabs label="Ask" views={ASK_VIEWS} active="advisor" />
     <Advisor
       state={advisorState({ configured: isConfigured(), lastError: null })}
       missing={missingConfig()}
@@ -155,5 +159,6 @@ export default async function AdvisorPage() {
         areas: areasFor(allPillars, "empire"),
       })}
     />
+    </>
   );
 }

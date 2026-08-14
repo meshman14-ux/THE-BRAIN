@@ -9,6 +9,8 @@ import {
   type RefLink,
 } from "@/lib/references";
 import { branchName, branchHref } from "@/lib/placeholders";
+import SurfaceTabs from "@/components/SurfaceTabs";
+import { LIBRARY_VIEWS } from "@/lib/surfaces";
 
 export const dynamic = "force-dynamic";
 
@@ -48,6 +50,7 @@ export default async function Library() {
 
   return (
     <div className="max-w-[920px] mx-auto grid gap-8">
+      <SurfaceTabs label="Library" views={LIBRARY_VIEWS} active="shelves" />
       <header>
         <p className="label">The library</p>
         <h1 className="text-[1.7rem] sm:text-[2rem] font-semibold mt-1.5">

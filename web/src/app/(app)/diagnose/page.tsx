@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { Panel } from "@/components/ui";
+import SurfaceTabs from "@/components/SurfaceTabs";
+import { ASK_VIEWS } from "@/lib/surfaces";
 
 export const dynamic = "force-dynamic";
 
@@ -151,6 +153,7 @@ export default async function DiagnosePage() {
 
   return (
     <div className="max-w-[760px] mx-auto grid gap-5">
+      <SurfaceTabs label="Ask" views={ASK_VIEWS} active="diagnose" />
       <header>
         <p className="label">EMPIRE_OS + LIFE_OS</p>
         <h1 className="text-[1.7rem] font-semibold mt-1.5">Diagnose</h1>
