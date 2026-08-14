@@ -8,6 +8,7 @@ import {
 } from "@/lib/calendar";
 import { isConfigured, missingConfig } from "@/lib/google";
 import { loadIntegration } from "@/lib/calendar-server";
+import PlanTabs from "@/components/PlanTabs";
 import Calendar from "@/components/Calendar";
 
 export const dynamic = "force-dynamic";
@@ -56,7 +57,13 @@ export default async function CalendarPage({
   const scheduled = scheduledTasks(allTasks, today);
 
   return (
-    <Calendar
+    <>
+      {/* Calendar is the fourth PLANNING view, not a neighbour of them.
+          It answers "what is already fixed" where Day answers "when, this
+          hour" — same question, different angle, so it belongs in the
+          same strip rather than in its own nav slot. */}
+      <PlanTabs active="calendar" />
+      <Calendar
       state={state}
       missing={missingConfig()}
       calendarName={integration?.calendar_name ?? null}
@@ -68,6 +75,7 @@ export default async function CalendarPage({
       pillars={allPillars}
       notice={typeof sp.connected === "string" ? sp.connected : null}
       error={typeof sp.error === "string" ? sp.error : null}
-    />
+      />
+    </>
   );
 }

@@ -39,6 +39,7 @@ import {
   addMonths,
 } from "../src/lib/logic";
 import { NAV, PHONE_SLOTS } from "../src/lib/nav";
+import { PLAN_VIEWS } from "../src/components/PlanTabs";
 import { MODES, MODE_HOME, type Goal, type Mode, type Pillar } from "../src/lib/types";
 
 /* -- fixtures ------------------------------------------------------- */
@@ -116,6 +117,53 @@ describe("modes", () => {
   });
 });
 
+/* ================================================================== *
+ * The planning surface
+ * ================================================================== */
+
+describe("one front door for planning", () => {
+  it("holds every surface that answers 'what am I doing'", () => {
+    // The whole point. Five screens read `tasks` and answer this question;
+    // four of them are lenses on the same work and belong in one strip.
+    expect(PLAN_VIEWS.map((v) => v.key)).toEqual(["day", "week", "board", "calendar"]);
+  });
+
+  it("gives each view a DIFFERENT question, so none is redundant", () => {
+    const questions = PLAN_VIEWS.map((v) => v.question);
+    expect(new Set(questions).size).toBe(questions.length);
+  });
+
+  it("points every view at a route that exists", () => {
+    expect(PLAN_VIEWS.map((v) => v.href)).toEqual([
+      "/day",
+      "/week",
+      "/planner",
+      "/calendar",
+    ]);
+  });
+
+  // Print strips the app chrome so a browser can lay it out for paper, so
+  // it cannot be a tab of a page that HAS chrome. It is an export, not a
+  // lens on the same work.
+  it("does not make Print a view", () => {
+    expect(PLAN_VIEWS.some((v) => v.href.includes("print"))).toBe(false);
+  });
+
+  // Calendar left the nav and became the fourth chip. It must not be both,
+  // and it must not be neither.
+  it("keeps Calendar reachable exactly once", () => {
+    expect(NAV.some((n) => n.href === "/calendar")).toBe(false);
+    expect(PLAN_VIEWS.some((v) => v.href === "/calendar")).toBe(true);
+  });
+
+  it("keeps the Plan door itself in the nav for both modes that plan", () => {
+    const plan = NAV.find((n) => n.key === "plan")!;
+    expect(plan.href).toBe("/day");
+    expect(plan.modes).toContain("brain");
+    expect(plan.modes).toContain("life");
+  });
+});
+
 describe("nav by mode", () => {
   const labels = (m: Mode) => navForMode(NAV, m).map((n) => n.label);
 
@@ -136,7 +184,10 @@ describe("nav by mode", () => {
       "People",
       "Horizon",
       "Close",
-      "Calendar",
+      // Calendar left on 2026-08-14 — a filing change, not a removal. It
+      // was the fourth surface answering "what am I doing" and the only
+      // one outside the Plan strip, so it became the fourth chip in it.
+      // The route is untouched; the OAuth callback still returns there.
       "Capture",
       "Account",
       "Inbox",
@@ -173,7 +224,9 @@ describe("nav by mode", () => {
       "Review",
       "Horizon",
       "Close",
-      "Calendar",
+      // See above: Calendar is now a view inside Plan rather than a peer
+      // of Inbox and Advisor. Twelve items, down from thirteen, which
+      // buys back the header room §A7 said was nearly spent.
       "Diagnose",
       "Advisor",
       "Capture",

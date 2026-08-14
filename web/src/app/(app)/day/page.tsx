@@ -82,14 +82,10 @@ export default async function DayPage({
         {nav(addDays(day, -1), "‹ Prev")}
         {day !== today && nav(today, "Today")}
         {nav(addDays(day, 1), "Next ›")}
-        <span className="ml-auto flex gap-2">
-          <Link href="/week" className="chip no-underline">
-            Week →
-          </Link>
-          <Link href="/calendar" className="chip no-underline">
-            Calendar →
-          </Link>
-        </span>
+        {/* Week and Calendar used to be chips here. They are both in the
+            Plan strip at the top of this page now, and a second route to
+            the same place two inches below the first is how a page starts
+            feeling arbitrary. The date controls keep this row. */}
       </div>
 
       <DayPlanner

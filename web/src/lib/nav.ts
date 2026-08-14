@@ -204,16 +204,22 @@ export const NAV: NavItem[] = [
     // desk job, the same reasoning that already keeps Calendar off the bar.
     phoneModes: ["life"],
   },
-  {
-    key: "calendar",
-    href: "/calendar",
-    label: "Calendar",
-    icon: "▤",
-    modes: ["brain", "life"],
-    // No phone slot: the bar is exactly five per mode, and syncing is a
-    // desk job. Capture and Inbox are what a phone is for.
-    phoneModes: [],
-  },
+  /* Calendar LEFT this registry on 2026-08-14, and it is a filing change
+   * rather than a removal — the route is untouched and still answers at
+   * /calendar, which the OAuth callback depends on.
+   *
+   * It was the fourth surface answering "what am I doing", and the only
+   * one still outside the Plan strip: Day, Week and Board shared a tab
+   * row while Calendar sat beside them as a peer of Inbox and Advisor.
+   * Three chips and a fourth thing next to them is not one front door.
+   * It is now the fourth chip in that row, reached from any of the other
+   * three.
+   *
+   * The nav budget makes the same argument from the other end. `brain`
+   * mode carried THIRTEEN items inside a 1200px header with ~27px spare,
+   * and §A7 says the honest answer to a fourteenth is a shorter label or
+   * fewer items. This is twelve, arrived at by filing rather than by
+   * cutting something anybody wanted. */
   {
     key: "diagnose",
     href: "/diagnose",
