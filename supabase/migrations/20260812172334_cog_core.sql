@@ -1,19 +1,15 @@
--- THE COG — core tables.  APPLIED 12 Aug 2026 (migration name: cog_core).
+-- THE COG — core tables. Same conventions as the rest of THE BRAIN:
+-- uuid pks, user_id + single-owner RLS, meta jsonb.
 --
--- Same conventions as the rest of THE BRAIN: uuid pks, user_id + single-owner
--- RLS, meta jsonb.  COG owns these eight tables and NOTHING else.  Every BRAIN
--- table is READ ONLY to it, with one narrow exception: on an ACCEPTED verdict
--- it may set tasks.do_date / tasks.priority / tasks.meta.cog.  A human edit
--- always wins and is recorded as feedback rather than treated as a conflict.
---
--- Two departures from the blueprint's 0001_cog_core.sql, both deliberate:
---
---   · `if not exists` throughout, and the RLS policy loop checks pg_policies
---     first, so re-applying this file is safe.
---   · cog_config is seeded separately rather than inline, because
---     `default auth.uid()` evaluates to NULL under a migration connection and
---     an unowned config row is invisible to RLS forever after.
+-- COG owns these eight tables and NOTHING else. Every BRAIN table is read
+-- only, with one narrow exception documented in the integration doc: on an
+-- ACCEPTED verdict it may set tasks.do_date / priority / meta.cog. A human
+-- edit always wins and is recorded as feedback rather than a conflict.
 
+-- The optional sharper read. Jay's check-in is NIGHTLY (LIFE_OS v2), so the
+-- morning bands are normally DERIVED from last night's journal + health_days.
+-- This table exists for the day he wants to override that with a live answer;
+-- the adapter prefers a row here when one exists and derives when it does not.
 create table if not exists cog_checkins (
   id           uuid primary key default gen_random_uuid(),
   user_id      uuid not null default auth.uid(),
@@ -25,11 +21,10 @@ create table if not exists cog_checkins (
   meta         jsonb not null default '{}',
   unique (user_id, date)
 );
-comment on table cog_checkins is
-  'The OPTIONAL sharper read. Jay''s check-in is nightly (LIFE_OS v2), so the '
-  'morning bands are normally derived from last night''s journal + health_days. '
-  'A row here overrides that derivation for its date.';
 
+-- One row per day: the normalized state the engine ran on, plus its score.
+-- Persisting the STATE (not just the advice) is what makes every past
+-- recommendation reproducible — the determinism claim is auditable.
 create table if not exists cog_states (
   id             uuid primary key default gen_random_uuid(),
   user_id        uuid not null default auth.uid(),
@@ -41,11 +36,8 @@ create table if not exists cog_states (
   built_at       timestamptz not null default now(),
   unique (user_id, date)
 );
-comment on table cog_states is
-  'The normalized state the engine ran on, not just its output. Persisting the '
-  'INPUT is what makes the determinism claim auditable: any past day can be '
-  'replayed through the engine and must produce byte-identical advice.';
 
+-- Every pulse issued, awaiting or holding a verdict.
 create table if not exists cog_pulses (
   id             uuid primary key default gen_random_uuid(),
   user_id        uuid not null default auth.uid(),
@@ -62,6 +54,8 @@ create table if not exists cog_pulses (
 );
 create index if not exists cog_pulses_date_idx on cog_pulses (user_id, date);
 
+-- Verdicts. The pilot's acceptance metric, and the training data any future
+-- learned weights would need. Nothing depends on it in v1.
 create table if not exists cog_feedback (
   id             uuid primary key default gen_random_uuid(),
   user_id        uuid not null default auth.uid(),
@@ -73,10 +67,8 @@ create table if not exists cog_feedback (
   created_at     timestamptz not null default now()
 );
 create index if not exists cog_feedback_created_idx on cog_feedback (user_id, created_at);
-comment on table cog_feedback is
-  'The pilot acceptance metric, and the training data any future learned '
-  'weights would need. Nothing in v1 depends on it — that is the point.';
 
+-- Weights and thresholds, editable without a redeploy.
 create table if not exists cog_config (
   id         text primary key default 'default',
   user_id    uuid not null default auth.uid(),
@@ -84,6 +76,8 @@ create table if not exists cog_config (
   updated_at timestamptz not null default now()
 );
 
+-- Identity statements per pillar. pillars.standard stays the source of the
+-- standard itself; this is the weighting Jay puts on each.
 create table if not exists cog_identity (
   id                    uuid primary key default gen_random_uuid(),
   user_id               uuid not null default auth.uid(),
@@ -95,6 +89,7 @@ create table if not exists cog_identity (
   updated_at            timestamptz not null default now()
 );
 
+-- Outbox for two-way sync. Immutable.
 create table if not exists cog_events (
   id             text primary key,
   user_id        uuid not null default auth.uid(),
@@ -108,9 +103,9 @@ create table if not exists cog_events (
   delivered      boolean not null default false,
   dead           boolean not null default false
 );
-create index if not exists cog_events_undelivered_idx
-  on cog_events (user_id, occurred_at) where not delivered;
+create index if not exists cog_events_undelivered_idx on cog_events (user_id, occurred_at) where not delivered;
 
+-- Counts and latencies only. Never content.
 create table if not exists cog_telemetry (
   id      bigint generated always as identity primary key,
   user_id uuid not null default auth.uid(),
@@ -119,7 +114,6 @@ create table if not exists cog_telemetry (
   value   numeric not null,
   at      timestamptz not null default now()
 );
-comment on table cog_telemetry is 'Counts and latencies only. Never content.';
 
 -- Single-owner RLS on every table, as everywhere else in THE BRAIN.
 do $$
@@ -135,13 +129,9 @@ begin
   end loop;
 end $$;
 
+-- Retention. Run nightly.
 create or replace function cog_prune() returns void language sql as $$
   delete from cog_pulses    where issued_at  < now() - interval '180 days';
   delete from cog_feedback  where created_at < now() - interval '180 days';
   delete from cog_telemetry where at         < now() - interval '90 days';
 $$;
-
--- Seeded after the fact, owned by the real user (see the note at the top).
---   insert into cog_config (id, user_id, config)
---   select 'default', (select id from auth.users limit 1), '{ …defaults… }'::jsonb
---   where not exists (select 1 from cog_config where id = 'default');

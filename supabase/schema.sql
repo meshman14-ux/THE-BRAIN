@@ -1058,9 +1058,11 @@ $function$;
 -- ============================================================================
 -- MIGRATIONS APPLIED (22, in order) — from supabase_migrations.schema_migrations
 --
--- Only two of these have their SQL committed to supabase/migrations/. The
--- other twenty exist solely in the live project's migration table. Capturing
--- their SQL is the remaining half of this job.
+-- ALL 22 are now committed to supabase/migrations/, one file each, named
+-- <version>_<name>.sql to match this list exactly. 21 are byte-exact captures
+-- of schema_migrations.statements[1], verified by character count. The
+-- exception is `meals`, whose file also carries the fifty-meal seed that was
+-- applied separately. See supabase/README.md.
 --
 --   20260729124821  the_brain_v2_initial_schema
 --   20260730120555  the_brain_os_v1_full_schema
@@ -1069,9 +1071,9 @@ $function$;
 --   20260731140303  add_vehicles_pillar_thirteen_areas
 --   20260731144403  empire_os_venture_stages
 --   20260801001120  life_os_area_scores_and_debt_metric
---   20260801135728  debts_and_vehicles                    <- committed
+--   20260801135728  debts_and_vehicles
 --   20260805140849  venture_profiles_and_plans
---   20260806131904  calendar_integration                  <- committed
+--   20260806131904  calendar_integration
 --   20260810141521  people_contacts_and_tiers
 --   20260810142029  debt_apr_and_savings_metric
 --   20260810143630  health_hub_readiness_lifts_nutrition

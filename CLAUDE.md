@@ -1171,12 +1171,14 @@ still to build · 5 EMPIRE_OS — **division onboarding + the division dashboard
 
 Open items:
 
-1. ~~Capture the live schema into the repo.~~ **Half done, 2026-08-13.** The *structure* is
-   now at `supabase/schema.sql` — 44 tables, every constraint, index, policy and function,
-   read from the catalogue. What remains is the **migration SQL**: only 4 of the 22 applied
-   migrations have their source committed, so the other 18 exist solely inside the live
-   project. `schema.sql` describes the end state, but the project could not be rebuilt
-   step by step from this repo. Capturing those eighteen is the other half.
+1. ~~Capture the live schema into the repo.~~ **Done, 2026-08-13.** `supabase/schema.sql`
+   holds the end state (44 tables, every constraint, index, policy and function) and
+   `supabase/migrations/` holds all **22** applied migrations, one file each, named to match
+   `schema_migrations` exactly. 21 are byte-exact captures of the stored SQL — comments and
+   all, which is most of their value — verified by character count against the source. The
+   project can now be rebuilt from this repo from nothing. **What it does NOT buy is a
+   rollback:** the `rollback` column is empty for all 22, so reversing anything means writing
+   the reverse by hand. See `supabase/README.md`.
 2. ~~Jay has never completed first sign-in.~~ **Resolved 2026-07-31** — magic-link round trip
    completed against the live URL; the 13 areas render.
 3. ~~Three missing area names.~~ **Superseded 2026-07-31** — the 13 areas were settled and
