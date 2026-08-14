@@ -3,7 +3,8 @@
 The one canonical context file for this repo.
 
 **There is one application: THE BRAIN OS, in `web/` — Next.js + Supabase.** Its data layer is
-Supabase Postgres with RLS on 24 tables (§A4). That is the only live data layer; nothing in this
+Supabase Postgres with RLS on 44 tables (§A4), captured at `supabase/schema.sql`. That is the
+only live data layer; nothing in this
 repo stores user data in the browser.
 
 Everything under the "Archived" heading at the end describes a **retired** static app that no
@@ -361,13 +362,48 @@ THE COG        : cog_checkins · cog_states · cog_pulses · cog_feedback
 > exactly one open season; `meals` arrived seeded with the fifty (50 meals, 387
 > ingredient rows — re-running its migration would duplicate them all).
 
-> The count said 20 for a while and was wrong: `debts`, `debt_payments` and `vehicles`
-> shipped with the debts/vehicles work and `integrations` with the calendar. The v2 pass
-> (2026-08-10) added `people_contacts` and the three health tables. Twenty-eight.
+> **The count has been wrong three times — 20, then 24, then 28 — and is now read from the
+> catalogue rather than remembered: 44.** Three of those wrong numbers were live in this file
+> simultaneously. That is the whole argument for the capture below: prose drifts, and by
+> 2026-08-13 this section named columns that do not exist (`health_days.day`, `debts.balance`)
+> and omitted ones that do, which broke three queries in one evening.
 
-> **The live project is ahead of `supabase/` in this repo** — the earlier 6-table `schema.sql`
-> was v1-scaffold era. Never apply an old schema file over the live project. Pull the live schema
-> down before changing anything (§A8 item 1).
+> **`supabase/schema.sql` is the schema, captured 2026-08-13 by reading `information_schema`
+> and `pg_catalog`.** Every table, primary key, unique constraint, foreign key, check, index,
+> policy and function. Read it, not this prose, when you need the truth about a column;
+> refresh it by re-reading the catalogue rather than editing it by hand. **It is NOT a
+> migration — never run it against the live project.** It also records the authoritative
+> ordered list of all 22 applied migrations, of which only four have their SQL committed.
+
+**What the 2026-08-13 capture verified, and what it found.**
+
+Four things now checked against the catalogue rather than assumed:
+
+- **RLS is on for all 44 tables, every table has at least one policy, and every policy is
+  byte-identical** — `(auth.uid() = user_id)` for both `USING` and `WITH CHECK`. Verified by
+  querying for any policy whose expression differed, which returned zero rows. The uniformity
+  is the property worth defending: one shape, no exceptions, so there is no table where a
+  subtly different predicate could leak.
+- **There are no `SECURITY DEFINER` functions at all, and no triggers.** Only two project
+  functions exist — `seed_pillars()` and `cog_prune()` — and both are `SECURITY INVOKER`, so
+  RLS applies to them. Worth stating because the sibling COG repo has repeatedly been bitten
+  by `SECURITY DEFINER` functions silently re-granting `EXECUTE` to `PUBLIC`; this schema has
+  no such surface. The one asymmetry: **`cog_prune()` does not pin `search_path`** where
+  `seed_pillars()` does. Being `INVOKER` that is a hardening note rather than a hole.
+- **19 of the 44 tables have no `user_id → auth.users` foreign key** — every `cog_*` one, plus
+  `debts`, `debt_payments`, `vehicles`, `meals`, `meal_ingredients`, `seasons`, `finishes`,
+  `diagnostic_runs`, `skill_attempts`, `training_sets` and `athlete_profile`. RLS still scopes
+  all of them to `auth.uid()`, so this is an **integrity** gap, not a security one: deleting
+  the auth user would cascade-clean 25 tables and orphan 19. With one user it is theoretical.
+  Recorded rather than fixed, because 19 FKs is a migration with real locking consequences and
+  should be a decision.
+- **`cog_*` is a name this account uses twice.** In this repo it is the engine layer above.
+  The sibling repo `meshman14-ux/the-cog` is a festival-operations system that prefixes
+  *every* object `cog_` as well — and **`cog_events` exists in both schemas meaning entirely
+  different things**: an outbox event log here, an event booking there. These are not that
+  system (no `cog_access`, `cog_units`, `cog_stock`, `cog_incidents` here). But a migration
+  written for one project and run against the other would find names it recognises. **Check
+  the project ref before running any `cog_*` migration anywhere.**
 
 Every table has `user_id uuid default auth.uid()` and:
 ```sql
@@ -1135,8 +1171,12 @@ still to build · 5 EMPIRE_OS — **division onboarding + the division dashboard
 
 Open items:
 
-1. **Capture the live schema into the repo.** The live project's 20-table schema has never been
-   committed; pull it into `supabase/` so it stops being tribal knowledge.
+1. ~~Capture the live schema into the repo.~~ **Half done, 2026-08-13.** The *structure* is
+   now at `supabase/schema.sql` — 44 tables, every constraint, index, policy and function,
+   read from the catalogue. What remains is the **migration SQL**: only 4 of the 22 applied
+   migrations have their source committed, so the other 18 exist solely inside the live
+   project. `schema.sql` describes the end state, but the project could not be rebuilt
+   step by step from this repo. Capturing those eighteen is the other half.
 2. ~~Jay has never completed first sign-in.~~ **Resolved 2026-07-31** — magic-link round trip
    completed against the live URL; the 13 areas render.
 3. ~~Three missing area names.~~ **Superseded 2026-07-31** — the 13 areas were settled and
