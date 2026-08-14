@@ -85,7 +85,18 @@ export default function ModeSwitch() {
                 ? `Leave ${SYSTEM_LABEL[s]} — back to the command centre`
                 : `Switch to ${SYSTEM_LABEL[s]}`
             }
-            className="px-2 py-1 rounded-[7px] text-[0.72rem] font-bold leading-none flex items-center gap-1 transition-colors"
+            // 38px drawn + `.tap`'s 3px above and below = 44 tapped, and
+            // px-4 takes the icon-only form to 42 wide + 3 + 3 = 48. It was
+            // 20x27, which made the only way to change system on a phone the
+            // smallest control on the screen.
+            //
+            // `xl:px-2.5` gives the 24px back at exactly the width the top
+            // nav appears. Thirteen nav items already sit inside 1200 with
+            // ~27px to spare, so the wider switch pushed the header 23px
+            // over its own box. 44px is a TOUCH minimum; xl is where the
+            // phone bar hides and a pointer takes over, so the two
+            // requirements never apply at the same width.
+            className="tap min-h-[38px] px-4 xl:px-2.5 rounded-[7px] text-[0.72rem] font-bold leading-none flex items-center justify-center gap-1 transition-colors"
             style={{
               background: on ? `var(--${s})` : "transparent",
               color: on ? "var(--on-accent)" : "var(--muted)",

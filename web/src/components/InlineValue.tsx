@@ -183,9 +183,15 @@ export default function InlineValue({
       disabled={busy}
       title={`Edit ${f.label.toLowerCase()}`}
       // px/py rather than p-0: this is the tap target for every figure in
-      // the system, and a bare inline button is about 18px tall — under
-      // half the 44px minimum a thumb can reliably hit.
-      className={`bg-transparent border-0 border-b border-dashed px-2 py-2 -mx-2 font-[inherit] text-[inherit] cursor-pointer text-left touch-manipulation ${className}`}
+      // the system, and a bare inline button is about 18px tall.
+      //
+      // At py-2 the padding got it to 36px, NOT the 44 this comment used
+      // to claim — measured 2026-08-13. py-[10px] draws it at 40 and `.tap`
+      // adds the last 6px as hit area rather than as height, because this
+      // button sits inline inside a sentence and drawing it at 44 would
+      // space the prose out around it. The -my-[2px] gives the extra 4px of
+      // padding back to the line box, so the sentence does not re-flow.
+      className={`tap bg-transparent border-0 border-b border-dashed px-2 py-[10px] -my-[2px] -mx-2 font-[inherit] text-[inherit] cursor-pointer text-left ${className}`}
       style={{
         borderBottomColor: "var(--border-bright)",
         color: missing ? "var(--faint)" : "var(--text)",

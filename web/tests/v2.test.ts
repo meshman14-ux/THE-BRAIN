@@ -1627,3 +1627,58 @@ describe("app shell breakpoints", () => {
     expect(shell).toMatch(/btn btn-ghost[^"]*whitespace-nowrap/);
   });
 });
+
+/* ------------------------------------------------------------------ *
+ * Tap targets
+ *
+ * A unit test cannot measure a rendered box, so these hold the NUMBERS
+ * the 2026-08-13 measurement settled on. If someone changes 40 to 32 the
+ * test fails and points at the arithmetic; only a browser can prove the
+ * result, and `.tap`'s own comment says so.
+ * ------------------------------------------------------------------ */
+
+describe("tap targets", () => {
+  const css = readFileSync(
+    new URL("../src/app/globals.css", import.meta.url),
+    "utf8"
+  );
+
+  it("expands the hit area by exactly 3px, which is half the tightest gap", () => {
+    // 4px was tried first and measured 41-42, not 44: two chips 6px apart
+    // each claiming 4px overlap by 2px and the later one wins the tap. At
+    // 3px they tile at the midpoint and nothing is stolen.
+    expect(css).toMatch(/\.tap::after\s*\{[^}]*inset:\s*-3px/);
+    expect(css).toMatch(/\.chip::after\s*\{[^}]*inset:\s*-3px/);
+  });
+
+  it("floors the chip at 40px in both directions, so 40 + 3 + 3 clears 44", () => {
+    // `drawn + gap` is the hard ceiling for a tiled row, so 38 would land
+    // at 44 only by winning the boundary pixel outright. 40 does not have
+    // to win anything.
+    const chip = css.slice(css.indexOf(".chip {"));
+    expect(chip).toMatch(/min-height:\s*40px/);
+    expect(chip).toMatch(/min-width:\s*40px/);
+  });
+
+  it("keeps `.tap` a hit area and not a drawn box", () => {
+    // The whole point is that the chip still LOOKS like a chip. If .tap
+    // ever grows a background, border or padding it has become a button
+    // and the visual hierarchy the dashboard depends on is gone.
+    const tap = css.slice(css.indexOf(".tap {"), css.indexOf(".chip {"));
+    expect(tap).toMatch(/position:\s*relative/);
+    expect(tap).toMatch(/touch-action:\s*manipulation/);
+    expect(tap).not.toMatch(/background|border|padding|font-size/);
+  });
+
+  it("relaxes the width floor exactly where the pointer nav takes over", () => {
+    // 44px is a TOUCH minimum. The wider mode switch pushed the desktop
+    // header 23px over its own box, and `xl` is where the phone bar hides
+    // and the top nav appears — so the two requirements never collide.
+    const shell = readFileSync(
+      new URL("../src/components/ModeSwitch.tsx", import.meta.url),
+      "utf8"
+    );
+    expect(shell).toContain("px-4 xl:px-2.5");
+    expect(shell).toContain("min-h-[38px]");
+  });
+});

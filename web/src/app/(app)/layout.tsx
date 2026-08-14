@@ -48,7 +48,10 @@ export default async function AppLayout({
         <div className="mx-auto max-w-[1200px] px-4 sm:px-5 h-14 flex items-center gap-2 sm:gap-4">
           <Link
             href="/dashboard"
-            className="flex items-center gap-2 sm:gap-2.5 no-underline text-[var(--text)] shrink-0"
+            // `.tap` + a 38px floor: the badge is drawn at 32 and this is a
+            // link to /dashboard, so it was the one bit of chrome still
+            // under the thumb minimum.
+            className="tap min-h-[38px] min-w-[38px] flex items-center gap-2 sm:gap-2.5 no-underline text-[var(--text)] shrink-0"
           >
             <span
               className="w-8 h-8 rounded-[9px] flex items-center justify-center text-[13px] font-bold mono shrink-0"
