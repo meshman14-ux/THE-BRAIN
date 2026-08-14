@@ -464,6 +464,104 @@ export function keystoneHabit<T extends Habitish>(habits: T[]): T | null {
   return habits.find((h) => h.active && h.keystone) ?? null;
 }
 
+/* ------------------------------------------------------------------ *
+ * The keystone: what you named, against what is happening
+ * ------------------------------------------------------------------ */
+
+/**
+ * A fortnight, matching `TRAINING_WINDOW_DAYS` and `restart()`, so the
+ * three places that ask "is this happening" cannot disagree.
+ *
+ * Seven days was the obvious alternative and is wrong here: the habit
+ * board already shows seven dots, and a CLAIM judged over one week flips
+ * on a single quiet weekend. A keystone is a standing decision, so the
+ * window that tests it has to be longer than the thing it is testing.
+ */
+export const KEYSTONE_WINDOW_DAYS = 14;
+
+export type KeystoneState =
+  /** Named, and logged inside the window. The claim and the data agree. */
+  | "earned"
+  /** Named, and nothing logged inside the window. A claim, not a fact. */
+  | "claimed"
+  /** No keystone named at all. */
+  | "none";
+
+export type Keystone = {
+  state: KeystoneState;
+  /** Times logged inside the window. */
+  hits: number;
+  /** Days since it was last done. Null when it never has been. */
+  daysSince: number | null;
+  windowDays: number;
+};
+
+/**
+ * Whether the keystone is a fact or an intention.
+ *
+ * `habits.keystone` marks the ONE habit the dashboard leads with and
+ * that THE COG protects with two of its rules. Nothing has ever checked
+ * whether it is true. On 2026-08-14 Jay said plainly that Training —
+ * the keystone since the habit board was rebuilt — is a priority he
+ * WANTS rather than one he has, and the data agrees: one log, ever.
+ *
+ * THIS DOES NOT PICK A SIDE, and that is the whole design. It does not
+ * demote the habit, reassign the keystone, or hide the badge. `/goals`
+ * and `/empire` already solved this exact problem — a STATED claim and a
+ * DERIVED reality, kept separate, with the page saying so when they
+ * disagree by enough to matter. A keystone is the same shape of claim,
+ * so it gets the same treatment rather than a new one.
+ *
+ * Reassigning it automatically was considered and rejected: every other
+ * habit on this board has ZERO logs, so moving the badge would move the
+ * same claim onto a different name and call it a fix.
+ */
+export function keystoneStanding(
+  keystone: { id: string } | null,
+  logs: { habit_id: string; done_on: string }[],
+  todayIso: string,
+  windowDays: number = KEYSTONE_WINDOW_DAYS
+): Keystone {
+  if (keystone == null) {
+    return { state: "none", hits: 0, daysSince: null, windowDays };
+  }
+
+  const days = logs
+    .filter((l) => l.habit_id === keystone.id)
+    .map((l) => {
+      const n = daysUntil(l.done_on, todayIso);
+      return n == null ? null : -n;
+    })
+    .filter((n): n is number => n != null && n >= 0)
+    .sort((a, b) => a - b);
+
+  const hits = days.filter((d) => d < windowDays).length;
+  return {
+    state: hits > 0 ? "earned" : "claimed",
+    hits,
+    daysSince: days.length === 0 ? null : days[0],
+    windowDays,
+  };
+}
+
+/**
+ * The sentence shown when the claim and the data disagree, or null when
+ * they do not.
+ *
+ * Modelled on `DriftNote`'s wording — "one of the two is out of date" —
+ * because that is the honest framing. Either the habit stops being the
+ * keystone, or it starts happening; the system does not get to decide
+ * which, and it must not imply failure. Nothing here says missed,
+ * behind or should.
+ */
+export function keystoneNote(k: Keystone, name: string): string | null {
+  if (k.state !== "claimed") return null;
+  if (k.daysSince == null) {
+    return `${name} is set as the one to lead with, and has never been logged. One of the two is out of date.`;
+  }
+  return `${name} is set as the one to lead with; the last was ${k.daysSince} days ago. One of the two is out of date.`;
+}
+
 /**
  * Habits that count. Untracked ones are still active and still worth
  * doing — they simply stop being scored, because the board was never the
