@@ -73,17 +73,17 @@ export const DERIVED_METRICS: Record<string, DerivedSource> = {
   Steps: {
     home: "health_days",
     why: "Comes from Health Connect on your phone. Typing it would give the same day two answers.",
-    href: "/life/health",
+    href: "/life/body",
   },
   Sleep: {
     home: "health_days",
     why: "Comes from Health Connect on your phone. Typing it would give the same day two answers.",
-    href: "/life/health",
+    href: "/life/body",
   },
   Weight: {
     home: "health_days",
     why: "Recorded on the health page, where it sits beside the rest of the day.",
-    href: "/life/health",
+    href: "/life/body",
   },
 };
 

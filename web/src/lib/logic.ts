@@ -1673,14 +1673,14 @@ export function watchtowerAlerts(input: {
           kind: "legal",
           label: VEHICLE_DATE_LABEL[d.key].toUpperCase(),
           text: `${v.name} — ${VEHICLE_DATE_LABEL[d.key].toLowerCase()} lapsed ${Math.abs(d.days ?? 0)}d ago`,
-          href: "/life/vehicles",
+          href: "/life/money/vehicles",
         });
       } else if (d.state === "due_soon") {
         out.push({
           kind: "legal",
           label: `${d.days}D`,
           text: `${v.name} — ${VEHICLE_DATE_LABEL[d.key].toLowerCase()} due`,
-          href: "/life/vehicles",
+          href: "/life/money/vehicles",
         });
       }
     }

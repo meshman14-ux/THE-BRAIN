@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ALL_VIEW, type ParentArea, type ParentState, viewHref } from "@/lib/parents";
+import { ALL_VIEW, type ParentArea, type ParentState, subHref } from "@/lib/parents";
 
 /* ------------------------------------------------------------------ *
  * The parent page, identical everywhere
@@ -86,8 +86,12 @@ export function ParentHeader({
 }
 
 export function ParentTabs({ parent, view }: { parent: ParentArea; view: string }) {
+  // Filters stay tabs on this page; pages become links that navigate.
+  // Visually identical, structurally honest — and `subHref` is the one
+  // place the page-versus-filter rule is applied, so no screen has to
+  // know it.
   const tabs = [
-    { id: ALL_VIEW, label: "All", hint: "everything, one scroll" },
+    { id: ALL_VIEW, label: "All", hint: "everything, one scroll", kind: "filter" as const },
     ...parent.views,
   ];
   const active = tabs.find((t) => t.id === view) ?? tabs[0];
@@ -102,12 +106,15 @@ export function ParentTabs({ parent, view }: { parent: ParentArea; view: string 
           return (
             <Link
               key={t.id}
-              href={viewHref(parent, t.id)}
+              href={subHref(parent, t.id)}
               aria-current={on ? "page" : undefined}
               data-active={on ? "true" : "false"}
-              className="chip no-underline shrink-0"
+              // A page view leaves this screen, so it says so rather than
+              // looking like a filter that did nothing.
+              className={`chip no-underline shrink-0${t.kind === "page" ? " opacity-90" : ""}`}
             >
               {t.label}
+              {t.kind === "page" && <span aria-hidden className="ml-1 text-[0.6rem]">↗</span>}
             </Link>
           );
         })}

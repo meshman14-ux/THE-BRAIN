@@ -145,9 +145,9 @@ export const BUILT_BRANCHES: Record<string, { name: string; href: string }> = {
   documents: { name: "Documents", href: "/inbox" },
   calendar: { name: "Calendar", href: "/calendar" },
   advisor: { name: "Advisor", href: "/advisor" },
-  health: { name: "Health", href: "/life/health" },
+  health: { name: "Health", href: "/life/body" },
   finance: { name: "Finance", href: "/life/money" },
-  food: { name: "Food", href: "/life/food" },
+  food: { name: "Food", href: "/life/body/food" },
   "debt-payoff": { name: "Debt payoff plan", href: "/life/money" },
   family: { name: "Family", href: "/life/people" },
   ...Object.fromEntries(

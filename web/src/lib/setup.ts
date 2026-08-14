@@ -172,7 +172,7 @@ export function setupSteps(f: SetupFacts): SetupStep[] {
     done: f.workoutCount > 0,
     worldPunishes: false,
     unlockCount: 4, // floor test · one line · standing board · COG keystone
-    href: "/life/health/train",
+    href: "/life/body/train",
     cta: "Log a session",
   });
 
@@ -218,7 +218,7 @@ export function setupSteps(f: SetupFacts): SetupStep[] {
     done: f.healthDayCount > 0,
     worldPunishes: false,
     unlockCount: 5,
-    href: "/life/health",
+    href: "/life/body",
     cta: "Set it up",
     oneOff: true,
   });
@@ -246,7 +246,7 @@ export function setupSteps(f: SetupFacts): SetupStep[] {
     done: f.cookedMealCount > 0,
     worldPunishes: false,
     unlockCount: 2, // the nutrition signal · the fed line
-    href: "/life/food",
+    href: "/life/body/food",
     cta: "Mark one cooked",
   });
 

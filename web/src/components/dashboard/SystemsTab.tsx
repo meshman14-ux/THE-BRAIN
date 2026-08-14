@@ -95,7 +95,7 @@ export default function SystemsTab({
             <div>
               <p className="label">Debt-free goal</p>
               <Link
-                href="/life/debts"
+                href="/life/money/accounts"
                 className="rounded-[10px] border border-[var(--border)] px-3.5 py-3 mt-2 block no-underline text-[var(--text)] card-hover"
               >
                 <div className="flex items-baseline gap-2 flex-wrap">
