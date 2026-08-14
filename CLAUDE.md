@@ -1566,10 +1566,27 @@ Open items:
    a fault: three of the seven metrics are derived and by design accept no reading at all,
    and the other four are numbers only he knows. `/setup` now lists them.
 
-   **The same is true of `assets`, `investments` and `opportunities` as of the same day**
-   (`/holdings`, `/opportunities`). All three have writers and all three are still empty. Of
-   those, `assets` is the one that costs the most while it stays that way — net worth,
-   cashflow's cost side and seventeen division cockpits all read it.
+   **`investments` and `opportunities` have writers as of the same day** (`/holdings`,
+   `/opportunities`) and both are still empty.
+
+   **`assets` is no longer empty — 7 rows, seeded 2026-08-14.** Three properties (Kathleen St,
+   Bedlinog House, Treharris House) linked to their division by `venture_id`, and four vehicles
+   carrying `meta.vehicle_id` back to the `vehicles` row. **Every financial field is NULL and
+   that is the point:** a seeded value would be an invented one, and the seed exists to remove
+   the blank page rather than to answer the question. `/holdings` now opens with the things
+   listed and only the figures missing, which is a materially cheaper ask than a blank form.
+
+   `user_id` was set EXPLICITLY rather than left to `default auth.uid()` — under an MCP or
+   migration connection `auth.uid()` is NULL, and an unowned row is invisible to RLS forever
+   after. That is the `cog_config` trap in §A4, hit deliberately this time and avoided.
+   Verified by impersonating the real user inside a transaction: all 7 rows visible.
+
+   **The known gap this creates: a vehicle now has two rows and nothing keeps them in step.**
+   `vehicles` owns the compliance dates, `assets` owns the money, and `meta.vehicle_id` records
+   the link but enforces nothing. Marking a vehicle sold in one place leaves the other `held`,
+   which overstates net worth — the flattering direction, which is the one that matters. SORN
+   is deliberately NOT sold: a SORN vehicle is still owned and still worth something, so all
+   four seeded as `held`.
 
 21. **Four pages find a metric BY NAME** — `/dashboard`, `/life`, `/empire` and
    `/life/money` each do `metrics.find(m => m.name === "…")`, and `/empire` keeps its string
