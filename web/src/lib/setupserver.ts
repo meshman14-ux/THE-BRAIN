@@ -13,6 +13,7 @@
 
 import { createClient } from "./supabase/server";
 import { TYPED_AREAS } from "./standing";
+import { canRecord } from "./metrics";
 import type { SetupFacts } from "./setup";
 
 export async function loadSetupFacts(): Promise<SetupFacts> {
@@ -29,6 +30,8 @@ export async function loadSetupFacts(): Promise<SetupFacts> {
     { data: pillars },
     { count: cookedMealCount },
     { count: reviewCount },
+    { data: metrics },
+    { data: metricReadings },
   ] = await Promise.all([
     supabase.from("debts").select("id, creditor, status, current_balance, recurring"),
     supabase
@@ -48,6 +51,8 @@ export async function loadSetupFacts(): Promise<SetupFacts> {
       .select("id", { count: "exact", head: true })
       .not("last_cooked_on", "is", null),
     supabase.from("reviews").select("id", { count: "exact", head: true }),
+    supabase.from("metrics").select("id, name"),
+    supabase.from("metric_readings").select("metric_id"),
   ]);
 
   const keystone = (
@@ -97,5 +102,16 @@ export async function loadSetupFacts(): Promise<SetupFacts> {
     unscoredTypedAreas: pillarRows
       .filter((p) => (TYPED_AREAS as readonly string[]).includes(p.name) && p.score == null)
       .map((p) => p.name),
+    // A derived metric is deliberately excluded: `canRecord` is false for
+    // it, the board refuses the entry box, and asking here for something
+    // the system will not accept is how a setup list loses its authority.
+    unrecordedMetrics: (() => {
+      const read = new Set(
+        ((metricReadings ?? []) as { metric_id: string }[]).map((r) => r.metric_id)
+      );
+      return ((metrics ?? []) as { id: string; name: string }[])
+        .filter((m) => canRecord(m) && !read.has(m.id))
+        .map((m) => m.name);
+    })(),
   };
 }

@@ -531,6 +531,17 @@ export type Metric = {
   unit: string | null;
   direction: string;
   pillar_id: string | null;
+  /**
+   * Both are real columns, and both are OPTIONAL here because the four
+   * pages that read a metric for a headline figure — `/dashboard`,
+   * `/life`, `/empire`, `/life/money` — select five columns and want
+   * nothing more. Only `/life/metrics` selects them, so requiring them
+   * would break four call sites to serve one.
+   *
+   * `target` null is "no target set", never a target of zero.
+   */
+  target?: number | null;
+  meta?: unknown;
 };
 
 /* ------------------------------------------------------------------ *
