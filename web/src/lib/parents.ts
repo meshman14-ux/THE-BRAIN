@@ -119,10 +119,19 @@ export const LIFE_PARENTS: ParentArea[] = [
     icon: "◍",
     question: "Can I work?",
     views: [
+      // Training leads, and that is a correction rather than an addition.
+      // Readiness was first when the assumption was that a watch would
+      // fill it; the watch is not connected, `workouts` has never held a
+      // row, and Jay's own answer on 2026-08-14 was that training is a
+      // priority he wants rather than one he has. A page that opens on a
+      // score it cannot compute is a page nobody opens twice.
+      { id: "training", label: "Training", hint: "one session is the whole target" },
       { id: "readiness", label: "Readiness", hint: "against your own baseline, not a chart" },
       { id: "food", label: "Food", hint: "fifty meals, protein first" },
     ],
-    cost: "none",
+    // No longer "none": logging a session is one tap, and it is the one
+    // thing on this page that cannot fill itself.
+    cost: "one tap",
   },
   {
     id: "money",

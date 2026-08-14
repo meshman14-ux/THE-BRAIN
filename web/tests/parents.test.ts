@@ -82,7 +82,24 @@ describe("the parent registry", () => {
     for (const p of ALL_PARENTS) {
       expect(["none", "one tap", "weekly", "monthly"]).toContain(p.cost);
     }
-    expect(parentById("body")!.cost).toBe("none");
+    // Body was "none" until 2026-08-14, on the reasoning that readiness
+    // fills itself from a watch and food from meals marked cooked. The
+    // watch is not connected, `workouts` has never held a row, and the
+    // page therefore said nothing at all — so a "none" that produces an
+    // empty module is a cost of zero on a value of zero.
+    //
+    // Training now leads the page and logging a session is one tap. That
+    // is a real cost and the registry says so rather than flattering
+    // itself, which is the entire point of this field.
+    expect(parentById("body")!.cost).toBe("one tap");
+  });
+
+  it("opens Body on Training rather than on a score it cannot compute", () => {
+    // Jay scored Training & Fitness 2/10 — his lowest of thirteen — and
+    // said the priority is one he wants rather than one he has. Readiness
+    // needs 14 wearable readings and there are none, so leading with it
+    // meant leading with "not yet".
+    expect(parentById("body")!.views[0].id).toBe("training");
   });
 
   it("does not make Rhythm a life parent", () => {
