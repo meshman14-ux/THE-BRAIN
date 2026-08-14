@@ -224,10 +224,10 @@ describe("nav by mode", () => {
       "Review",
       "Horizon",
       "Close",
-      // See above: Calendar is now a view inside Plan rather than a peer
-      // of Inbox and Advisor. Twelve items, down from thirteen, which
-      // buys back the header room §A7 said was nearly spent.
-      "Diagnose",
+      // Calendar left for the Plan strip on 2026-08-14, and Diagnose left
+      // for the ASK strip beside Advisor the same day (step 5). Eleven
+      // items, down from thirteen — the header room §A7 said was nearly
+      // spent, bought back twice by filing rather than cutting.
       "Advisor",
       "Capture",
       "Account",

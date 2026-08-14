@@ -3,6 +3,8 @@ import { toIso, formatDayLong } from "@/lib/logic";
 import { estimateMinutes, setupProgress, setupSteps } from "@/lib/setup";
 import { loadSetupFacts } from "@/lib/setupserver";
 import SetupList from "@/components/SetupList";
+import SurfaceTabs from "@/components/SurfaceTabs";
+import { SETTINGS_VIEWS } from "@/lib/surfaces";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +45,7 @@ export default async function SetupPage() {
 
   return (
     <div className="max-w-[860px] mx-auto grid gap-7">
+      <SurfaceTabs label="Settings" views={SETTINGS_VIEWS} active="setup" />
       <header>
         <div className="flex items-baseline gap-3 flex-wrap">
           <p className="label">Setup</p>

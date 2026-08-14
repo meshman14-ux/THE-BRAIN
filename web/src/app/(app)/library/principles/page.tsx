@@ -4,6 +4,8 @@ import { type Note, type Pillar } from "@/lib/types";
 import { notesOfKind, creedNote, jayMarks } from "@/lib/logic";
 import { creedFrom } from "@/lib/creed";
 import Principles from "@/components/Principles";
+import SurfaceTabs from "@/components/SurfaceTabs";
+import { LIBRARY_VIEWS } from "@/lib/surfaces";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +43,7 @@ export default async function PrinciplesPage() {
 
   return (
     <div className="max-w-[860px] mx-auto grid gap-7">
+      <SurfaceTabs label="Library" views={LIBRARY_VIEWS} active="principles" />
       <header>
         <div className="flex items-baseline gap-3 flex-wrap">
           <p className="label">The library · principles</p>

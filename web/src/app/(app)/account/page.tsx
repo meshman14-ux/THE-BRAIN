@@ -1,6 +1,8 @@
 import { createClient } from "@/lib/supabase/server";
 import PasswordForm from "@/components/PasswordForm";
 import { Panel } from "@/components/ui";
+import SurfaceTabs from "@/components/SurfaceTabs";
+import { SETTINGS_VIEWS } from "@/lib/surfaces";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +30,7 @@ export default async function AccountPage() {
 
   return (
     <div className="grid gap-6 max-w-[720px]">
+      <SurfaceTabs label="Settings" views={SETTINGS_VIEWS} active="account" />
       <header>
         <p className="label">THE BRAIN · Account</p>
         <h1 className="text-[1.6rem] font-semibold mt-1.5 leading-tight">How you get in</h1>

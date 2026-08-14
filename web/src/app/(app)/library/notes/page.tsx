@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { type Note } from "@/lib/types";
 import { neighbours, type LinkRow } from "@/lib/links";
 import NoteVault from "@/components/NoteVault";
+import SurfaceTabs from "@/components/SurfaceTabs";
+import { LIBRARY_VIEWS } from "@/lib/surfaces";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +54,7 @@ export default async function NotesPage() {
 
   return (
     <div className="max-w-[860px] mx-auto grid gap-6">
+      <SurfaceTabs label="Library" views={LIBRARY_VIEWS} active="notes" />
       <header>
         <div className="flex items-baseline gap-3 flex-wrap">
           <p className="label">The library · vault</p>
