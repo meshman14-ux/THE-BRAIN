@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { toIso } from "@/lib/logic";
 import { ParentHeader, ParentSection } from "@/components/ParentShell";
 import { normaliseView, parentById } from "@/lib/parents";
 import {
@@ -45,7 +44,6 @@ export default async function EmpireParent({
 
   const view = normaliseView(parent, tab);
   const supabase = await createClient();
-  const today = toIso(new Date());
 
   const { data: ventureRows } = await supabase
     .from("ventures")
@@ -84,10 +82,10 @@ export default async function EmpireParent({
           {/* Queue and menu are different PROMISES, and the page says which
               is which rather than presenting ten equal ideas. */}
           <ParentSection id="queue" title="Queue — you said you will start these" view={view}>
-            <DivisionList divisions={pipelineSplit(all).queue} today={today} />
+            <DivisionList divisions={pipelineSplit(all).queue} />
           </ParentSection>
           <ParentSection id="menu" title="Menu — you might, and nothing expects it" view={view}>
-            <DivisionList divisions={pipelineSplit(all).menu} today={today} />
+            <DivisionList divisions={pipelineSplit(all).menu} />
           </ParentSection>
         </>
       ) : (
@@ -99,7 +97,6 @@ export default async function EmpireParent({
                 // second is everything else. Two views, one rule.
                 v.id === parent.views[0].id ? live : mine.filter((d) => !d.live)
               }
-              today={today}
             />
           </ParentSection>
         ))
@@ -122,7 +119,7 @@ export default async function EmpireParent({
   );
 }
 
-function DivisionList({ divisions, today }: { divisions: Division[]; today: string }) {
+function DivisionList({ divisions }: { divisions: Division[] }) {
   if (divisions.length === 0) {
     return <Empty>Nothing here yet.</Empty>;
   }

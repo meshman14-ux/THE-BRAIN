@@ -428,8 +428,13 @@ export default function Meals({ meals, today }: { meals: MealCard[]; today: stri
                   // Plain img on purpose: the images live on TheMealDB and
                   // next/image would need a remote-domain allowlist for a
                   // cosmetic gain. Lazy so fifty photos do not load at once.
-                  // eslint-disable-next-line @next/next/no-img-element
+                   
                   <div className="relative">
+                    {/* Remote images from TheMealDB, whose terms permit storing them.
+                        `next/image` would need a remotePatterns entry and an optimiser
+                        budget for a private, single-user app that shows fifty of these
+                        at thumbnail size. Not worth the cost here. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={m.image_url}
                       alt={m.name}

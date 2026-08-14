@@ -26,7 +26,6 @@ import {
   type PersonRow,
   type ReadinessBand,
   cadenceWatchtower,
-  currentStreak,
   daysUntil,
   occasions,
   personStatus,

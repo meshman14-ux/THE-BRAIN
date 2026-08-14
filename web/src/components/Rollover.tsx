@@ -53,7 +53,7 @@ export default function Rollover({
     if (settled === 0) return null;
     return (
       <section className="panel">
-        <p className="label">Today's leftovers</p>
+        <p className="label">Today&apos;s leftovers</p>
         <p className="text-[0.86rem] mt-2 leading-relaxed text-[var(--muted)]">
           All settled. Tomorrow starts with what you chose, not with what
           slipped.

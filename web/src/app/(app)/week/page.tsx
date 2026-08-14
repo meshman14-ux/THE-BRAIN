@@ -52,16 +52,106 @@ export default async function WeekPage() {
 
   const areaById = new Map(areas.map((p) => [p.id, p]));
 
-  /* -- the two lists, five each ---------------------------------- */
-  const List = ({
-    system,
-    title,
-    items,
-  }: {
-    system: "life" | "empire";
-    title: string;
-    items: Task[];
-  }) => (
+
+  return (
+    <div className="grid gap-6">
+      <PlanTabs active="week" />
+      <header className="mb-1">
+        <p className="label">Scheduler</p>
+        <h1 className="text-[1.7rem] font-semibold mt-1.5">This Week</h1>
+        <p className="text-sm text-[var(--muted)] mt-2 leading-relaxed max-w-[62ch]">
+          Put each task on the day you intend to <em>do</em> it — not the day it&apos;s
+          due. Unscheduled tasks wait in the pool below.
+        </p>
+      </header>
+
+      <div className="flex items-center gap-2 flex-wrap">
+        <Link href="/day" className="chip no-underline">
+          ◷ Plan today by the hour →
+        </Link>
+        <Link href="/week/print" className="chip no-underline">
+          ⎙ Printable diary →
+        </Link>
+        <span className="ml-auto">
+          <AddToCalendar connected={(linked ?? 0) > 0} />
+        </span>
+      </div>
+
+      {/* -- five and five, one machine each -------------------------- */}
+      <div className="grid gap-4 lg:grid-cols-2 items-start">
+        <List
+          system="life"
+          title="☼ LIFE_OS · this week"
+          items={priorities.life}
+          areaById={areaById}
+        />
+        <List
+          system="empire"
+          title="♛ EMPIRE_OS · this week"
+          items={priorities.empire}
+          areaById={areaById}
+        />
+      </div>
+      {priorities.unassigned > 0 && (
+        <p className="text-[0.74rem] text-[var(--faint)] leading-relaxed -mt-3">
+          {priorities.unassigned} scheduled task
+          {priorities.unassigned === 1 ? "" : "s"} this week belong to neither
+          system — real work that has not been told which life it is part of, so
+          it appears in neither list rather than being guessed into one.
+        </p>
+      )}
+
+      <Week tasks={allTasks} pillars={areas} />
+
+      {/* -- the week's days, each a doorway to its own clock --------- */}
+      <Panel title="◷ Plan a day by the hour" hint="drag tasks onto time slots">
+        <div className="flex gap-1.5 flex-wrap">
+          {dates.map((iso) => (
+            <Link
+              key={iso}
+              href={`/day?d=${iso}`}
+              className="chip no-underline"
+              data-active={iso === today}
+            >
+              {formatDayLong(iso).split(" ").slice(0, 2).join(" ")}
+            </Link>
+          ))}
+        </div>
+      </Panel>
+
+      <HourPurposeGrid
+        dates={dates}
+        todayIso={today}
+        journal={(journal ?? []) as JournalDay[]}
+      />
+    </div>
+  );
+}
+
+/**
+ * One system's five priorities.
+ *
+ * Module scope, NOT defined inside the page. A component created during
+ * render is a NEW component type on every render, so React unmounts and
+ * remounts the whole subtree rather than updating it — state inside is lost
+ * and effects re-run. This page is a Server Component so nothing observable
+ * broke, which is exactly why it survived: the fault is invisible until the
+ * subtree gains state, and by then the cause is three refactors away.
+ *
+ * `areaById` was a closure over the page's own map; it is a prop now.
+ */
+function List({
+  system,
+  title,
+  items,
+  areaById,
+}: {
+  system: "life" | "empire";
+  title: string;
+  items: Task[];
+  areaById: Map<string, Pillar>;
+}) {
+  return (
     <section
       className={`panel grid gap-3 ${system === "life" ? "sys-life" : "sys-empire"}`}
       style={{ borderLeft: "4px solid var(--sys)" }}
@@ -112,69 +202,5 @@ export default async function WeekPage() {
         </ol>
       )}
     </section>
-  );
-
-  return (
-    <div className="grid gap-6">
-      <PlanTabs active="week" />
-      <header className="mb-1">
-        <p className="label">Scheduler</p>
-        <h1 className="text-[1.7rem] font-semibold mt-1.5">This Week</h1>
-        <p className="text-sm text-[var(--muted)] mt-2 leading-relaxed max-w-[62ch]">
-          Put each task on the day you intend to <em>do</em> it — not the day it&apos;s
-          due. Unscheduled tasks wait in the pool below.
-        </p>
-      </header>
-
-      <div className="flex items-center gap-2 flex-wrap">
-        <Link href="/day" className="chip no-underline">
-          ◷ Plan today by the hour →
-        </Link>
-        <Link href="/week/print" className="chip no-underline">
-          ⎙ Printable diary →
-        </Link>
-        <span className="ml-auto">
-          <AddToCalendar connected={(linked ?? 0) > 0} />
-        </span>
-      </div>
-
-      {/* -- five and five, one machine each -------------------------- */}
-      <div className="grid gap-4 lg:grid-cols-2 items-start">
-        <List system="life" title="☼ LIFE_OS · this week" items={priorities.life} />
-        <List system="empire" title="♛ EMPIRE_OS · this week" items={priorities.empire} />
-      </div>
-      {priorities.unassigned > 0 && (
-        <p className="text-[0.74rem] text-[var(--faint)] leading-relaxed -mt-3">
-          {priorities.unassigned} scheduled task
-          {priorities.unassigned === 1 ? "" : "s"} this week belong to neither
-          system — real work that has not been told which life it is part of, so
-          it appears in neither list rather than being guessed into one.
-        </p>
-      )}
-
-      <Week tasks={allTasks} pillars={areas} />
-
-      {/* -- the week's days, each a doorway to its own clock --------- */}
-      <Panel title="◷ Plan a day by the hour" hint="drag tasks onto time slots">
-        <div className="flex gap-1.5 flex-wrap">
-          {dates.map((iso) => (
-            <Link
-              key={iso}
-              href={`/day?d=${iso}`}
-              className="chip no-underline"
-              data-active={iso === today}
-            >
-              {formatDayLong(iso).split(" ").slice(0, 2).join(" ")}
-            </Link>
-          ))}
-        </div>
-      </Panel>
-
-      <HourPurposeGrid
-        dates={dates}
-        todayIso={today}
-        journal={(journal ?? []) as JournalDay[]}
-      />
-    </div>
   );
 }

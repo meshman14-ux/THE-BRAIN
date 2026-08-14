@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   type DiagAnswers,
-  type DiagQuestion,
   areaTriageScore,
   bankFor,
   healthFromScore,

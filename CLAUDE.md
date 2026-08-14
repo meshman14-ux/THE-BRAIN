@@ -1276,9 +1276,33 @@ Open items:
    resumable across evenings. Closing the quarter is an explicit act that stamps
    `completed_at` and records itself as a finish — a closed quarter IS something that
    visibly finished. All three rituals now exist; monthly/annual stay deliberately absent.
-6. **No ESLint config.** v1.2 ships none, and `next lint` is deprecated and prompts
-   interactively. `npx tsc --noEmit` is the current gate and is clean. Add a flat
-   `eslint.config.mjs` when convenient.
+6. ~~No ESLint config.~~ **Added 2026-08-13** — `web/eslint.config.mjs`, flat config,
+   `eslint-config-next` v16 (which ships native flat arrays, so no `FlatCompat` shim).
+   `npm run lint` replaces the deprecated `next lint`, which had sat in `package.json` the
+   whole time doing nothing: it prompts interactively and had no config to read.
+
+   **First run found 25 problems, and one was a real bug** `tsc` could never see: `/week`
+   defined its `List` component INSIDE the page body, so it was a new component type on every
+   render — React unmounts and remounts the subtree rather than updating it. It survived
+   because that page is a Server Component, where nothing observable breaks; the fault only
+   bites once the subtree gains state, by which point the cause is three refactors away.
+   Hoisted to module scope with `areaById` as a prop.
+
+   The rest: two unescaped apostrophes, nine dead imports and props, and a `prefer-const`.
+   Four suppressions, each with its reason at the site — an `<a>` to an API **route handler**
+   (a `<Link>` would client-side navigate and never reach the OAuth redirect), the font
+   `<link>` in the App Router root layout (`no-page-custom-font` is a Pages Router rule about
+   `_document.js`), and TheMealDB's remote images.
+
+   **`react-hooks/set-state-in-effect` is off for exactly four files** and listed by name in
+   the config, so a fifth has to be added deliberately. All four read browser-only state on
+   mount — `localStorage`, focus — which cannot be done during render because the server has
+   no `localStorage`, and cannot be done in a lazy initialiser without a hydration mismatch.
+   **`ModeSwitch`'s effect is not incidental: it is the documented FIX for the production bug
+   where `data-mode` went missing and the nav rendered every item from every mode at once.**
+   `InlineValue` is deliberately NOT in that list — it syncs a prop into state, which is the
+   textbook "you might not need an effect" case, so it carries a one-line suppression that
+   says the rule is right and the fix is owed.
 7. **`/dashboard` sidebar views are placeholders.** Every route in `src/lib/placeholders.ts`
    renders an honest "not built yet" page. When one gets built, delete its registry row in the
    same commit — `reviews` left the registry this way on 2026-08-05, and all 17 divisions
@@ -1366,6 +1390,7 @@ npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
 npm test                       # 1363 tests — must be green before build
+npm run lint                   # ESLint — clean before you push
 npm run build                  # 39 routes — green before you push
 ```
 

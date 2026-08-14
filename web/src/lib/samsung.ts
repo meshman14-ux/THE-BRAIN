@@ -257,7 +257,7 @@ export function importPlan(files: { name: string; text: string }[]): ImportPlan 
       const iW = col(h, "weight");
       const iTime = col(h, "start_time");
       const iOffset = col(h, "time_offset");
-      let latest: Record<string, number> = {};
+      const latest: Record<string, number> = {};
       for (const r of parsed.data) {
         const w = num(r[iW]);
         const t = parseInstant(r[iTime]);
