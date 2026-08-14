@@ -433,7 +433,66 @@ h2.serif,
   filter: none;
 }
 
+/**
+ * TAP TARGETS — hit area is not visual size, and conflating them is why this
+ * was left broken for so long.
+ *
+ * Measured at 390x844 on 2026-08-13: `.btn` renders 46px, `.input` 49px and
+ * the phone bar 52px, so those were already fine. The three that were not:
+ * `.chip` at 29px, the mode switch at 20px, and InlineValue at 36px.
+ *
+ * The obvious fix — make everything 44px tall — costs the thing the dashboard
+ * exists for. A chip at 44px is a button, the visual hierarchy between "the
+ * action" and "the option" collapses, and every dense row gets taller, which
+ * is the opposite of "three things, not a list".
+ *
+ * So `.tap` extends the CLICKABLE box with a pseudo-element while the drawn
+ * box stays where it was.
+ *
+ * THE 3px IS ARITHMETIC, NOT TASTE. The tightest real spacing between two
+ * chips is 6px (`gap-1.5`). Expanding 4px per side was tried first and
+ * measured 41–42px, not 44, because two neighbours 6px apart each claiming
+ * 4px overlap by 2px and the later one in the DOM wins the tap. At 3px per
+ * side the expansions meet exactly at the midpoint of the gap: they tile,
+ * nothing overlaps, and no control can steal the tap meant for the one next
+ * to it. 38 drawn + 3 + 3 = 44.
+ *
+ * For the record on what the standard actually requires: WCAG 2.5.8 (AA) asks
+ * for 24x24 CSS px, which even the old 29px chip met. 44 is Apple's HIG and
+ * WCAG 2.5.5 (AAA). This is a comfort fix, not a compliance one, and it is
+ * worth being honest about that rather than implying the app was inaccessible.
+ *
+ * Anything using `.tap` must be at least 38px in the direction it is short,
+ * or it will land under 44 and the test in tests/v2.test.ts will not catch it
+ * — only a rendered measurement can.
+ */
+.tap {
+  position: relative;
+  touch-action: manipulation;
+}
+.tap::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+}
+
 .chip {
+  position: relative;
+  touch-action: manipulation;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  /*
+   * 40 drawn, and the hit box is 40 + 3 + 3 = 46 when a chip stands alone.
+   * When two chips sit in a `gap-1.5` row their expansions meet at the
+   * midpoint of the 6px gap and each keeps ~3px, so the tiled hit height is
+   * 40 + 6 = 46 as well. 38 was tried first and measured 43 — one pixel
+   * short, because `drawn + gap` is the hard ceiling for a tiled row and
+   * 38 + 6 is 44 only if one chip wins the boundary pixel outright.
+   */
+  min-height: 40px;
+  /* Same arithmetic sideways, for icon-only chips like the theme toggle. */
+  min-width: 40px;
   font-size: 0.72rem;
   font-weight: 600;
   padding: 5px 11px;
@@ -443,6 +502,11 @@ h2.serif,
   color: var(--muted);
   cursor: pointer;
   font-family: inherit;
+}
+.chip::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
 }
 .chip:hover {
   color: var(--text);

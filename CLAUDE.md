@@ -1115,6 +1115,27 @@ Public paths: `/login`, `/auth`, `/manifest.webmanifest`, `/sw.js`.
      it caps that element's *used* size, not the row's contribution to the track. **The
      `min-w-0` belongs on the row**, beside the `truncate`, every time. Both existing uses of
      this pattern in the layout and in `People.tsx` needed it.
+  4. **Hit area is not visual size, and `.tap` is the difference.** Measured 2026-08-13 at
+     390×844: `.btn` renders 46px, `.input` 49px and the phone bar 52px, so those were always
+     fine. Three were not — `.chip` at 29px, the mode switch at **20×27**, and `InlineValue`
+     at 36px, whose own comment claimed 44. Drawing everything at 44 was the obvious fix and
+     the wrong one: a 44px chip is a button, and the hierarchy between *the action* and *the
+     option* is what stops a dense page becoming a wall of buttons. So `.tap` adds a
+     pseudo-element that extends the clickable box while the drawn box stays put.
+     **The 3px inset is arithmetic, not taste.** Chips sit 6px apart; 4px per side was tried
+     first and measured **41–42**, because two neighbours each claiming 4px overlap by 2px
+     and the later one in the DOM wins the tap. At 3px they tile exactly at the midpoint. And
+     since `drawn + gap` is the hard ceiling for a tiled row, the chip floor is **40**, not
+     38 — 38 reaches 44 only by winning the boundary pixel outright. Every control now
+     measures **≥44 in both directions**, verified by sub-pixel bisection, and **375 sampled
+     points confirm no control steals its neighbour's tap** — which is the failure this
+     whole technique risks and the reason the check exists.
+     Two things worth knowing. **44 is Apple's HIG and WCAG 2.5.5 (AAA); the AA requirement
+     (2.5.8) is 24×24, which even the old 29px chip met** — this was a comfort fix, not a
+     compliance one, and saying otherwise would overstate it. And **the width floor relaxes
+     at `xl`** (`px-4 xl:px-2.5` on the mode switch): the wider switch pushed the desktop
+     header 23px past its own box, and `xl` is exactly where the phone bar hides and a
+     pointer takes over, so the touch minimum and the nav budget never apply at once.
 
 - **CSS that hides things must fail closed.** The nav is filtered by hiding what does *not*
   belong to the current mode, so anything the selectors fail to match stays visible. A rule
