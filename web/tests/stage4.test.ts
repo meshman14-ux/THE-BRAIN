@@ -147,6 +147,9 @@ describe("nav by mode", () => {
     expect(labels("empire")).toEqual([
       "Divisions",
       "Opportunities",
+      // Phase 5, 2026-08-14. Desk job, so no phone slot — `empire` already
+      // fills the five-column bar exactly and a sixth would wrap.
+      "Holdings",
       // /goals became the HORIZON parent and carries that name everywhere.
       // Two nav entries pointing at one route under two names is how a nav
       // starts feeling arbitrary.

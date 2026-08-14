@@ -31,6 +31,7 @@ const empty = (over: Partial<SetupFacts> = {}): SetupFacts => ({
   reviewCount: 0,
   unscoredTypedAreas: ["Home & Admin"],
   unrecordedMetrics: ["Monthly income", "Savings buffer"],
+  holdingCount: 0,
   ...over,
 });
 
@@ -53,6 +54,7 @@ const full = (): SetupFacts =>
     reviewCount: 1,
     unscoredTypedAreas: [],
     unrecordedMetrics: [],
+    holdingCount: 2,
   });
 
 /* ================================================================== *
@@ -172,6 +174,28 @@ describe("figures", () => {
 /* ================================================================== *
  * Metrics
  * ================================================================== */
+
+describe("the holdings step", () => {
+  const step = (f: SetupFacts) => setupSteps(f).find((s) => s.id === "first-holding")!;
+
+  it("names the widest blank in the system", () => {
+    const s = step(empty());
+    expect(s.done).toBe(false);
+    expect(s.title).toBe("Nothing owned is recorded");
+    expect(s.unlocks).toContain("Net worth");
+    expect(s.unlockCount).toBe(3);
+    expect(s.href).toBe("/holdings");
+  });
+
+  it("is done once anything at all is held", () => {
+    expect(step(empty({ holdingCount: 1 })).done).toBe(true);
+  });
+
+  // Not a fine. Exactly one step on this list is.
+  it("is never a world-punishes step", () => {
+    expect(step(empty()).worldPunishes).toBe(false);
+  });
+});
 
 describe("the metrics step", () => {
   const step = (f: SetupFacts) => setupSteps(f).find((s) => s.id === "first-metric-reading")!;

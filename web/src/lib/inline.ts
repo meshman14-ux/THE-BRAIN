@@ -123,6 +123,91 @@ export const INLINE_FIELDS = {
     label: "Status",
     placeholder: "no line yet",
   },
+
+  /* -- EMPIRE_OS holdings and the deal board -----------------------
+   *
+   * Every one of these is a figure only he knows, rendered as a dash on
+   * a page he is already looking at. `assets.value` in particular is the
+   * single column behind three separate blanks: net worth on
+   * `/life/money`, and "spent so far" on every division cockpit.
+   *
+   * `assets.value` and `investments.current_value` are STAMPED because a
+   * valuation is a fact about a day. `income_monthly` / `cost_monthly`
+   * are not: they describe a standing arrangement rather than a moment,
+   * and stamping them would put a date on the page that means nothing.
+   * `investments.as_of` is not stamped either — it IS the date, and
+   * recording when you typed a date adds nothing to a date. */
+  "assets.value": {
+    table: "assets",
+    column: "value",
+    kind: "money",
+    stamp: "value_confirmed_on",
+    label: "Value",
+    placeholder: "not valued",
+    min: 0,
+  },
+  "assets.income_monthly": {
+    table: "assets",
+    column: "income_monthly",
+    kind: "money",
+    label: "Earns monthly",
+    placeholder: "not recorded",
+    min: 0,
+  },
+  "assets.cost_monthly": {
+    table: "assets",
+    column: "cost_monthly",
+    kind: "money",
+    label: "Costs monthly",
+    placeholder: "not recorded",
+    min: 0,
+  },
+  "investments.current_value": {
+    table: "investments",
+    column: "current_value",
+    kind: "money",
+    stamp: "value_confirmed_on",
+    label: "Current value",
+    placeholder: "not priced",
+    min: 0,
+  },
+  "investments.cost_basis": {
+    table: "investments",
+    column: "cost_basis",
+    kind: "money",
+    label: "Put in",
+    placeholder: "not recorded",
+    min: 0,
+  },
+  "investments.as_of": {
+    table: "investments",
+    column: "as_of",
+    kind: "date",
+    label: "Priced on",
+    placeholder: "no date",
+  },
+  "opportunities.value_est": {
+    table: "opportunities",
+    column: "value_est",
+    kind: "money",
+    label: "Worth",
+    placeholder: "not estimated",
+    min: 0,
+  },
+  "opportunities.next_step": {
+    table: "opportunities",
+    column: "next_step",
+    kind: "text",
+    label: "Next step",
+    placeholder: "nothing agreed",
+  },
+  "opportunities.next_step_date": {
+    table: "opportunities",
+    column: "next_step_date",
+    kind: "date",
+    label: "By",
+    placeholder: "no date",
+  },
 } as const satisfies Record<string, InlineField>;
 
 export type InlineKey = keyof typeof INLINE_FIELDS;

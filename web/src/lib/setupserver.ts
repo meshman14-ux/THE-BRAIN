@@ -32,6 +32,8 @@ export async function loadSetupFacts(): Promise<SetupFacts> {
     { count: reviewCount },
     { data: metrics },
     { data: metricReadings },
+    { data: heldAssets },
+    { count: investmentCount },
   ] = await Promise.all([
     supabase.from("debts").select("id, creditor, status, current_balance, recurring"),
     supabase
@@ -53,6 +55,8 @@ export async function loadSetupFacts(): Promise<SetupFacts> {
     supabase.from("reviews").select("id", { count: "exact", head: true }),
     supabase.from("metrics").select("id, name"),
     supabase.from("metric_readings").select("metric_id"),
+    supabase.from("assets").select("status"),
+    supabase.from("investments").select("id", { count: "exact", head: true }),
   ]);
 
   const keystone = (
@@ -113,5 +117,10 @@ export async function loadSetupFacts(): Promise<SetupFacts> {
         .filter((m) => canRecord(m) && !read.has(m.id))
         .map((m) => m.name);
     })(),
+    // A sold asset is a record, not a holding — the same filter
+    // netWorth and cashflow already apply.
+    holdingCount:
+      ((heldAssets ?? []) as { status: string }[]).filter((a) => a.status !== "sold").length +
+      (investmentCount ?? 0),
   };
 }

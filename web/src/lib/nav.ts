@@ -153,6 +153,27 @@ export const NAV: NavItem[] = [
     modes: ["empire"],
     phoneModes: ["empire"],
   },
+  {
+    key: "holdings",
+    href: "/holdings",
+    label: "Holdings",
+    icon: "◈",
+    // EMPIRE only, and NOT on the phone bar. Two separate budgets, and
+    // this clears one while failing the other.
+    //
+    // The desktop header's constraint is `brain` mode, which carries
+    // thirteen items inside a 1200px box with ~27px spare; this adds
+    // nothing there, taking `empire` from seven to eight, which is
+    // nowhere near the line.
+    //
+    // The phone bar is a five-column GRID and `empire` already fills it
+    // exactly — divisions, opportunities, horizon, capture, inbox. A
+    // sixth would silently wrap onto a second row. Valuing an asset is
+    // also a desk job in the way confirming a debt balance is, which is
+    // already why Money and People have no phone slot either.
+    modes: ["empire"],
+    phoneModes: [],
+  },
 
   /* -- shared ------------------------------------------------------ */
   {

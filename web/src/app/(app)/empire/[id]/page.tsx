@@ -443,6 +443,15 @@ export default async function DivisionPage({
                   "Money has gone into this and no budget was ever set. That is a missing figure, not an overspend — the system will not call it one."}
                 {money.state === "unspent" &&
                   "A budget, and nothing recorded against it yet. Spend appears here as assets get logged against the division."}
+                {(money.state === "unspent" || money.state === "unbudgeted") && (
+                  <>
+                    {" "}
+                    <Link href="/holdings" className="no-underline" style={{ color: "var(--sys)" }}>
+                      Holdings
+                    </Link>{" "}
+                    is where they are logged.
+                  </>
+                )}
                 {money.state === "under" &&
                   `${money.percent}% of the budget used.`}
                 {money.state === "over" &&

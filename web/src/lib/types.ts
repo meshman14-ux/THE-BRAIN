@@ -341,6 +341,52 @@ export type Asset = {
   cost_monthly: number | null;
   status: string;
   acquired_on?: string | null;
+  meta?: unknown;
+};
+
+/**
+ * Something owned and HELD rather than owned and run.
+ *
+ * `as_of` is the date `current_value` was true on, and it is the column
+ * that makes this table honest: a valuation is a fact about a day, not a
+ * standing truth. Every figure here is nullable — a holding you have not
+ * priced is still a holding, and pricing it at zero would be the one
+ * default that flatters nothing and confuses everything.
+ */
+export type Investment = {
+  id: string;
+  name: string;
+  kind: string;
+  platform: string | null;
+  pillar_id: string | null;
+  units: number | null;
+  cost_basis: number | null;
+  current_value: number | null;
+  as_of: string | null;
+  meta?: unknown;
+};
+
+/**
+ * Something on the table.
+ *
+ * `next_step` and `next_step_date` are the two columns the board is
+ * really for: an opportunity with neither is one nobody has agreed to do
+ * anything about. `value_est` is nullable and an unestimated deal is
+ * never counted as zero — it is what turns the pipeline total into a
+ * floor, which the page says out loud.
+ */
+export type Opportunity = {
+  id: string;
+  title: string;
+  kind: string | null;
+  stage: string;
+  pillar_id: string | null;
+  person_id: string | null;
+  value_est: number | null;
+  next_step: string | null;
+  next_step_date: string | null;
+  created_at?: string;
+  meta?: unknown;
 };
 
 /* ------------------------------------------------------------------ *

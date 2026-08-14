@@ -58,6 +58,7 @@ import {
 } from "../src/lib/types";
 import {
   BUILT_BRANCHES,
+  PLACEHOLDERS,
   branchName,
   branchHref,
   placeholderFor,
@@ -712,11 +713,14 @@ describe("a branch that graduated to a real route", () => {
     expect(branchHref("reviews")).toBe("/reviews");
   });
 
-  it("still names and routes an ordinary placeholder", () => {
+  it("graduated the last placeholder there was", () => {
     // "finance" graduated 2026-08-10 (/life/money), "food" on 2026-08-11,
     // and "feed" was forwarded to /life/body on 2026-08-13 when the ghosts
-    // were cleared. "opportunities" is the last genuinely unbuilt one — it
-    // becomes the EMPIRE_OS Pipeline parent.
+    // were cleared. "opportunities" was the last genuinely unbuilt one and
+    // it was built on 2026-08-14, so PLACEHOLDERS is now EMPTY — the queue
+    // drained, which is what it was always for.
+    expect(PLACEHOLDERS).toHaveLength(0);
+    expect(placeholderFor("opportunities")).toBeUndefined();
     expect(branchName("opportunities")).toBe("Opportunities");
     expect(branchHref("opportunities")).toBe("/opportunities");
     expect(branchName("nothing-like-this")).toBe("nothing-like-this");
