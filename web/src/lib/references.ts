@@ -830,7 +830,7 @@ export const BRANCH_RELATED: Record<
   finance: {
     pillars: ["Money & Security"],
     routes: [
-      { label: "Debts — live now, every creditor", href: "/life/debts" },
+      { label: "Debts — live now, every creditor", href: "/life/money/accounts" },
       { label: "Debt payoff plan", href: "/debt-payoff" },
     ],
   },
@@ -847,7 +847,7 @@ export const BRANCH_RELATED: Record<
   "debt-payoff": {
     pillars: ["Money & Security"],
     routes: [
-      { label: "Debts — live now, every creditor", href: "/life/debts" },
+      { label: "Debts — live now, every creditor", href: "/life/money/accounts" },
       { label: "Finance", href: "/finance" },
     ],
   },

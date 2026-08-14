@@ -76,8 +76,30 @@ export type ParentArea = {
   icon: string;
   /** The question this area answers. One per area, and they must not overlap. */
   question: string;
-  /** The sub-modules nested inside it, in the order they appear on the page. */
-  views: { id: string; label: string; hint: string }[];
+  /**
+   * The sub-modules nested inside it, in the order they appear.
+   *
+   * `kind` is the rule that removes the judgement calls, and it has a
+   * test rather than taste behind it:
+   *
+   *   A sub-module gets its own PATH if you can DO something there —
+   *   log, edit, add, tick. It stays a QUERY FILTER if it only SHOWS
+   *   you the parent's data.
+   *
+   * Doing needs a place; looking needs a lens. `subHref` is the single
+   * function that applies it, so no screen has to know the rule.
+   *
+   * A `page` view carries its own `path`, because the route is not
+   * always `<parent>/<id>` — Roster IS the People parent, for one.
+   */
+  views: {
+    id: string;
+    label: string;
+    hint: string;
+    kind: "page" | "filter";
+    /** Required for `page` views. Ignored for filters. */
+    path?: string;
+  }[];
   /**
    * What it costs to keep this area truthful. Named honestly, because the
    * whole redesign turns on the fact that a measurement with a typing cost
@@ -105,9 +127,19 @@ export const LIFE_PARENTS: ParentArea[] = [
     icon: "◧",
     question: "How am I actually doing?",
     views: [
-      { id: "areas", label: "Areas", hint: "eight areas, seven of them computed" },
-      { id: "habits", label: "Habits", hint: "one that counts" },
-      { id: "goals", label: "Goals", hint: "and the bucket list" },
+      { id: "areas", label: "Areas", hint: "eight areas, seven of them computed", kind: "filter" },
+      { id: "habits", label: "Habits", hint: "one that counts", kind: "filter" },
+      { id: "standards", label: "Standards", hint: "what you measure against", kind: "filter" },
+      // Goals stays at /goals and is NOT /life/goals, which is where the
+      // plan put it. That page is cross-system: it renders LIFE and
+      // EMPIRE goals together, colours each row by its pillar's system,
+      // sits in all three nav modes and holds EMPIRE's phone-bar slot.
+      // Filing it under /life would put a cross-system surface inside one
+      // subsystem and break the empire phone bar — the forced symmetry
+      // decision 5 already rejected. Standing links to it; it does not
+      // own it.
+      { id: "goals", label: "Goals", hint: "month to ten years", kind: "page", path: "/goals" },
+      { id: "bucket", label: "Bucket list", hint: "things worth doing once", kind: "page", path: "/life/bucket" },
     ],
     cost: "weekly",
   },
@@ -125,9 +157,11 @@ export const LIFE_PARENTS: ParentArea[] = [
       // row, and Jay's own answer on 2026-08-14 was that training is a
       // priority he wants rather than one he has. A page that opens on a
       // score it cannot compute is a page nobody opens twice.
-      { id: "training", label: "Training", hint: "one session is the whole target" },
-      { id: "readiness", label: "Readiness", hint: "against your own baseline, not a chart" },
-      { id: "food", label: "Food", hint: "fifty meals, protein first" },
+      { id: "training", label: "Training", hint: "one session is the whole target", kind: "filter" },
+      { id: "readiness", label: "Readiness", hint: "against your own baseline, not a chart", kind: "filter" },
+      { id: "food", label: "Food", hint: "fifty meals, protein first", kind: "page", path: "/life/body/food" },
+      { id: "train", label: "Train", hint: "today's session, set by set", kind: "page", path: "/life/body/train" },
+      { id: "skills", label: "Skills", hint: "the four trees, mastery derived", kind: "page", path: "/life/body/skills" },
     ],
     // No longer "none": logging a session is one tap, and it is the one
     // thing on this page that cannot fill itself.
@@ -141,12 +175,12 @@ export const LIFE_PARENTS: ParentArea[] = [
     icon: "£",
     question: "Am I getting out?",
     views: [
-      { id: "debt", label: "Debt", hint: "what you owe, and when it is gone" },
-      { id: "accounts", label: "Accounts", hint: "what closes, and what just recurs" },
-      { id: "vehicles", label: "Vehicles", hint: "tax, MOT, insurance, service" },
-      { id: "worth", label: "Net worth", hint: "what you are actually worth" },
-      { id: "cashflow", label: "Cashflow", hint: "in against out" },
-      { id: "buffer", label: "Buffer", hint: "how long you would last" },
+      { id: "debt", label: "Debt", hint: "what you owe, and when it is gone", kind: "filter" },
+      { id: "worth", label: "Net worth", hint: "what you are actually worth", kind: "filter" },
+      { id: "cashflow", label: "Cashflow", hint: "in against out", kind: "filter" },
+      { id: "buffer", label: "Buffer", hint: "how long you would last", kind: "filter" },
+      { id: "accounts", label: "Accounts", hint: "what closes, and what just recurs", kind: "page", path: "/life/money/accounts" },
+      { id: "vehicles", label: "Vehicles", hint: "tax, MOT, insurance, service", kind: "page", path: "/life/money/vehicles" },
     ],
     cost: "monthly",
   },
@@ -158,23 +192,13 @@ export const LIFE_PARENTS: ParentArea[] = [
     icon: "◎",
     question: "Am I present?",
     views: [
-      { id: "roster", label: "Roster", hint: "who, and how often" },
-      { id: "occasions", label: "Occasions", hint: "birthdays and dates" },
+      // Roster IS this page — logging contact is doing, and its place is
+      // the parent itself rather than a child of it. This is why a `page`
+      // view carries its own path instead of deriving one.
+      { id: "roster", label: "Roster", hint: "who, and how often", kind: "page", path: "/life/people" },
+      { id: "occasions", label: "Occasions", hint: "birthdays and dates", kind: "filter" },
     ],
     cost: "one tap",
-  },
-  {
-    id: "horizon",
-    layer: "life",
-    name: "Horizon",
-    href: "/goals",
-    icon: "◇",
-    question: "Where is this going?",
-    views: [
-      { id: "goals", label: "Goals", hint: "month to ten years" },
-      { id: "bucket", label: "Bucket list", hint: "things worth doing once" },
-    ],
-    cost: "none",
   },
 ];
 
@@ -207,8 +231,8 @@ export const EMPIRE_PARENTS: ParentArea[] = [
     icon: "⌂",
     question: "What earns without me?",
     views: [
-      { id: "let", label: "Let", hint: "earning now" },
-      { id: "works", label: "Works", hint: "not yet earning" },
+      { id: "let", label: "Let", hint: "earning now", kind: "filter" },
+      { id: "works", label: "Works", hint: "not yet earning", kind: "filter" },
     ],
     cost: "monthly",
   },
@@ -220,8 +244,8 @@ export const EMPIRE_PARENTS: ParentArea[] = [
     icon: "⚒",
     question: "What am I selling my hours to?",
     views: [
-      { id: "active", label: "Active", hint: "running now" },
-      { id: "numbers", label: "Numbers", hint: "the five that matter" },
+      { id: "active", label: "Active", hint: "running now", kind: "filter" },
+      { id: "numbers", label: "Numbers", hint: "the five that matter", kind: "filter" },
     ],
     cost: "monthly",
   },
@@ -232,7 +256,7 @@ export const EMPIRE_PARENTS: ParentArea[] = [
     href: "/empire/product",
     icon: "◈",
     question: "What am I making?",
-    views: [{ id: "lines", label: "Lines", hint: "what is made and sold" }],
+    views: [{ id: "lines", label: "Lines", hint: "what is made and sold", kind: "filter" }],
     cost: "monthly",
   },
   {
@@ -242,7 +266,7 @@ export const EMPIRE_PARENTS: ParentArea[] = [
     href: "/empire/digital",
     icon: "◉",
     question: "What is built once and kept?",
-    views: [{ id: "builds", label: "Builds", hint: "software and platforms" }],
+    views: [{ id: "builds", label: "Builds", hint: "software and platforms", kind: "filter" }],
     cost: "none",
   },
   {
@@ -253,8 +277,8 @@ export const EMPIRE_PARENTS: ParentArea[] = [
     icon: "✦",
     question: "What is not started yet?",
     views: [
-      { id: "queue", label: "Queue", hint: "things you will start" },
-      { id: "menu", label: "Menu", hint: "things you might, no expectation" },
+      { id: "queue", label: "Queue", hint: "things you will start", kind: "filter" },
+      { id: "menu", label: "Menu", hint: "things you might, no expectation", kind: "filter" },
     ],
     cost: "none",
   },
@@ -289,7 +313,11 @@ export function normaliseView(
   raw: string | string[] | null | undefined
 ): string {
   const v = Array.isArray(raw) ? raw[0] : raw;
-  return parent.views.some((x) => x.id === v) ? (v as string) : ALL_VIEW;
+  // Filters only. A `?tab=` naming a PAGE view is a stale link from
+  // before that sub-module got its own route — it must fall back to the
+  // whole page rather than filtering to a section that no longer renders
+  // here, which would show an empty screen and look broken.
+  return filterViews(parent).some((x) => x.id === v) ? (v as string) : ALL_VIEW;
 }
 
 /** Whether a section should render, given the active view. */
@@ -300,6 +328,37 @@ export function showsView(active: string, section: string): boolean {
 /** The href for a tab. The default view drops the parameter entirely. */
 export function viewHref(parent: ParentArea, view: string): string {
   return view === ALL_VIEW ? parent.href : `${parent.href}?tab=${view}`;
+}
+
+/**
+ * Where a sub-module actually lives — the one place the page/filter rule
+ * is applied.
+ *
+ * A FILTER is a lens on data the parent already fetched, so it is a query
+ * string on the parent. A PAGE is somewhere you do something, so it is a
+ * real route that can be bookmarked, linked from a reference shelf and
+ * navigated back out of.
+ *
+ * The point of routing every caller through one function: before this,
+ * Vehicles had TWO addresses — `/life/vehicles` and
+ * `/life/money?tab=vehicles` — and two addresses for one subject is
+ * exactly how the duplication started last time.
+ */
+export function subHref(parent: ParentArea, viewId: string): string {
+  const v = parent.views.find((x) => x.id === viewId);
+  if (v == null) return parent.href;
+  if (v.kind === "page") return v.path ?? parent.href;
+  return viewHref(parent, viewId);
+}
+
+/** Only the filters — the views a parent page renders inline. */
+export function filterViews(parent: ParentArea) {
+  return parent.views.filter((v) => v.kind === "filter");
+}
+
+/** Only the pages — the views that navigate away. */
+export function pageViews(parent: ParentArea) {
+  return parent.views.filter((v) => v.kind === "page");
 }
 
 /* ------------------------------------------------------------------ *
@@ -314,15 +373,13 @@ export function viewHref(parent: ParentArea, view: string): string {
  * within a month, and the whole reason this file exists is to stop the
  * command centre keeping its own copy of what the subsystems know.
  *
- * A parent with no entry has no typed truth to go off — Body fills itself
- * from the watch, Horizon from rows that carry their own dates.
+ * A parent with no entry has no typed truth to go off.
  */
 export const PARENT_TRUTH: Record<string, string> = {
   money: "debt balances",
   standing: "area scores",
   people: "the roster",
   body: "health data",
-  horizon: "goals",
 };
 
 /** How long that parent's truth stays true. Null when it has none. */

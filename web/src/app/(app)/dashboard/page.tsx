@@ -553,7 +553,7 @@ export default async function TheBrain({
     { label: "Health", href: "/health" },
     { label: "Food", href: "/food" },
     { label: "Kathleen St", href: "/kathleen-st" },
-    { label: "Vehicles", href: "/life/vehicles" },
+    { label: "Vehicles", href: "/life/money/vehicles" },
     { label: "Family", href: "/family" },
   ];
   // Personal, Daily Wall, Mind Map and Me left this sidebar on 2026-08-12.

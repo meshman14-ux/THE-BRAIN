@@ -761,7 +761,11 @@ describe("a branch that graduated to a real route", () => {
   });
 
   it("food graduated: named, and forwarded to the meal library", () => {
+    // The meal library moved under Body on 2026-08-14 — nutrition is an
+    // INPUT to readiness, not a neighbour of it. The branch follows the
+    // page rather than pointing at the redirect, so an old /food link
+    // takes one hop rather than two.
     expect(branchName("food")).toBe("Food");
-    expect(BUILT_BRANCHES["food"].href).toBe("/life/food");
+    expect(BUILT_BRANCHES["food"].href).toBe("/life/body/food");
   });
 });

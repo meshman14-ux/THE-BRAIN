@@ -313,10 +313,10 @@ export default async function LifeOs() {
           problem.
         </p>
         <div className="flex gap-2 mt-3.5 flex-wrap">
-          <Link href="/life/debts" className="chip no-underline">
+          <Link href="/life/money/accounts" className="chip no-underline">
             £ Debts · the creditors
           </Link>
-          <Link href="/life/vehicles" className="chip no-underline">
+          <Link href="/life/money/vehicles" className="chip no-underline">
             ⛭ Vehicles · tax, MOT, insurance
           </Link>
           <Link href="/life/metrics" className="chip no-underline">
@@ -357,7 +357,7 @@ export default async function LifeOs() {
           label="Debt"
           value={formatGBP(debt?.value ?? null)}
           tone={debt ? "bad" : "faint"}
-          href="/life/debts"
+          href="/life/money/accounts"
           note={
             debt == null
               ? "No reading yet"

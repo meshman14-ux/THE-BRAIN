@@ -1,5 +1,5 @@
-import HealthPage from "../health/page";
-import FoodPage from "../food/page";
+import ReadinessPage from "./readiness/page";
+import FoodPage from "./food/page";
 import { createClient } from "@/lib/supabase/server";
 import { toIso } from "@/lib/logic";
 import { leadWithLogger, restart, restartLine } from "@/lib/restart";
@@ -90,7 +90,7 @@ export default async function BodyPage({
       </ParentSection>
 
       <ParentSection id="readiness" title="Readiness" view={view}>
-        <HealthPage />
+        <ReadinessPage />
       </ParentSection>
 
       <ParentSection id="food" title="Food" view={view}>

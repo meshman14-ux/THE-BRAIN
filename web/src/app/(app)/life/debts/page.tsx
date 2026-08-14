@@ -11,7 +11,9 @@ import { redirect } from "next/navigation";
  * deleted route breaks every bookmark and reference-shelf entry pointing
  * at it. That is house rule 12, and it is here specifically because
  * LIFE_OS v2 step 1 broke it four times and had to be corrected.
+ *
+ * Accounts is a page under Money since 2026-08-14 — editing a balance is doing, and doing needs a place.
  */
 export default function DebtsPage() {
-  redirect("/life/money?tab=accounts");
+  redirect("/life/money/accounts");
 }

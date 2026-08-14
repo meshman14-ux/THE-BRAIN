@@ -341,7 +341,7 @@ export function morningBrief(input: {
     items.push({
       kind: "money",
       text: "The debt total is still partial — some creditors have no balance against them.",
-      href: "/life/debts",
+      href: "/life/money/accounts",
       rank: 2,
     });
   }

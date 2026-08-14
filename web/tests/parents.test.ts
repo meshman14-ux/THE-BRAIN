@@ -38,9 +38,15 @@ const TODAY = "2026-08-13";
  * ================================================================== */
 
 describe("the parent registry", () => {
-  it("gives LIFE_OS five parents — five is the number a person holds", () => {
-    // Eleven flat nav items was the problem this compression solves.
-    expect(LIFE_PARENTS).toHaveLength(5);
+  it("gives LIFE_OS four parents — Horizon folded into Standing", () => {
+    // Eleven flat nav items was the problem this compression solves; five
+    // became FOUR on 2026-08-14 when Horizon was folded in. Horizon had
+    // been a registered parent with NO nav entry and no way to reach it,
+    // so it was a parent in the registry and nothing on screen. Either it
+    // was one or it wasn't; now it isn't, and Goals and the bucket list
+    // are Standing's.
+    expect(LIFE_PARENTS).toHaveLength(4);
+    expect(LIFE_PARENTS.map((p) => p.id)).not.toContain("horizon");
   });
 
   it("gives EMPIRE five parents too, once the placements were confirmed", () => {
@@ -117,7 +123,7 @@ describe("the parent registry", () => {
   });
 
   it("keeps the layers separable", () => {
-    expect(parentsFor("life")).toHaveLength(5);
+    expect(parentsFor("life")).toHaveLength(4);
     expect(parentsFor("empire")).toHaveLength(5);
   });
 });
@@ -190,8 +196,17 @@ describe("views", () => {
     expect(normaliseView(money, "nonsense")).toBe(ALL_VIEW);
   });
 
-  it("resolves a real sub-module", () => {
-    expect(normaliseView(money, "vehicles")).toBe("vehicles");
+  it("resolves a real FILTER sub-module", () => {
+    expect(normaliseView(money, "debt")).toBe("debt");
+  });
+
+  // Vehicles became a PAGE on 2026-08-14. A stale `?tab=vehicles` link
+  // from before the move must fall back to the whole page rather than
+  // filtering to a section that no longer renders here — which would show
+  // an empty screen and look broken rather than merely out of date.
+  it("falls back to All for a ?tab= naming a page view", () => {
+    expect(normaliseView(money, "vehicles")).toBe(ALL_VIEW);
+    expect(normaliseView(money, "accounts")).toBe(ALL_VIEW);
   });
 
   it("shows every section under All, and only one under a tab", () => {
