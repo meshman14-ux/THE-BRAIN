@@ -96,6 +96,8 @@ export type SetupFacts = {
    * would be asking for something the system refuses to accept.
    */
   unrecordedMetrics: string[];
+  /** Held assets plus investments. Zero is why three figures read `£—`. */
+  holdingCount: number;
 };
 
 /**
@@ -246,6 +248,19 @@ export function setupSteps(f: SetupFacts): SetupStep[] {
     unlockCount: 2, // the nutrition signal · the fed line
     href: "/life/food",
     cta: "Mark one cooked",
+  });
+
+  steps.push({
+    id: "first-holding",
+    title:
+      f.holdingCount === 0 ? "Nothing owned is recorded" : "Holdings are being recorded",
+    unlocks:
+      "The widest single blank in the system. Net worth cannot be totalled, cashflow has no costs to count, and all seventeen division cockpits show a dash for what has been spent — every one of those reads `assets`, and `assets` is empty.",
+    done: f.holdingCount > 0,
+    worldPunishes: false,
+    unlockCount: 3, // net worth · cashflow costs · every division's spend
+    href: "/holdings",
+    cta: "Add one",
   });
 
   steps.push({

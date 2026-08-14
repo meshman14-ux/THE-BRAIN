@@ -59,12 +59,16 @@ export const PLACEHOLDERS: Placeholder[] = [
   // /life/vehicles. BRANCH_ALIASES redirects the old slug there.
   // "family" left 2026-08-10: the people ledger it promised — cadences,
   // occasions and the one-tap contact log — is built at /life/people.
-  {
-    slug: "opportunities",
-    name: "Opportunities",
-    what: "The deal board: what is on the table, what it would cost, and what it would return. EMPIRE_OS carries the table already — this becomes the view over it.",
-    phase: "Phase 5 · EMPIRE_OS",
-  },
+  // "opportunities" left 2026-08-14, and it was the LAST entry in this
+  // registry. The deal board is built at the same address, /opportunities,
+  // so the real route simply wins over the catch-all — the same way
+  // /reviews did. It kept its promise: what is on the table, what it is
+  // worth, and what the next move is.
+  //
+  // PLACEHOLDERS is now empty, and that is the point of it. It was never
+  // meant to be a permanent furniture list; it was meant to be a queue
+  // that drains. Leaving the array and its rules in place is deliberate —
+  // the next planned-but-unbuilt view has somewhere honest to live.
   // "reviews" was retired 2026-08-05: the weekly review is built and lives
   // at the same address, /reviews, so the real route simply wins over the
   // catch-all. Its shelf and its name now come from BUILT_BRANCHES below.
@@ -126,6 +130,10 @@ export const DIVISION_NAMES = [
  */
 export const BUILT_BRANCHES: Record<string, { name: string; href: string }> = {
   reviews: { name: "Reviews", href: "/reviews" },
+  // Graduated 2026-08-14, the last row to leave PLACEHOLDERS. Built at the
+  // address it always advertised, so this keeps its name and its shelf.
+  opportunities: { name: "Opportunities", href: "/opportunities" },
+  holdings: { name: "Holdings", href: "/holdings" },
   // Retired ghosts, forwarded to where the thing they promised already is.
   today: { name: "Today", href: "/day" },
   "daily-wall": { name: "Daily Wall", href: "/day" },

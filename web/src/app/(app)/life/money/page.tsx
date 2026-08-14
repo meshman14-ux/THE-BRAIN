@@ -246,6 +246,12 @@ export default async function MoneyPage({
                 ? "Every asset, investment and debt has a confirmed figure, so this is a number rather than an estimate."
                 : "With any debt balance unconfirmed the debt side is understated, which makes net worth OVERSTATED — the flattering direction. So this reads as a ceiling until every input is in. A total that quietly flatters you is worse than no total."}
             </p>
+            {/* This page READS the holdings; it is not where they are kept.
+                Until Phase 5 there was nowhere at all, which is why both
+                figures above have always been a dash. */}
+            <Link href="/holdings" className="chip no-underline self-start">
+              Assets and investments →
+            </Link>
           </Panel>
         </>
       )}

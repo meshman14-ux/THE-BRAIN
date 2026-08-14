@@ -1102,6 +1102,12 @@ const REAL_ROUTES = [
   "/reviews",
   "/calendar",
   "/advisor",
+  // Phase 4 · metrics (2026-08-14)
+  "/life/metrics",
+  // Phase 5 · EMPIRE_OS (2026-08-14). /opportunities was a placeholder for
+  // months and is now the deal board at the same address.
+  "/opportunities",
+  "/holdings",
 ];
 
 describe("reference library integrity", () => {

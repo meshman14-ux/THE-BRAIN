@@ -487,8 +487,8 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-14)
 
-Verified in this repo: **1434/1434 tests pass** across 35 files (vitest), `npm run lint` is
-clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 53 entries — 41 pages,
+Verified in this repo: **1510/1510 tests pass** across 37 files (vitest), `npm run lint` is
+clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 55 entries — 43 pages,
 `/_not-found`, and 11 API routes.** The route figure is counted from the build output rather
 than remembered: this section said 48 and §A9 said 39 at the same time, which is the same
 drift the schema capture exists to stop.
@@ -1059,6 +1059,74 @@ asking for something the board will refuse is how a setup list loses its authori
 **No nav item, and it is the same measured reason as the vault**: `brain` mode carries
 thirteen items with ~27px spare. It is reached from `/life`.
 
+**Phase 5 — EMPIRE_OS's last three tables — landed 2026-08-14** at `/holdings` and
+`/opportunities`, with `src/lib/holdings.ts` (38 tests) and `src/lib/pipeline.ts` (35 tests).
+`assets`, `investments` and `opportunities` all shipped with the v1 schema and all three were
+empty, with no writer anywhere. No migration was needed.
+
+**What being empty was actually costing.** `assets` alone is read in three places — net worth
+on `/life/money`, the cost side of cashflow beside it, and "spent so far" on all seventeen
+division cockpits — so every one of those has rendered `£—` since the day it shipped. That is
+the single widest blank in the system, and `/setup` now says so with an unlock count of three.
+
+**Two pages, not one, because they are two questions.** An asset is a thing you own and the
+question is what it is worth; an opportunity is a thing you are chasing and the question is
+**whose move is it**. That difference is visible in the ordering: the holdings board sorts
+**largest first** and the deal board sorts **worst first**.
+
+- **Largest-first is the deliberate departure** from worst-first everywhere else. An asset is
+  not a problem to be fixed, and "worst" would mean lowest yield, which would put the house
+  the family lives in below a trailer. **A row with no value sorts below every valued one** —
+  unknown is not "worth nothing", and sorting it as zero would bury it exactly when it needs
+  entering.
+- **`assets` and `investments` stay two tables** and get two sections. An asset is owned and
+  RUN — it earns and costs monthly. An investment is owned and HELD — a basis, a value, and
+  `as_of`, the date that value was true on. Merging them gives one row shape four permanently
+  null columns, and `netWorth` already reads them separately for exactly this reason.
+- **A valuation is a fact about a day.** `investmentLine` reports `ageDays` and flags anything
+  over a quarter as stale. It is stated, never corrected: nothing here guesses what a stale
+  holding is worth today.
+- **A yield needs both a value and a monthly figure**, and returns null rather than Infinity
+  at a zero value. It is the number that would drive a keep-or-sell decision, so a guessed one
+  is the most expensive thing the module could produce.
+
+**The refusal the deal board is built on: no probability weighting.** Every CRM multiplies
+`value_est` by a per-stage coefficient and produces one confident number. That coefficient has
+never been measured here, and inventing one is precisely the failure `debts.apr` documents —
+a missing rate treated as zero sorts a real credit card to the bottom of the queue. So the
+open pipeline is a **ceiling** with the count of unestimated deals beside it, `complete` says
+which, and the honest number stays honest.
+
+- **`unowned` is the state the table is worth having for**: an open deal with a value and a
+  stage and no next step is one nobody has agreed to do anything about. Derived at read time
+  and stored nowhere, the same as task dormancy.
+- **An unrecognised `stage` is treated as OPEN**, and the direction matters: closed would
+  silently drop a real deal off the board, and a board is not obviously missing a row.
+  `opportunities.stage` is free text with no check constraint, like `goals.status`.
+- **The win rate is silent below five closed deals.** One win in two is "50%" and means
+  nothing, and a number that means nothing invites a decision. `obstacleTally` holds the same
+  line at three reviews, `calibration` at eight tasks.
+
+**Nine new fields joined `INLINE_FIELDS`**, so every dash on both boards is its own input.
+`assets.value` and `investments.current_value` are **stamped**; `income_monthly` /
+`cost_monthly` are not, because they describe a standing arrangement rather than a moment, and
+`investments.as_of` is not because it IS the date.
+
+**`/opportunities` was the LAST row in `PLACEHOLDERS`, and the registry is now empty.** It had
+a nav item and a phone slot pointing at a page saying the view would exist one day. The array
+and its rules stay in place — it was always meant to be a queue that drains, not furniture.
+
+**`/holdings` is top-level and not `/empire/holdings`**, which would have been tidier and is a
+trap: `/empire/[id]` resolves a division by uuid *or* by name-derived slug, so a static
+`/empire/holdings` segment would win over the dynamic one and a division ever named "Holdings"
+would become unreachable with nothing going red.
+
+**Holdings has no phone slot**, and the two budgets are separate. The desktop header's
+constraint is `brain` mode (thirteen items, ~27px spare) and this adds nothing there —
+`empire` goes from seven to eight. But the phone bar is a five-column grid and `empire`
+already fills it exactly, so a sixth would wrap. Valuing an asset is a desk job in the way
+confirming a debt balance is, which is already why Money and People have no phone slot.
+
 ## A6. Routes
 
 ```
@@ -1144,6 +1212,24 @@ thirteen items with ~27px spare. It is reached from `/life`.
                        researched compliance questions for the four divisions
                        carrying a `profile`. A "no" or "not sure" there creates
                        an INBOX item, never a task
+/(app)/holdings        what the empire OWNS, in two sections because they are
+                       two kinds of owning. ASSETS are owned and run — value,
+                       earns monthly, costs monthly, optionally against a
+                       division (which is what makes a cockpit's "spent so
+                       far" a figure). INVESTMENTS are owned and held — what
+                       went in, what it is worth, and `as_of`, the date that
+                       was true on, with anything over a quarter old flagged.
+                       Largest first, unvalued rows last. Every figure edits
+                       in place. Top-level and NOT /empire/holdings, which
+                       would shadow a division ever named that
+/(app)/opportunities   the deal board — what is in play, what it would be
+                       worth, and whose move it is. Sorted by what has waited
+                       longest for a next step; an open deal with none at all
+                       is called out, because that is how one goes quiet.
+                       The open total is a CEILING with the unestimated count
+                       beside it — nothing here is weighted by a probability
+                       nobody has measured. Win rate stays blank below five
+                       closed deals. Was the last row in PLACEHOLDERS
 /(app)/goals           goals → projects, with unattached projects listed separately
 /(app)/planner         Kanban
 /(app)/day             the day planner: tasks with durations dropped on hour
@@ -1317,7 +1403,8 @@ the `links` table's first ever use, and "what links here" on areas
 · 4 LIFE_OS — habits ✅, **journal ✅** (the daily close writes it), **people ✅**
 (`/life/people`), **money ✅** (`/life/money`), **health ✅** (`/life/health`),
 **metrics ✅ built 2026-08-14** (`/life/metrics`) — **Phase 4 is complete** · 5 EMPIRE_OS — **division onboarding + the division dashboards ✅**
-(Stage 4 · Phase C, 2026-08-06); assets, investments and opportunities still to build
+(Stage 4 · Phase C, 2026-08-06), **assets + investments ✅ and opportunities ✅ built
+2026-08-14** (`/holdings`, `/opportunities`) — **Phase 5 is complete**
 · 6 Review rituals — the weekly one ✅ at `/reviews`, **the daily two-minute one ✅ at
 `/checkin`**, **the quarterly reset ✅ at `/reviews/quarterly` (2026-08-12)** — all three rituals built
 · **7 AI layer ✅ built 2026-08-06** at `/advisor` (§A3 decision 6).
@@ -1387,10 +1474,14 @@ Open items:
    `InlineValue` is deliberately NOT in that list — it syncs a prop into state, which is the
    textbook "you might not need an effect" case, so it carries a one-line suppression that
    says the rule is right and the fix is owed.
-7. **`/dashboard` sidebar views are placeholders.** Every route in `src/lib/placeholders.ts`
-   renders an honest "not built yet" page. When one gets built, delete its registry row in the
-   same commit — `reviews` left the registry this way on 2026-08-05, and all 17 divisions
-   left it on 2026-08-06 when `/empire/[id]` shipped.
+7. ~~`/dashboard` sidebar views are placeholders.~~ **`PLACEHOLDERS` is EMPTY as of
+   2026-08-14.** `opportunities` was the last row in it and the deal board is built at the
+   same address. The array and its rules stay in place: it was always meant to be a queue
+   that drains, not furniture, and the next planned-but-unbuilt view needs somewhere honest
+   to live. The rule is unchanged — when a view gets built, delete its registry row in the
+   same commit and move it to `BUILT_BRANCHES` so it keeps its name and its reference shelf.
+   `reviews` left this way on 2026-08-05, all 17 divisions on 2026-08-06, `opportunities` on
+   2026-08-14.
 
    **A placeholder can also leave by being deleted, and four did on 2026-08-12** (LIFE_OS v2,
    step 1): Personal, Daily Wall, Mind Map and Me. They were honest — each said what it would
@@ -1448,10 +1539,15 @@ Open items:
 17. **`people` holds three rows.** The roster's seeding banner shows until five have
    cadences, which is the floor `rosterProgress()` measures rather than the fifteen the
    target names.
-18. **Spend is read from `assets.value` and `assets` is empty**, so every division's
-   "spent so far" is `£—`. That is honest rather than missing: budget-versus-spend is
-   `unbudgeted`/`unspent`/`unknown` until Phase 5 builds the assets view, and a null budget
-   with real spend is deliberately **not** an overspend (there is a test).
+18. ~~Spend is read from `assets.value` and `assets` is empty.~~ **`/holdings` is built
+   (2026-08-14), so `assets` finally has a writer** — but the table is still EMPTY, so every
+   division's "spent so far" is still `£—` until something is logged against a division.
+   That remains honest rather than missing: budget-versus-spend is
+   `unbudgeted`/`unspent`/`unknown`, and a null budget with real spend is deliberately **not**
+   an overspend (there is a test). Both `unspent` and `unbudgeted` now link to `/holdings`,
+   which is the one thing that was missing — the page said the figure would appear "as assets
+   get logged" without saying where anybody could log one. `/setup` carries it as a step with
+   an unlock count of three, which is the widest on that list.
 19. **Auth email runs on Supabase's built-in sender, which is throttled to roughly one
    message an hour.** It is not intended for production and it locked sign-in out on
    2026-08-10 (`over_email_send_rate_limit`). **The fix is custom SMTP** — Authentication →
@@ -1470,6 +1566,11 @@ Open items:
    a fault: three of the seven metrics are derived and by design accept no reading at all,
    and the other four are numbers only he knows. `/setup` now lists them.
 
+   **The same is true of `assets`, `investments` and `opportunities` as of the same day**
+   (`/holdings`, `/opportunities`). All three have writers and all three are still empty. Of
+   those, `assets` is the one that costs the most while it stays that way — net worth,
+   cashflow's cost side and seventeen division cockpits all read it.
+
 21. **Four pages find a metric BY NAME** — `/dashboard`, `/life`, `/empire` and
    `/life/money` each do `metrics.find(m => m.name === "…")`, and `/empire` keeps its string
    in an `INCOME_METRIC` constant. Renaming a metric in the UI therefore silently blanks a
@@ -1486,9 +1587,9 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1434 tests — must be green before build
+npm test                       # 1510 tests — must be green before build
 npm run lint                   # ESLint — clean before you push
-npm run build                  # 53 entries — green before you push
+npm run build                  # 55 entries — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from
