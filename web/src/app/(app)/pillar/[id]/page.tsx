@@ -3,6 +3,9 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import type { Pillar } from "@/lib/types";
 import { refsForPillar } from "@/lib/references";
+import { neighbours, type LinkRow } from "@/lib/links";
+import { resolveEnds } from "@/lib/links-server";
+import LinkPanel from "@/components/LinkPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +26,13 @@ export default async function PillarPage({
   if (!pillar) notFound();
   const p = pillar as Pillar;
 
-  const [{ data: goals }, { data: projects }, { data: tasks }, { data: notes }] =
-    await Promise.all([
+  const [
+    { data: goals },
+    { data: projects },
+    { data: tasks },
+    { data: notes },
+    { data: links },
+  ] = await Promise.all([
       supabase
         .from("goals")
         .select("id, title, target_date, progress")
@@ -47,7 +55,19 @@ export default async function PillarPage({
         .eq("pillar_id", id)
         .order("created_at", { ascending: false })
         .limit(8),
+      supabase
+        .from("links")
+        .select("id, from_type, from_id, to_type, to_id, relation"),
     ]);
+
+  // "What links here" — the other half of Phase 3. The link was written on
+  // the note; it shows up on the area because `neighbours` reads both columns
+  // rather than only the one pointing this way.
+  const allLinks = (links ?? []) as LinkRow[];
+  const linkEnds = await resolveEnds(
+    supabase as unknown as Parameters<typeof resolveEnds>[0],
+    neighbours(allLinks, { type: "pillar", id })
+  );
 
   const sysClass = p.system === "life" ? "sys-life" : "sys-empire";
   const systemHref = p.system === "life" ? "/life" : "/empire";
@@ -116,6 +136,10 @@ export default async function PillarPage({
         ))}
       </Section>
 
+      {/* Filed here by `notes.pillar_id` — a note has ONE home area, the
+          same "exactly one home" rule the rest of the system keeps. Links
+          below are the other thing: a note can relate to many subjects
+          without any of them owning it. */}
       <Section title="Notes" empty="No notes filed against this pillar.">
         {notes?.map((n) => (
           <Row
@@ -125,6 +149,13 @@ export default async function PillarPage({
           />
         ))}
       </Section>
+
+      <LinkPanel
+        subject={{ type: "pillar", id }}
+        ends={linkEnds}
+        allLinks={allLinks}
+        title="What links here"
+      />
 
       {refs.length > 0 && (
         <section>

@@ -165,7 +165,11 @@ export default function LoginPage() {
                 setStatus("idle");
                 setErrorMsg("");
               }}
-              className="text-xs text-[var(--faint)] text-center mt-1 bg-transparent border-0 cursor-pointer underline"
+              // `.tap` + a 38px floor. This sits OUTSIDE the (app) layout, so no
+              // earlier tap-target sweep covered it — it measured 16px, the
+              // smallest control in the product, and it is the only way back
+              // in when the password is the thing you have forgotten.
+              className="tap min-h-[38px] text-xs text-[var(--faint)] text-center mt-1 bg-transparent border-0 cursor-pointer underline"
             >
               {mode === "password"
                 ? "Forgotten it? Email me a sign-in link"
