@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import SeasonSwitch from "@/components/SeasonSwitch";
-import Finishes from "@/components/Finishes";
 import {
   collectFinishes,
   currentMonthNudge,
@@ -91,7 +90,8 @@ import { divisionHref } from "@/lib/references";
 import SeedPillars from "@/components/SeedPillars";
 import Focus, { type FocusItem } from "@/components/Focus";
 import AttentionTab from "@/components/dashboard/AttentionTab";
-import { Panel, Empty, Bar } from "@/components/ui";
+import TrendTab from "@/components/dashboard/TrendTab";
+import { Panel, Bar } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -1243,137 +1243,16 @@ export default async function TheBrain({
            * different question.
            */}
           {tab === "trend" && (
-            <>
-          {/* -- MONTHS THAT COUNTED --------------------------------- *
-           *
-           * The answer to the only measure his own twelve-month test was
-           * missing: a version of "momentum" that can be failed. It leads
-           * the Trend tab because it is the longest-horizon thing here.
-           * -------------------------------------------------------- */}
-          <Finishes
-            tallies={tallies}
-            momentum={momentumNow}
-            recent={finishes}
-            nudge={finishNudge}
-          />
-
-          {/* -- PRODUCTIVITY · at a glance -------------------------- */}
-          <Panel title="Productivity · at a glance">
-            <div className="grid gap-5 lg:grid-cols-[1.3fr_1fr_0.9fr] items-center">
-              {/* streak, last 14 days */}
-              <div>
-                <p className="label" style={{ color: "var(--warn)" }}>
-                  Streak · last 14 days
-                </p>
-                <div className="flex items-end gap-[3px] h-[38px] mt-2.5">
-                  {bars.map((hit, i) => (
-                    <div
-                      key={i}
-                      className={`flex-1 rounded-[2px]${hit ? " lit" : ""}`}
-                      style={{
-                        height: hit ? `${30 + (i % 3) * 3}%` : "14%",
-                        minHeight: 5,
-                        background: hit ? "var(--fill-warn)" : "var(--border)",
-                        opacity: hit ? 1 : 0.7,
-                        // Each bar arrives a beat after the one before it, so
-                        // the fortnight draws itself left to right.
-                        animation: hit
-                          ? `grow-y 0.4s cubic-bezier(0.22,1,0.36,1) both ${i * 30}ms`
-                          : undefined,
-                        transformOrigin: "bottom center",
-                      }}
-                      title={hit ? "trained" : "no log"}
-                    />
-                  ))}
-                </div>
-                <p className="text-[0.68rem] text-[var(--faint)] mt-2 leading-snug">
-                  Builds daily as you keep the streak. Today is the last bar.
-                </p>
-              </div>
-
-              {/* life vs empire */}
-              <div>
-                <p className="label">Open tasks · life vs empire</p>
-                <div
-                  className="flex h-[14px] rounded-full overflow-hidden mt-2.5"
-                  style={{ background: "var(--border)" }}
-                >
-                  <div
-                    style={{
-                      width: `${pct(split.life, split.life + split.empire)}%`,
-                      background: "var(--life)",
-                    }}
-                  />
-                  <div
-                    style={{
-                      width: `${pct(split.empire, split.life + split.empire)}%`,
-                      background: "var(--empire)",
-                    }}
-                  />
-                </div>
-                <div className="flex gap-3.5 mt-2 flex-wrap">
-                  <span className="mono text-[0.68rem]" style={{ color: "var(--life)" }}>
-                    ● LIFE {split.life}
-                  </span>
-                  <span className="mono text-[0.68rem]" style={{ color: "var(--empire)" }}>
-                    ● EMPIRE {split.empire}
-                  </span>
-                  <span className="mono text-[0.68rem] text-[var(--faint)] ml-auto">
-                    {split.done} DONE
-                  </span>
-                </div>
-              </div>
-
-              {/* habit consistency */}
-              <div className="flex flex-col items-center gap-2">
-                <div
-                  className="w-[76px] h-[76px] rounded-full flex items-center justify-center"
-                  style={{
-                    background: `conic-gradient(var(--accent) ${(consistency ?? 0) * 3.6}deg, var(--border) 0deg)`,
-                  }}
-                >
-                  <div
-                    className="w-[56px] h-[56px] rounded-full flex items-center justify-center"
-                    style={{ background: "var(--card)" }}
-                  >
-                    <span
-                      className="mono text-[0.85rem] font-bold"
-                      style={{
-                        color: consistency == null ? "var(--faint)" : "var(--accent)",
-                      }}
-                    >
-                      {consistency == null ? "—" : `${consistency}%`}
-                    </span>
-                  </div>
-                </div>
-                <p className="label text-center">Habit consistency · 7d</p>
-              </div>
-            </div>
-          </Panel>
-
-          {/* -- the advisor ----------------------------------------- */}
-          <Panel title="Advisor" hint="briefing + retrieval, advisory only">
-            <Empty cta={{ href: "/advisor", label: "Open the advisor" }}>
-              The morning brief is assembled from your own data — what is
-              slipping, what is set for today, what is still unanswered — and
-              costs nothing to produce. Ask it anything over your own notes and
-              it answers with the sources attached. It cannot change anything
-              here; everything it says is yours to act on.
-            </Empty>
-          </Panel>
-
-              <Link
-                href="/reviews"
-                className="panel card-hover no-underline block text-[var(--text)]"
-              >
-                <p className="label">The weekly review</p>
-                <p className="text-[0.82rem] text-[var(--muted)] mt-1.5 leading-relaxed">
-                  {reviewText.toLowerCase()}. Four questions, the fourth being
-                  what got in the way — which is the one that turns a streak
-                  into a reason.
-                </p>
-              </Link>
-            </>
+            <TrendTab
+              bars={bars}
+              consistency={consistency}
+              finishNudge={finishNudge}
+              finishes={finishes}
+              momentumNow={momentumNow}
+              reviewText={reviewText}
+              tallies={tallies}
+              split={split}
+            />
           )}
 
           <p className="mono text-[0.62rem] tracking-[0.12em] text-[var(--faint)] text-center uppercase">
@@ -1430,11 +1309,6 @@ function TabBar({ tab, attention }: { tab: BrainTab; attention: number }) {
       <p className="text-[0.72rem] text-[var(--faint)]">{BRAIN_TAB_QUESTION[tab]}</p>
     </div>
   );
-}
-
-function pct(n: number, total: number): number {
-  if (total <= 0) return 0;
-  return Math.round((n / total) * 100);
 }
 
 function NavGroup({
