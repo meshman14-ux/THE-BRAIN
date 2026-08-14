@@ -258,7 +258,10 @@ import {
   NEVER_SUPPRESSED,
   alertsForSeason,
   closingTotal,
+  KEYSTONE_WINDOW_DAYS,
   keystoneHabit,
+  keystoneNote,
+  keystoneStanding,
   splitDebts,
   suppressesAlert,
   trackedHabits,
@@ -505,5 +508,103 @@ describe("annotate", () => {
       { kind: "person", text: "c" },
     ];
     expect(annotate(alerts, busy)).toHaveLength(alerts.length);
+  });
+});
+
+/* ================================================================== *
+ * The keystone: what you named, against what is happening
+ * ================================================================== */
+
+describe("keystoneStanding — a claim is not a fact", () => {
+  const K = { id: "h1" };
+  const TODAY_K = "2026-08-14";
+  const log = (id: string, on: string) => ({ habit_id: id, done_on: on });
+
+  it("says nothing at all when no keystone is named", () => {
+    const s = keystoneStanding(null, [], TODAY_K);
+    expect(s.state).toBe("none");
+    expect(s.hits).toBe(0);
+    expect(s.daysSince).toBeNull();
+  });
+
+  // Jay's real state on 2026-08-14: Training is the keystone, one log ever.
+  it("calls a named keystone with nothing recent a CLAIM, not a failure", () => {
+    const s = keystoneStanding(K, [log("h1", "2026-07-01")], TODAY_K);
+    expect(s.state).toBe("claimed");
+    expect(s.hits).toBe(0);
+    expect(s.daysSince).toBe(44);
+  });
+
+  it("earns it on a single log inside the window", () => {
+    const s = keystoneStanding(K, [log("h1", "2026-08-10")], TODAY_K);
+    expect(s.state).toBe("earned");
+    expect(s.hits).toBe(1);
+  });
+
+  it("counts only this habit's logs", () => {
+    const s = keystoneStanding(K, [log("h2", "2026-08-13")], TODAY_K);
+    expect(s.state).toBe("claimed");
+    expect(s.hits).toBe(0);
+  });
+
+  // A fortnight, so one quiet weekend cannot flip a standing decision.
+  it("uses a fortnight, matching the other two windows in the system", () => {
+    expect(KEYSTONE_WINDOW_DAYS).toBe(14);
+    expect(keystoneStanding(K, [log("h1", "2026-08-01")], TODAY_K).state).toBe("earned");
+    expect(keystoneStanding(K, [log("h1", "2026-07-31")], TODAY_K).state).toBe("claimed");
+  });
+
+  it("handles a keystone that has never been logged", () => {
+    const s = keystoneStanding(K, [], TODAY_K);
+    expect(s.state).toBe("claimed");
+    expect(s.daysSince).toBeNull();
+  });
+
+  it("ignores a log dated in the future rather than counting it", () => {
+    const s = keystoneStanding(K, [log("h1", "2026-12-01")], TODAY_K);
+    expect(s.state).toBe("claimed");
+    expect(s.daysSince).toBeNull();
+  });
+});
+
+describe("keystoneNote", () => {
+  const K = { id: "h1" };
+  const TODAY_K = "2026-08-14";
+
+  it("stays silent when the claim and the data agree", () => {
+    const s = keystoneStanding(K, [{ habit_id: "h1", done_on: "2026-08-12" }], TODAY_K);
+    expect(keystoneNote(s, "Training")).toBeNull();
+  });
+
+  it("stays silent when there is no keystone to disagree with", () => {
+    expect(keystoneNote(keystoneStanding(null, [], TODAY_K), "Training")).toBeNull();
+  });
+
+  it("names the gap without picking a side", () => {
+    const s = keystoneStanding(K, [{ habit_id: "h1", done_on: "2026-07-01" }], TODAY_K);
+    const note = keystoneNote(s, "Training")!;
+    expect(note).toContain("Training");
+    expect(note).toContain("44 days ago");
+    expect(note).toContain("One of the two is out of date");
+  });
+
+  it("has a separate line for never logged", () => {
+    const note = keystoneNote(keystoneStanding(K, [], TODAY_K), "Training")!;
+    expect(note).toContain("never been logged");
+  });
+
+  // It must not imply failure. The habit board exists because six open
+  // checkboxes was six ways to fail before breakfast.
+  it("never scolds, at any stage", () => {
+    const cases = [
+      keystoneStanding(K, [], TODAY_K),
+      keystoneStanding(K, [{ habit_id: "h1", done_on: "2026-01-01" }], TODAY_K),
+    ];
+    for (const s of cases) {
+      const note = (keystoneNote(s, "Training") ?? "").toLowerCase();
+      for (const word of ["missed", "behind", "failed", "should", "broken", "only"]) {
+        expect(note, `"${word}" in: ${note}`).not.toContain(word);
+      }
+    }
   });
 });

@@ -5,7 +5,13 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { Habit, HabitLog } from "@/lib/types";
 import { habitRows, habitsDoneToday } from "@/lib/logic";
-import { keystoneHabit, trackedHabits, untrackedHabits } from "@/lib/season";
+import {
+  keystoneHabit,
+  keystoneNote,
+  keystoneStanding,
+  trackedHabits,
+  untrackedHabits,
+} from "@/lib/season";
 
 /**
  * One habit that counts, and the rest kept quietly.
@@ -103,7 +109,7 @@ export default function Habits({
 
   const row = (
     r: (typeof rows)[number],
-    opts: { scored: boolean; keystone: boolean }
+    opts: { scored: boolean; keystone: boolean; earned?: boolean }
   ) => (
     <div
       key={r.habit.id}
@@ -111,7 +117,10 @@ export default function Habits({
       style={{
         borderColor: r.doneToday
           ? "var(--good)"
-          : opts.keystone
+          // A claimed keystone does not get the accent border. The accent
+          // is channel 1 — "the system you are wearing" — and spending it
+          // on an intention makes an intention look like a fact.
+          : opts.keystone && opts.earned
             ? "var(--accent)"
             : "var(--border)",
         background: r.doneToday ? "var(--card-hover)" : "transparent",
@@ -143,11 +152,15 @@ export default function Habits({
           >
             {r.habit.name}
             {opts.keystone && (
+              // The word changes with the evidence. CHOSEN is not a
+              // lesser KEYSTONE — it is the accurate one, and it is the
+              // same stated-versus-derived split `/goals` and `/empire`
+              // already use rather than a new vocabulary.
               <span
                 className="text-[0.6rem] font-bold tracking-[0.12em] ml-2 align-middle"
-                style={{ color: "var(--accent)" }}
+                style={{ color: opts.earned ? "var(--accent)" : "var(--faint)" }}
               >
-                KEYSTONE
+                {opts.earned ? "KEYSTONE" : "CHOSEN"}
               </span>
             )}
           </span>
@@ -209,6 +222,11 @@ export default function Habits({
   const keystoneRow = keystone
     ? rows.find((r) => r.habit.id === keystone.id)
     : undefined;
+  // Named versus happening. Nothing here reassigns the keystone: every
+  // other habit on this board has zero logs, so moving the badge would
+  // move the same claim onto a different name and call it a fix.
+  const standing = keystoneStanding(keystone, logs, today);
+  const note = keystone ? keystoneNote(standing, keystone.name) : null;
   const others = rows.filter((r) => r.habit.id !== keystone?.id);
 
   return (
@@ -229,9 +247,23 @@ export default function Habits({
       </div>
 
       <div className="grid gap-1.5">
-        {keystoneRow && row(keystoneRow, { scored: true, keystone: true })}
+        {keystoneRow &&
+          row(keystoneRow, {
+            scored: true,
+            keystone: true,
+            earned: standing.state === "earned",
+          })}
         {others.map((r) => row(r, { scored: true, keystone: false }))}
       </div>
+
+      {/* Said once, under the board, in DriftNote's own words. The system
+          does not get to decide which of the two is out of date, and it
+          must never imply failure — no line here says missed or behind. */}
+      {note && (
+        <p className="text-[0.72rem] leading-relaxed m-0" style={{ color: "var(--warn)" }}>
+          {note}
+        </p>
+      )}
 
       {quiet.length > 0 && (
         <div className="mt-1">
