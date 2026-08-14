@@ -8,7 +8,6 @@ import {
   type Vehicle,
   type VehicleDateKey,
   DEADLINE_LABEL,
-  VEHICLE_DATE_KEYS,
   VEHICLE_DATE_LABEL,
 } from "@/lib/types";
 import { sortVehicles, vehicleDeadlines, vehicleWorstState } from "@/lib/logic";

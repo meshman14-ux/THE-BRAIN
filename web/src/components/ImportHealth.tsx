@@ -122,7 +122,7 @@ export default function ImportHealth() {
               </div>
               <p className="text-[0.7rem] text-[var(--faint)] leading-relaxed">
                 Only these fields are written — anything you typed by hand for
-                a day the export lacks is untouched. rMSSD is not in Samsung's
+                a day the export lacks is untouched. rMSSD is not in Samsung&apos;s
                 export, so readiness stays waiting for a source that measures
                 it.
               </p>

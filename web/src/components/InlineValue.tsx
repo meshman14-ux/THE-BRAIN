@@ -45,7 +45,19 @@ export default function InlineValue({
   // Re-sync when the server hands down a new value — a refresh after somebody
   // else's write, or this component's own, must not leave a stale draft
   // waiting to overwrite it.
+  //
+  // `set-state-in-effect` flags this and, unlike the four files exempted in
+  // eslint.config.mjs, it is RIGHT to: those read browser-only state on mount
+  // and have no alternative, whereas this syncs a PROP into state, which is
+  // the textbook "you might not need an effect" case. React's own answer is
+  // to derive during render or to key the input off `value`.
+  //
+  // Left as-is rather than fixed in a lint pass: the guard makes it safe (it
+  // cannot loop, and it never clobbers an open edit), and this component is
+  // the write path for every figure in the system — it earns its own change
+  // with its own testing, not a drive-by.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!editing) setDraft(value == null ? "" : String(value));
   }, [value, editing]);
 

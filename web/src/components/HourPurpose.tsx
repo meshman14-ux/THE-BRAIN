@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
-  type HourPurpose,
   HOUR_PURPOSES,
   PURPOSE_LABEL,
   PURPOSE_INITIAL,

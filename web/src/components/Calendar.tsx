@@ -262,6 +262,10 @@ export default function Calendar({
               consent screen — THE BRAIN never sees your password, and it asks
               only for permission to manage calendars it created itself.
             </p>
+            {/* A real navigation, not a client-side one: this is a ROUTE
+                HANDLER that 302s to Google's consent screen. <Link> would
+                intercept it and never leave the app. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a href="/api/calendar/connect" className="btn no-underline justify-self-start">
               Connect Google Calendar
             </a>

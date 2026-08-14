@@ -118,10 +118,51 @@ rows. A `200` means an email went out; a `429` after it means you asked again to
 the 429s that followed were requests for a link that was no longer needed. Look for the most
 recent `login` event before deciding the sign-in failed.
 
-**The real fix is custom SMTP.** Supabase → Authentication → Settings → SMTP Settings, pointed
-at any transactional provider (Resend's free tier is 3,000/month, which one person signing in
-will never approach). The limit then becomes the provider's, and this failure mode stops
-existing. Until that is configured, one mistimed request costs an hour.
+### The permanent fix: custom SMTP — a 10-minute runbook
+
+Custom SMTP replaces the built-in sender, and the cap becomes the provider's rather than
+Supabase's. It **cannot be done from code or from any API this repo has access to** — it needs
+a provider account and the Supabase dashboard, both of which only Jay can sign into. That is
+why it is written as steps rather than shipped.
+
+**Why it is still worth doing now that a password exists.** The password moved email off the
+DAILY path; it did not remove it. Account recovery, a new device, and any future email the app
+sends all still go through this sender. A recovery path that is rate-limited is a recovery
+path that fails on exactly the day you need it.
+
+**1 · Get a provider.** Resend is the least friction: free tier is 3,000 emails/month and 100
+a day, against a real-world need of maybe five. Sign up, then take the SMTP credentials from
+Settings → SMTP. You do **not** need to verify a domain to start — Resend issues an
+`onboarding@resend.dev` sender that works immediately, and swapping to a real from-address
+later is one field.
+
+    Host      smtp.resend.com
+    Port      465   (implicit TLS; use 587 only if 465 is blocked)
+    Username  resend
+    Password  the API key, re_...
+
+**2 · Point Supabase at it.** Dashboard → **Authentication → Emails → SMTP Settings** →
+*Enable Custom SMTP*. Fill in the four values above, plus:
+
+    Sender email   onboarding@resend.dev   (or your own once a domain is verified)
+    Sender name    THE BRAIN
+
+**3 · Raise the rate limit, which is a SEPARATE setting and the step people miss.**
+Authentication → **Rate Limits** → "Rate limit for sending emails". It stays at the built-in
+figure after enabling SMTP, so skipping this leaves the throttle exactly where it was and the
+whole exercise achieves nothing. 30/hour is far more than one person can use.
+
+**4 · Prove it.** Sign out, request a sign-in link, and confirm it arrives in under a minute.
+Then check Supabase → Logs → Auth: the `/otp` row should be `200`, and Resend's own dashboard
+should show the send. **Two green signals, because a 200 from Supabase only means it handed
+the message to the sender.**
+
+**The failure mode to expect.** A wrong API key gives a 500 on `/otp` rather than a 429, and
+no email. That is a different symptom from the one this section opens with, and it means the
+credentials, not the cap.
+
+Until this is configured, one mistimed request costs an hour — and `signInMessage()` in
+`src/lib/auth.ts` already says so on screen rather than showing the raw Supabase error.
 
 ## Environment variables
 

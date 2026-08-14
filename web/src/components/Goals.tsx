@@ -225,8 +225,6 @@ export default function Goals({ goals, projects, tasks, pillars, today }: Props)
 
               {open ? (
                 <AddProject
-                  goalId={g.id}
-                  pillarId={g.pillar_id}
                   busy={busy === `np-${g.id}`}
                   onAdd={async (title, due) => {
                     await run(`np-${g.id}`, async () =>
@@ -429,14 +427,10 @@ function ProjectRow({
 }
 
 function AddProject({
-  goalId,
-  pillarId,
   busy,
   onAdd,
   onCancel,
 }: {
-  goalId: string;
-  pillarId: string | null;
   busy: boolean;
   onAdd: (title: string, due: string) => void;
   onCancel: () => void;

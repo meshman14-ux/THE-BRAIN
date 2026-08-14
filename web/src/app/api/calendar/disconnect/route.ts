@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { loadIntegration, PROVIDER } from "@/lib/calendar-server";
+import { loadIntegration } from "@/lib/calendar-server";
 import { decryptToken, revoke } from "@/lib/google";
 
 export const dynamic = "force-dynamic";

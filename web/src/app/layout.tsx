@@ -38,6 +38,11 @@ export default function RootLayout({
           href="https://fonts.gstatic.com"
           crossOrigin=""
         />
+        {/* `no-page-custom-font` is a Pages Router rule about
+            pages/_document.js. This is the App Router root layout, where a
+            <link> in <head> loads for every page, which is the thing the
+            rule exists to ensure. */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
           href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap"
           rel="stylesheet"

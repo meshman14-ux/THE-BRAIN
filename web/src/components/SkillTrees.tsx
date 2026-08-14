@@ -8,7 +8,6 @@ import {
   type Mastery,
   type SkillNode,
   type SkillTree,
-  type SkillState,
 } from "@/lib/hybrid";
 
 export type NodeView = {
