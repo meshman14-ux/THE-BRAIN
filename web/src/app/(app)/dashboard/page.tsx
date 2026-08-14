@@ -36,8 +36,6 @@ import {
   type Pillar,
   type Task,
   type Venture,
-  STAGE_COLOUR,
-  STAGE_LABEL,
 } from "@/lib/types";
 import {
   toIso,
@@ -45,7 +43,6 @@ import {
   isoWeekNumber,
   quarterOf,
   daysUntilWeeklyReview,
-  formatGBP,
   latestReading,
   currentStreak,
   dueWithin,
@@ -58,7 +55,6 @@ import {
   areasFor,
   averageScore,
   rankAreasByNeed,
-  scoreBarPercent,
   inDevelopment,
   backlog,
   sortVentures,
@@ -73,7 +69,6 @@ import {
   debtCleared,
   cashThisMonth,
   daysUntil,
-  isExternal,
   readCheckin,
   checkinProgress,
   normaliseTab,
@@ -86,12 +81,12 @@ import { bodyContract, moneyContract, peopleContract, rhythmContract } from "@/l
 import { oneLine, silenceFor } from "@/lib/oneline";
 import { verseOfDay } from "@/lib/gita";
 import { creedFrom, creedLineOfDay } from "@/lib/creed";
-import { divisionHref } from "@/lib/references";
 import SeedPillars from "@/components/SeedPillars";
 import Focus, { type FocusItem } from "@/components/Focus";
 import AttentionTab from "@/components/dashboard/AttentionTab";
+import SystemsTab from "@/components/dashboard/SystemsTab";
 import TrendTab from "@/components/dashboard/TrendTab";
-import { Panel, Bar } from "@/components/ui";
+import { Panel } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -995,243 +990,20 @@ export default async function TheBrain({
            * everything here links somewhere that can be acted on.
            */}
           {tab === "systems" && (
-            <div className="grid gap-5 lg:grid-cols-2 items-start">
-            {/* ===== LIFE_OS ===== */}
-            <section
-              className="sys-life card p-4 sm:p-5 grid gap-4"
-              style={{ borderLeft: "4px solid var(--sys)" }}
-            >
-              <Link
-                href="/life"
-                className="flex items-center gap-2.5 no-underline text-[var(--text)]"
-              >
-                <span
-                  aria-hidden
-                  className="w-[9px] h-[9px] rounded-full shrink-0"
-                  style={{ background: "var(--sys)" }}
-                />
-                <span
-                  className="mono text-[0.72rem] font-bold tracking-[0.14em]"
-                  style={{ color: "var(--sys)" }}
-                >
-                  LIFE_OS · PERSONAL
-                </span>
-                <span className="mono text-[0.62rem] text-[var(--faint)] ml-auto">
-                  OPEN →
-                </span>
-              </Link>
-
-              <div className="grid grid-cols-2 gap-2">
-                <MiniStat
-                  label="👟 Steps"
-                  value={steps ? Math.round(steps.value).toLocaleString("en-GB") : "—"}
-                />
-                <MiniStat label="😴 Sleep" value={sleep ? `${sleep.value}h` : "—"} />
-              </div>
-
-              <div>
-                <p className="label">Debt-free goal</p>
-                <Link
-                  href="/life/debts"
-                  className="rounded-[10px] border border-[var(--border)] px-3.5 py-3 mt-2 block no-underline text-[var(--text)] card-hover"
-                >
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span
-                      className="mono text-[1.15rem] font-semibold"
-                      style={{ color: debt ? "var(--bad)" : "var(--faint)" }}
-                    >
-                      {formatGBP(debt?.value ?? null)}
-                    </span>
-                    <span
-                      className="mono text-[0.68rem] ml-auto"
-                      style={{ color: cleared ? "var(--good)" : "var(--faint)" }}
-                    >
-                      {cleared ? `${cleared.percent}% CLEARED` : "no trend yet"}
-                    </span>
-                  </div>
-                  <div className="mt-2.5">
-                    <Bar percent={cleared?.percent ?? 0} colour="var(--good)" height={6} />
-                  </div>
-                  <p className="text-[0.68rem] text-[var(--faint)] mt-2 leading-snug">
-                    {cleared
-                      ? `From a peak of ${formatGBP(cleared.peak)}. The creditors →`
-                      : "A partial figure — the creditors behind it live in Debts →"}
-                  </p>
-                </Link>
-              </div>
-
-              <div>
-                <p className="label">
-                  Life areas · avg {lifeAvg == null ? "—" : lifeAvg.toFixed(1)}/10
-                </p>
-                {lifeWorst ? (
-                  <div className="rounded-[10px] border border-[var(--border)] px-3.5 py-2.5 mt-2">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-[0.8rem] font-medium min-w-0 truncate">
-                        {lifeWorst.emoji} {lifeWorst.name}
-                      </span>
-                      <span className="mono text-[0.7rem] ml-auto">
-                        {lifeWorst.score}/10
-                      </span>
-                    </div>
-                    <div className="mt-2">
-                      <Bar
-                        percent={scoreBarPercent(lifeWorst.score)}
-                        height={5}
-                        colour={
-                          (lifeWorst.score ?? 0) <= 3
-                            ? "var(--bad)"
-                            : (lifeWorst.score ?? 0) <= 6
-                              ? "var(--warn)"
-                              : "var(--good)"
-                        }
-                      />
-                    </div>
-                    <p className="text-[0.68rem] text-[var(--muted)] mt-1.5 leading-snug">
-                      {lifeWorst.status_line ?? "Needs attention first."}
-                    </p>
-                  </div>
-                ) : (
-                  <p className="text-[0.76rem] text-[var(--faint)] mt-1.5 leading-relaxed">
-                    Nothing scored yet — LIFE_OS ranks worst-first once you have.
-                  </p>
-                )}
-              </div>
-            </section>
-
-            {/* ===== EMPIRE_OS ===== */}
-            <section
-              className="sys-empire card p-4 sm:p-5 grid gap-4"
-              style={{ borderLeft: "4px solid var(--sys)" }}
-            >
-              <Link
-                href="/empire"
-                className="flex items-center gap-2.5 no-underline text-[var(--text)]"
-              >
-                <span
-                  aria-hidden
-                  className="w-[9px] h-[9px] rounded-full shrink-0"
-                  style={{ background: "var(--sys)" }}
-                />
-                <span
-                  className="mono text-[0.72rem] font-bold tracking-[0.14em]"
-                  style={{ color: "var(--sys)" }}
-                >
-                  EMPIRE_OS · BUSINESS
-                </span>
-                <span className="mono text-[0.62rem] text-[var(--faint)] ml-auto">
-                  OPEN →
-                </span>
-              </Link>
-
-              <div>
-                <p className="label">Cash this month</p>
-                <div className="rounded-[10px] border border-[var(--border)] px-3.5 py-3 mt-2">
-                  <div className="flex items-baseline gap-2 flex-wrap">
-                    <span
-                      className="mono text-[1.25rem] font-semibold"
-                      style={{
-                        color:
-                          netMonth == null
-                            ? "var(--faint)"
-                            : netMonth >= 0
-                              ? "var(--good)"
-                              : "var(--bad)",
-                      }}
-                    >
-                      {formatGBP(netMonth)}
-                    </span>
-                    <span className="mono text-[0.66rem] text-[var(--faint)] ml-auto">
-                      {building.length} in dev
-                    </span>
-                  </div>
-                  <p className="text-[0.68rem] text-[var(--muted)] mt-1.5 leading-snug">
-                    {netMonth == null
-                      ? "No asset carries an income or cost figure yet — a dash, not a zero."
-                      : "Assets earning minus assets costing."}
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <p className="label">Stage board</p>
-                <div className="grid gap-1.5 mt-2">
-                  {liveVentures.length === 0 ? (
-                    <p className="text-[0.76rem] text-[var(--faint)] leading-relaxed">
-                      No live divisions.
-                    </p>
-                  ) : (
-                    liveVentures.map((v) => {
-                      // Its own dashboard, unless it is a pointer row.
-                      const href = isExternal(v) ? null : divisionHref(v.name);
-                      const inner = (
-                        <>
-                          <span
-                            aria-hidden
-                            className="w-[6px] h-[6px] rounded-full shrink-0"
-                            style={{ background: STAGE_COLOUR[v.stage] }}
-                          />
-                          <span className="text-[0.8rem] flex-1 min-w-0 truncate">
-                            {v.name}
-                          </span>
-                          <span
-                            className="mono text-[0.62rem] font-bold shrink-0 uppercase"
-                            style={{ color: STAGE_COLOUR[v.stage] }}
-                          >
-                            {STAGE_LABEL[v.stage]}
-                          </span>
-                        </>
-                      );
-                      const cls =
-                        "flex items-center gap-2.5 rounded-[8px] border border-[var(--border)] px-3 py-2";
-                      return href ? (
-                        <Link
-                          key={v.id}
-                          href={href}
-                          className={`${cls} card-hover no-underline text-[var(--text)]`}
-                        >
-                          {inner}
-                        </Link>
-                      ) : (
-                        <div key={v.id} className={cls}>
-                          {inner}
-                        </div>
-                      );
-                    })
-                  )}
-                </div>
-                {parked.length > 0 && (
-                  <p className="text-[0.68rem] text-[var(--faint)] mt-2 leading-relaxed">
-                    Backlog: {parked.map((v) => v.name).join(" · ")}
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <p className="label">
-                  Empire areas · avg {empireAvg == null ? "—" : empireAvg.toFixed(1)}/10
-                </p>
-                <p className="text-[0.72rem] text-[var(--muted)] mt-1.5 leading-relaxed">
-                  {empireAvg == null
-                    ? "Score the five business areas in EMPIRE_OS and this starts telling you something."
-                    : `${empireAreas.filter((a) => a.score != null).length} of ${empireAreas.length} scored.`}
-                </p>
-              </div>
-
-              <Link
-                href="/empire"
-                className="rounded-[10px] border px-3.5 py-3 no-underline block card-hover"
-                style={{ borderColor: "var(--sys)" }}
-              >
-                <p className="label" style={{ color: "var(--sys)" }}>
-                  CEO dashboard · live
-                </p>
-                <p className="text-[0.82rem] font-semibold mt-1 text-[var(--text)]">
-                  See the whole path to revenue →
-                </p>
-              </Link>
-            </section>
-          </div>
+            <SystemsTab
+              empireAreas={empireAreas}
+              lifeAvg={lifeAvg}
+              empireAvg={empireAvg}
+              lifeWorst={lifeWorst}
+              liveVentures={liveVentures}
+              building={building}
+              parked={parked}
+              debt={debt}
+              cleared={cleared}
+              steps={steps}
+              sleep={sleep}
+              netMonth={netMonth}
+            />
           )}
 
           {/* ================= TREND ================================ *
@@ -1346,15 +1118,6 @@ function NavGroup({
         </Link>
       ))}
     </nav>
-  );
-}
-
-function MiniStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-[9px] border border-[var(--border)] px-3 py-2.5">
-      <p className="label">{label}</p>
-      <p className="mono text-[1.05rem] font-bold mt-1">{value}</p>
-    </div>
   );
 }
 
