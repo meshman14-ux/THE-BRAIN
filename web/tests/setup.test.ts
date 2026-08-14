@@ -30,6 +30,7 @@ const empty = (over: Partial<SetupFacts> = {}): SetupFacts => ({
   cookedMealCount: 0,
   reviewCount: 0,
   unscoredTypedAreas: ["Home & Admin"],
+  unrecordedMetrics: ["Monthly income", "Savings buffer"],
   ...over,
 });
 
@@ -51,6 +52,7 @@ const full = (): SetupFacts =>
     cookedMealCount: 2,
     reviewCount: 1,
     unscoredTypedAreas: [],
+    unrecordedMetrics: [],
   });
 
 /* ================================================================== *
@@ -164,6 +166,44 @@ describe("figures", () => {
     const facts = empty();
     facts.debts[0].current_balance = 0;
     expect(setupSteps(facts).find((s) => s.id === "debt-balances")!.figures).toHaveLength(1);
+  });
+});
+
+/* ================================================================== *
+ * Metrics
+ * ================================================================== */
+
+describe("the metrics step", () => {
+  const step = (f: SetupFacts) => setupSteps(f).find((s) => s.id === "first-metric-reading")!;
+
+  it("counts the metrics that have never been recorded", () => {
+    expect(step(empty()).title).toBe("2 metrics never recorded");
+    expect(step(empty()).done).toBe(false);
+  });
+
+  it("says it in the singular for one", () => {
+    expect(step(empty({ unrecordedMetrics: ["Monthly income"] })).title).toBe(
+      "1 metric never recorded"
+    );
+  });
+
+  it("is done, and says so positively, once every metric has a reading", () => {
+    const s = step(empty({ unrecordedMetrics: [] }));
+    expect(s.done).toBe(true);
+    expect(s.title).toBe("Every metric has a reading");
+  });
+
+  // Not a fine, and the list must keep saying which things are.
+  it("is never a world-punishes step", () => {
+    expect(step(empty()).worldPunishes).toBe(false);
+  });
+
+  // The unlock count is three real answers, not "a chart looks nicer".
+  it("names what it turns on rather than what to do", () => {
+    const s = step(empty());
+    expect(s.unlockCount).toBe(3);
+    expect(s.unlocks).toContain("cashflow");
+    expect(s.href).toBe("/life/metrics");
   });
 });
 

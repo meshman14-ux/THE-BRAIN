@@ -290,8 +290,17 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
   default 0`, so 0 means "untouched, use the baseline" and any positive value is a deliberate
   claim that overrides it. Stated and derived stay separate exactly as `/goals` keeps them,
   and `/empire` says so on screen when they disagree by ≥15 points.
-- **Debt is a metric, not a table.** "Debt remaining" lives in `metrics`/`metric_readings`
-  (unit £, direction down, unique on `(metric_id, taken_on)`), which gives a trend for free.
+- **Debt is a table, and the "Debt remaining" metric is a VIEW over it.** This entry used to
+  say the opposite — "debt is a metric, not a table", with its figure living in
+  `metrics`/`metric_readings`. That was true for about a day, and it is the exact belief that
+  produced the £8,317 incident: a partial total typed into `metric_readings` and presented as
+  a total. `public.debts` has been the home ever since, `debtTotal()` derives `complete` from
+  whether every active balance is known, and `metric_readings` for debt stays empty on purpose.
+  The metric row survives because the *question* is real — `DERIVED_METRICS` in `metrics.ts`
+  now names it read-only and `/life/metrics` renders its figure from the debts table with the
+  entry box replaced by a link to where it is actually edited.
+  `metric_readings` is still unique on `(metric_id, taken_on)`, which is what makes recording
+  a reading idempotent for the metrics that genuinely own their numbers.
   The training streak is derived from `habits`/`habit_logs` at read time and never stored.
 - **The onboarding columns are all nullable, and NULL means "not answered".**
   `ventures.budget`, `monthly_cost`, `funding_route` and `plan` (migration
@@ -466,17 +475,23 @@ reviews and the inbox start empty — the first-run empty states are load-bearin
 > `metrics.meta` now carries a note saying why. The debt figure comes from summing
 > `public.debts`, and it is incomplete while any active debt has a null balance. A screen
 > with no debt figure renders `£—` via `formatGBP(null)` — never a zero.
+>
+> **As of 2026-08-14 this is enforced rather than remembered.** `DERIVED_METRICS` in
+> `src/lib/metrics.ts` marks "Debt remaining" read-only, so `/life/metrics` renders no entry
+> box for it at all and sends you to `/life/money` instead. The same guard covers Steps,
+> Sleep and Weight, whose home is `health_days`.
 
 **Auth:** magic link only, no passwords. Signups **disabled** — Jay's user already exists
 (`meshman14@gmail.com`). Supabase Site URL and redirect allow-list point at the live Vercel
 URL and a magic-link round trip has been completed against it.
 
-## A5. Build state (as of 2026-08-11)
+## A5. Build state (as of 2026-08-14)
 
-Verified in this repo: **1363/1363 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
-+ `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
-vitest) and **`npm run build` produces exactly 48 routes** (37 pages + 11 API routes).
-`npx tsc --noEmit` is clean.
+Verified in this repo: **1434/1434 tests pass** across 35 files (vitest), `npm run lint` is
+clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 53 entries — 41 pages,
+`/_not-found`, and 11 API routes.** The route figure is counted from the build output rather
+than remembered: this section said 48 and §A9 said 39 at the same time, which is the same
+drift the schema capture exists to stop.
 
 **THE COG harvest — 2026-08-12.** A second cloud drop arrived as a standalone Dockerised
 service with its own Postgres. It was NOT merged as a service — two engines to keep in
@@ -984,6 +999,66 @@ area, which is exactly what makes people stop linking things.
   a shorter label or fewer items. The vault lives under `/library`, which is where reference
   material already lives.
 
+**Phase 4's last piece — metrics — landed 2026-08-14** at `/life/metrics`, with
+`src/lib/metrics.ts` (pure, 66 tests), `src/lib/metrics-server.ts` (the derived resolvers)
+and `MetricBoard.tsx` / `AddMetric.tsx`. `metrics` and `metric_readings` shipped with the v1
+schema on 2026-07-30 and **`metric_readings` had never held a row** — four pages have been
+reading a metric by name ever since and finding nothing, because until now the app had no
+writer for it. No migration was needed: `target`, `meta` and the
+`(metric_id, taken_on)` unique index were all already there.
+
+**The design is one board with two kinds of row, and the split is the whole point.** It is
+built against the law `lifeos.ts` states — *truth must be free; a measurement that costs a
+manual entry will not survive contact with a busy season* — which is not an argument against
+a metrics module but the argument for the shape of this one:
+
+- **A number with a home elsewhere is never typed here.** `DERIVED_METRICS` names the four:
+  Steps, Sleep and Weight are `health_days` columns, Debt remaining is the sum of `debts`.
+  Those rows get the same trend and the same sparkline read from the owning table and **no
+  entry box at all** — where it would be, they say why and link to the page that owns the
+  number. A second writer is a second answer, and §A2 says every record has exactly one home.
+  This is not hypothetical: it is the £8,317 incident, turned into a guard.
+- **The registry fails OPEN.** An unknown metric name is recordable, because the point of the
+  module is that Jay can add metrics of his own and a closed default would make every new one
+  read-only. The four protected names are the closed set, not the permission.
+- **Having refused the box, the module owes the metric a real series.** `metrics-server.ts`
+  is that half of the bargain — a read-only metric that then showed nothing would be strictly
+  worse than the duplicate writer it was protecting against. A NULL `health_days` column
+  produces **no reading**, never a zero.
+- **Debt gets one point, dated today, and says so.** `debts.current_balance` is a snapshot —
+  every update overwrites the last — so there is no history to read and a trend here would
+  have to be invented. `debt_payments` is the genuine source and is empty; when it fills this
+  becomes a real series. A partial total is withheld entirely rather than shown.
+
+The rest inherits the rules the system already keeps. **One reading is a value, not a trend**,
+so `trend()` and `sparkPoints()` both return null below two — drawing a line through one point
+is the system inventing a direction it cannot see. `better`/`worse` are judged against the
+metric's own `direction`, which is why a falling debt is good and falling income is not.
+`targetProgress` measures a `down` metric **from where it started**, so £8,000 off a £10,000
+debt reads as 80% and not 20%. A flat series draws down the middle rather than dividing by a
+zero range. `readCadence` validates `meta.cadence` exactly as `readHours` validates
+`journal.meta.hours`, degrading to monthly rather than throwing.
+
+**Ranking is four bands, and the order is an argument**: lapsed (has history, cadence passed)
+→ never recorded → current → derived. Never-recorded ranks *below* lapsed for the same reason
+an unscored area ranks below every scored one — **unknown is not failing**. Derived goes last
+however stale it looks, because a wearable that has not synced is the health page's problem.
+`metricsLine` says one thing while something is behind and **nothing at all once nothing is**,
+the same silence `setupLine` keeps.
+
+**A reading is an event, so a blank box is an error, not a null.** This is the one place that
+departs from `parseInline`, deliberately: there is no such thing as clearing a reading to
+unknown — deleting it is what means that. A *target* is a claim rather than an event, so
+clearing that back to unknown is one empty box.
+
+`/setup` gained a step for it, and the unlock count is three real answers rather than a nicer
+chart: Money's cashflow needs monthly income, its buffer needs outgoings and savings, and the
+EMPIRE income KPI reads the same income figure. Derived metrics are excluded from that step —
+asking for something the board will refuse is how a setup list loses its authority.
+
+**No nav item, and it is the same measured reason as the vault**: `brain` mode carries
+thirteen items with ~27px spare. It is reached from `/life`.
+
 ## A6. Routes
 
 ```
@@ -1043,6 +1118,15 @@ area, which is exactly what makes people stop linking things.
                        the honest default), tick-off lives in localStorage
                        per week (trolley state, not records), and Copy
                        emits the grouped plain-text list.
+/(app)/life/metrics    the metrics board — every metric with its trend,
+                       sparkline and target. A RECORDED metric carries an
+                       entry box (one number, upserted against today, so a
+                       double tap is one reading); a DERIVED one — Steps,
+                       Sleep, Weight, Debt remaining — carries the same
+                       trend read from the table that owns it and, where
+                       the box would be, why there isn't one. Cadence and
+                       target are set per metric; defining one needs only
+                       a name. No nav item — reached from /life
 /(app)/life/people     cadence watchtower (at most three) · occasions strip ·
                        the roster with one-tap tiers and contact logging
 /(app)/life            LIFE_OS — the 8 personal areas, scores, habits (#habits),
@@ -1231,8 +1315,8 @@ Phases: 0 auth/RLS/PWA/areas ✅ · 1 Inbox+Capture+Planner+Week ✅ · 2 Goals 
 · **3 Notes + links + backlinks ✅ built 2026-08-13** at `/library/notes` — the vault,
 the `links` table's first ever use, and "what links here" on areas
 · 4 LIFE_OS — habits ✅, **journal ✅** (the daily close writes it), **people ✅**
-(`/life/people`), **money ✅** (`/life/money`), **health ✅** (`/life/health`); metrics
-still to build · 5 EMPIRE_OS — **division onboarding + the division dashboards ✅**
+(`/life/people`), **money ✅** (`/life/money`), **health ✅** (`/life/health`),
+**metrics ✅ built 2026-08-14** (`/life/metrics`) — **Phase 4 is complete** · 5 EMPIRE_OS — **division onboarding + the division dashboards ✅**
 (Stage 4 · Phase C, 2026-08-06); assets, investments and opportunities still to build
 · 6 Review rituals — the weekly one ✅ at `/reviews`, **the daily two-minute one ✅ at
 `/checkin`**, **the quarterly reset ✅ at `/reviews/quarterly` (2026-08-12)** — all three rituals built
@@ -1381,6 +1465,19 @@ Open items:
    empty states on those are still the only thing anybody has seen, so they remain
    load-bearing.
 
+   **`metric_readings` finally has a writer as of 2026-08-14** (`/life/metrics`), but it is
+   still empty and will stay so until Jay records something — which is the honest state, not
+   a fault: three of the seven metrics are derived and by design accept no reading at all,
+   and the other four are numbers only he knows. `/setup` now lists them.
+
+21. **Four pages find a metric BY NAME** — `/dashboard`, `/life`, `/empire` and
+   `/life/money` each do `metrics.find(m => m.name === "…")`, and `/empire` keeps its string
+   in an `INCOME_METRIC` constant. Renaming a metric in the UI therefore silently blanks a
+   dashboard figure, with nothing going red. `DERIVED_METRICS` is keyed by name for the same
+   reason and inherits the same fragility. It is recorded rather than fixed: the honest fix
+   is a stable key column on `metrics` (a migration), not a second hand-map — which is the
+   mistake `slugifyName` exists to prevent.
+
 ## A9. Commands
 
 Run from `web/`:
@@ -1389,9 +1486,9 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1363 tests — must be green before build
+npm test                       # 1434 tests — must be green before build
 npm run lint                   # ESLint — clean before you push
-npm run build                  # 39 routes — green before you push
+npm run build                  # 53 entries — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from

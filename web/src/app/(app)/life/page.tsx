@@ -319,6 +319,9 @@ export default async function LifeOs() {
           <Link href="/life/vehicles" className="chip no-underline">
             ⛭ Vehicles · tax, MOT, insurance
           </Link>
+          <Link href="/life/metrics" className="chip no-underline">
+            ∿ Metrics · numbers that move
+          </Link>
         </div>
       </header>
 

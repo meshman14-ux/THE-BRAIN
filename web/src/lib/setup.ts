@@ -90,6 +90,12 @@ export type SetupFacts = {
   reviewCount: number;
   /** Areas that can only be typed, and have no score yet. */
   unscoredTypedAreas: string[];
+  /**
+   * Metrics that accept a reading and have never had one. DERIVED metrics
+   * are excluded — nobody can record those by hand, so listing them here
+   * would be asking for something the system refuses to accept.
+   */
+  unrecordedMetrics: string[];
 };
 
 /**
@@ -240,6 +246,21 @@ export function setupSteps(f: SetupFacts): SetupStep[] {
     unlockCount: 2, // the nutrition signal · the fed line
     href: "/life/food",
     cta: "Mark one cooked",
+  });
+
+  steps.push({
+    id: "first-metric-reading",
+    title:
+      f.unrecordedMetrics.length === 0
+        ? "Every metric has a reading"
+        : `${f.unrecordedMetrics.length} metric${f.unrecordedMetrics.length === 1 ? "" : "s"} never recorded`,
+    unlocks:
+      "Three real answers are waiting on these numbers, not just a chart: Money's cashflow needs monthly income, its buffer needs outgoings and savings, and the EMPIRE income KPI reads the same income figure. One number each, once a month.",
+    done: f.unrecordedMetrics.length === 0,
+    worldPunishes: false,
+    unlockCount: 3, // money cashflow · money buffer · the EMPIRE income KPI
+    href: "/life/metrics",
+    cta: "Record one",
   });
 
   /* -- 5 · the rhythm ----------------------------------------------- */
