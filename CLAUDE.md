@@ -473,7 +473,7 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-11)
 
-Verified in this repo: **1232/1232 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
+Verified in this repo: **1363/1363 tests pass** (`tests/logic.test.ts` + `stage3` + `stage4`
 + `divisions` + `calendar` + `advisor` + `palette` + `v2` + `diagnostics` + `planner`,
 vitest) and **`npm run build` produces exactly 48 routes** (37 pages + 11 API routes).
 `npx tsc --noEmit` is clean.
@@ -943,6 +943,47 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 > (0–6), so scheduling meant nothing once the week rolled over. This writes a real `do_date`.
 > Keep that.
 
+**Phase 3 — the vault, the `links` table and backlinks — landed 2026-08-13** at
+`/library/notes`. `links` shipped with the v1 schema on 2026-07-30 and **had never held a
+single row**; this is its first use.
+
+**Stored directed, read both ways.** A row is `(from_type, from_id) -> (to_type, to_id)` and
+the direction is real — you linked a note TO an area. But "what links here" is a question
+about a NEIGHBOURHOOD, so `neighbours()` reads BOTH columns and returns the far end either
+way. **One row, both pages, nothing to keep in step.** If backlinks only looked at rows
+pointing at you, linking a note to an area would show on the note and be invisible on the
+area, which is exactly what makes people stop linking things.
+
+- **`LINKABLE` is a closed registry of seven types.** `from_type` is free text in the
+  database, so nothing stops a caller writing `"widget"` and creating a row that can never be
+  rendered. The registry is the guard at the seam, the same job `INLINE_FIELDS` does for the
+  inline editor. It also records `reach`: a note, area and division have pages of their own;
+  a task, goal, project and person do not, so those chips land on the closest list and are
+  drawn softer, because a chip that looks like a deep link and lands on a list is a small lie.
+- **`canLink` is stricter than the database.** The unique index is directional, so A→B and
+  B→A are two legal rows — and a system that reads both ways would then render the same
+  relationship twice on both pages. `alreadyLinked` checks both directions, and a self-link
+  is refused at creation AND dropped at read, so a row written by hand in the SQL editor
+  cannot make a page list itself.
+- **Dangling links are normal, not corruption.** `links` can carry no foreign keys — the
+  target could be any of seven tables — so deleting a task leaves its link rows behind.
+  `resolveEnds` drops whatever no longer resolves rather than drawing a blank chip, and
+  `NoteEditor` deliberately does NOT sweep links on delete: a two-sided sweep can half-fail,
+  and the cost of not doing it is one skipped chip.
+- **One relation, `relates_to`, on purpose.** A vocabulary (`supports`, `contradicts`) is
+  easy to add and hard to remove, and asking "what KIND of link is this?" is a second
+  question standing between a thought and it being recorded. A second relation arrives when
+  the UI renders it differently, not before.
+- **The floor is a body.** No title, no area, no tags. `noteTitle()` falls back to the first
+  line — strippping a markdown heading marker — and returns **null** rather than "Untitled",
+  so a caller can tell an empty note from one actually called that. `principle` and `creed`
+  are NOT editable in the vault: they carry Jay's own marks in `meta` and a general-purpose
+  editor would destroy that provenance on the first save.
+- **It has no nav item, and that is measured.** `brain` mode already carries thirteen items
+  inside a 1200px header with ~27px spare, and §A7 says the honest answer to a fourteenth is
+  a shorter label or fewer items. The vault lives under `/library`, which is where reference
+  material already lives.
+
 ## A6. Routes
 
 ```
@@ -1067,6 +1108,14 @@ The pre-v1.2 scaffold is parked at `/_archive/old-apps/web-v1-scaffold/`; don't 
 /(app)/life/vehicles   tax · MOT · insurance · service, worst-first
 /(app)/pillar/[id]     area detail + its reference shelf, back-links to its system
 /(app)/library         the reference library — every curated shelf in one place
+/(app)/library/notes   the vault — Phase 3's writing surface. Write a note
+                       (a body is the whole floor), search it, open one.
+                       No nav item on purpose: brain mode already carries
+                       thirteen and the header has ~27px spare
+/(app)/library/notes/[id]
+                       one note — edits on blur, and the link panel. A
+                       principle or the creed opens read-only here and says
+                       why, because its `meta` marks exist nowhere else
 /(app)/library/principles
                        the principle library + the creed. A destination, never a
                        notification — nothing here appears on the dashboard
@@ -1179,8 +1228,8 @@ Public paths: `/login`, `/auth`, `/manifest.webmanifest`, `/sw.js`.
 
 Phases: 0 auth/RLS/PWA/areas ✅ · 1 Inbox+Capture+Planner+Week ✅ · 2 Goals + Projects ✅
 · 2.5 the two dashboards (JAY_OS `/dashboard` + EMPIRE_OS `/empire`) ✅
-· **3 Notes + links + backlinks ← next** (the read side landed early with the principle
-library; what remains is writing notes, the `links` table and backlinks)
+· **3 Notes + links + backlinks ✅ built 2026-08-13** at `/library/notes` — the vault,
+the `links` table's first ever use, and "what links here" on areas
 · 4 LIFE_OS — habits ✅, **journal ✅** (the daily close writes it), **people ✅**
 (`/life/people`), **money ✅** (`/life/money`), **health ✅** (`/life/health`); metrics
 still to build · 5 EMPIRE_OS — **division onboarding + the division dashboards ✅**
@@ -1316,7 +1365,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1232 tests — must be green before build
+npm test                       # 1363 tests — must be green before build
 npm run build                  # 39 routes — green before you push
 ```
 

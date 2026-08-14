@@ -89,6 +89,29 @@ export default async function Library() {
         </p>
       </Link>
 
+      {/* -- the vault, which is the writing half of the library ----- */}
+      <Link
+        href="/library/notes"
+        className="card card-hover p-4 sm:p-5 no-underline text-[var(--text)] block"
+        style={{ borderLeft: "4px solid var(--accent)" }}
+      >
+        <div className="flex items-baseline gap-3 flex-wrap">
+          <h2 className="text-[1.05rem] font-semibold">Notes</h2>
+          <span
+            className="ml-auto text-[0.74rem] font-semibold"
+            style={{ color: "var(--accent)" }}
+          >
+            OPEN →
+          </span>
+        </div>
+        <p className="text-[0.82rem] text-[var(--muted)] mt-2 leading-relaxed max-w-[68ch]">
+          The vault. Everything above this is material somebody else wrote;
+          this is yours. A note needs a body and nothing else, and linking one
+          to an area or a division puts it on that page too — the link is one
+          row, read from both ends.
+        </p>
+      </Link>
+
       {/* -- LIFE_OS ------------------------------------------------ */}
       <section className="sys-life grid gap-4">
         <div className="flex items-baseline gap-3">
