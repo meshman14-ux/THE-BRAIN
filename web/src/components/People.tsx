@@ -66,7 +66,14 @@ export default function People({
         { onConflict: "person_id,contacted_on" }
       );
     if (!error) {
-      await supabase.from("people").update({ last_contact: today }).eq("id", p.id);
+      // The contact_log insert above is checked; this was not, so a
+      // logged contact could leave last_contact untouched — and the cadence
+      // watch reads last_contact, not the log.
+      const { error: stampErr } = await supabase
+        .from("people")
+        .update({ last_contact: today })
+        .eq("id", p.id);
+      if (stampErr) setErr(stampErr.message);
     }
     setBusy(null);
     setNoteFor(null);

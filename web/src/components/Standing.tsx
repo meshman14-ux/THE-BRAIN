@@ -37,13 +37,22 @@ export default function Standing({
 }) {
   const [editing, setEditing] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
   const router = useRouter();
   const supabase = createClient();
 
   async function score(id: string, n: number) {
     setBusy(true);
-    await supabase.from("pillars").update({ score: n }).eq("id", id);
+    setErr("");
+    // Home & Admin is one of only two figures in LIFE_OS that a person has
+    // to type. A silent failure here is a score that looks set, is not, and
+    // then reports itself as merely stale a fortnight later.
+    const { error } = await supabase.from("pillars").update({ score: n }).eq("id", id);
     setBusy(false);
+    if (error) {
+      setErr(error.message);
+      return;
+    }
     setEditing(null);
     router.refresh();
   }
@@ -66,6 +75,15 @@ export default function Standing({
 
   return (
     <div className="grid gap-3">
+      {err && (
+        <p
+          className="text-[0.8rem] leading-relaxed m-0"
+          style={{ color: "var(--bad)" }}
+          role="alert"
+        >
+          ⚠ That score did not save — {err}
+        </p>
+      )}
       <div className="flex items-baseline gap-3 flex-wrap">
         <p className="mono text-[1.4rem] font-bold leading-none">
           {average.mean ?? "—"}

@@ -82,7 +82,14 @@ export default function QuarterlyReset({
    *  carries the current number, the review carries the snapshot. */
   async function scoreArea(p: ResetPillar, n: number) {
     await save({ pillar_scores: { ...r.pillar_scores, [p.id]: n } });
-    await supabase.from("pillars").update({ score: n }).eq("id", p.id);
+    const { error: scoreErr } = await supabase
+      .from("pillars")
+      .update({ score: n })
+      .eq("id", p.id);
+    if (scoreErr) {
+      setErr(scoreErr.message);
+      return;
+    }
     router.refresh();
   }
 

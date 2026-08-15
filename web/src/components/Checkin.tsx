@@ -50,6 +50,7 @@ export default function CheckinFlow({
 }) {
   const [c, setC] = useState<Checkin>(initial);
   const [busy, setBusy] = useState<CheckinField | null>(null);
+  const [err, setErr] = useState("");
   const router = useRouter();
   const supabase = createClient();
 
@@ -64,13 +65,37 @@ export default function CheckinFlow({
     const next = { ...c, ...patch };
     setC(next);
     setBusy(field);
-    await supabase.from("journal").upsert(
+    setErr("");
+
+    /* -- read, then merge ---------------------------------------------- *
+     *
+     * `meta` on a journal row is SHARED. This form owns six keys; the day
+     * planner owns `hours`, written by HourPurpose, which merges correctly.
+     * Writing the object whole — which this did until now — deletes every
+     * key it does not know about, so the first nightly close on a day with
+     * pinned hours silently threw them away.
+     *
+     * It never showed up because the close has never successfully written:
+     * all three journal rows carry hours and none carries a mood. The bug
+     * was waiting for the day the close started working. */
+    const { data: row } = await supabase
+      .from("journal")
+      .select("meta")
+      .eq("entry_date", date)
+      .maybeSingle();
+    const held =
+      typeof row?.meta === "object" && row.meta !== null && !Array.isArray(row.meta)
+        ? (row.meta as Record<string, unknown>)
+        : {};
+
+    const { error } = await supabase.from("journal").upsert(
       {
         entry_date: date,
         mood: next.mood,
         energy: next.energy,
         gratitude: next.gratitude,
         meta: {
+          ...held,
           wins: next.wins,
           friction: next.friction,
           tomorrow: next.tomorrow,
@@ -81,14 +106,29 @@ export default function CheckinFlow({
       },
       { onConflict: "user_id,entry_date" }
     );
+
+    /* -- and SAY when it fails ----------------------------------------- *
+     *
+     * The answer is set in local state before the write, so the tap always
+     * looked like it worked. A failed write left the answer on screen and
+     * nothing in the database — which is the worst of both, because you
+     * stop checking. journal has three rows and not one mood or energy
+     * figure in any of them. */
+    if (error) {
+      setErr(error.message);
+      setBusy(null);
+      setC(c); // put the optimistic answer back, so the screen is honest
+      return;
+    }
     // The area score is the one answer that lives somewhere else too: the
     // pillar carries the current score, and the journal carries the fact
     // that it was set tonight. Both, or the dashboard would not move.
     if (field === "area" && next.areaId != null && next.areaScore != null) {
-      await supabase
+      const { error: areaErr } = await supabase
         .from("pillars")
         .update({ score: next.areaScore })
         .eq("id", next.areaId);
+      if (areaErr) setErr(areaErr.message);
     }
     setBusy(null);
     router.refresh();
@@ -107,6 +147,20 @@ export default function CheckinFlow({
 
   return (
     <div className="grid gap-4">
+      {/* A failed write used to be completely invisible here: the answer
+          is set in local state first, so the tap looked identical whether
+          it saved or not. This is the only thing on the page that can tell
+          you the difference. */}
+      {err && (
+        <p
+          className="panel text-[0.82rem] leading-relaxed m-0"
+          style={{ color: "var(--bad)", borderColor: "var(--bad)" }}
+          role="alert"
+        >
+          ⚠ That did not save — {err}
+        </p>
+      )}
+
       {/* -- where you are ------------------------------------------- */}
       <div className="panel">
         <p className="label">{dayLabel}</p>
