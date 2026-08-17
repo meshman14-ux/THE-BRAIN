@@ -1626,6 +1626,42 @@ describe("app shell breakpoints", () => {
     expect(shell).toMatch(/xl:block shrink-0/);
     expect(shell).toMatch(/btn btn-ghost[^"]*whitespace-nowrap/);
   });
+
+  /* -- the sidebar, 2026-08-17 ------------------------------------- */
+
+  it("navigates from a COLUMN, not a row", () => {
+    // The horizontal bar was permanently one item from overflowing: thirteen
+    // needed 1173px inside a 1200px box, remeasured twice. A column has no
+    // such budget, and this assertion is what stops it quietly becoming a
+    // row again.
+    expect(shell).toMatch(/hidden xl:flex flex-col/);
+    expect(shell).not.toMatch(/ml-auto hidden xl:flex items-center/);
+  });
+
+  it("keeps the sidebar's labels shrinkable", () => {
+    // Same trap as the phone bar and the occasions row: a flex child defaults
+    // to min-width:auto, so a long label pushes the column wider instead of
+    // truncating inside it. The `min-w-0` belongs on the shrinking child.
+    expect(shell).toMatch(/min-w-0 flex-1 truncate/);
+  });
+
+  it("gives main a min-w-0 beside the fixed-width sidebar", () => {
+    // Without it, one wide child of a page (a table, a month grid) can widen
+    // `main` past its share of the row and push the sidebar off-screen.
+    expect(shell).toMatch(/flex-1 min-w-0/);
+  });
+});
+
+describe("the front door", () => {
+  const root = readFileSync(new URL("../src/app/page.tsx", import.meta.url), "utf8");
+
+  it("opens on the day, not the dashboard", () => {
+    // "What am I doing next?" is the question a morning starts with. The
+    // dashboard answers "how are things?", which is a question you ask
+    // sometimes — it stays one tap away rather than being the toll gate.
+    expect(root).toMatch(/redirect\("\/day"\)/);
+    expect(root).not.toMatch(/redirect\("\/dashboard"\)/);
+  });
 });
 
 /* ------------------------------------------------------------------ *

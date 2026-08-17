@@ -248,6 +248,18 @@ export const NAV: NavItem[] = [
 
   /* -- the entry points, in every mode ----------------------------- */
   {
+    // The estate — divisions by what they are DOING, not by stage. Empire
+    // only; no phone slot, because that bar is a grid of exactly five and
+    // empire already fills it. Asking "what is actually earning?" is a desk
+    // question anyway, the same reason Holdings has no slot either.
+    key: "estate",
+    href: "/estate",
+    label: "Estate",
+    icon: "▦",
+    modes: ["empire"],
+    phoneModes: [],
+  },
+  {
     key: "capture",
     href: "/capture",
     label: "Capture",

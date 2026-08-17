@@ -206,6 +206,10 @@ describe("nav by mode", () => {
       // starts feeling arbitrary.
       "Horizon",
       "Diagnose",
+      // The estate, 2026-08-17. Divisions by what they are DOING — earning,
+      // being built, or parked — which is the question /empire's stage list
+      // does not answer. Desk job, so no phone slot, same as Holdings.
+      "Estate",
       "Capture",
       "Account",
       "Inbox",

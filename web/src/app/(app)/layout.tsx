@@ -29,19 +29,32 @@ export default async function AppLayout({
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const [{ count: inboxCount }, { count: openCount }] = await Promise.all([
-    supabase
-      .from("inbox")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "open"),
-    supabase
-      .from("tasks")
-      .select("id", { count: "exact", head: true })
-      .in("status", ["open", "doing"]),
-  ]);
+  const [{ count: inboxCount }, { count: openCount }, { count: captureCount }] =
+    await Promise.all([
+      supabase
+        .from("inbox")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "open"),
+      supabase
+        .from("tasks")
+        .select("id", { count: "exact", head: true })
+        .in("status", ["open", "doing"]),
+      // Documents read but not yet confirmed. A capture nobody decided on is
+      // work waiting, so the sidebar says so rather than letting it go quiet.
+      supabase
+        .from("captures")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "extracted"),
+    ]);
 
   const badge = (key: string) =>
-    key === "inbox" ? inboxCount : key === "planner" ? openCount : null;
+    key === "inbox"
+      ? inboxCount
+      : key === "planner"
+        ? openCount
+        : key === "capture"
+          ? captureCount
+          : null;
 
   return (
     <div className="min-h-dvh flex flex-col">
@@ -91,27 +104,6 @@ export default async function AppLayout({
               hides before the top nav appears there is a width with no
               navigation at all, and if `main` drops `pb-24` early the bar
               covers the last row of the page. */}
-          <nav className="ml-auto hidden xl:flex items-center">
-            {NAV.map((n) => {
-              const c = badge(n.key);
-              return (
-                <Link
-                  key={n.key}
-                  href={n.href}
-                  data-nav-modes={n.modes.join(" ")}
-                  className="px-1.5 py-2 rounded-[9px] text-[0.8rem] font-semibold text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--bg-2)] no-underline transition-colors whitespace-nowrap"
-                >
-                  {n.label}
-                  {!!c && (
-                    <span className="mono ml-1.5 text-[0.66rem] px-1.5 py-0.5 rounded-full bg-[var(--border)] text-[var(--muted)]">
-                      {c}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
-
           {/* The two buttons from Jay's sheet. In the bar at every width —
               on a phone this is the only way to change system. */}
           <span className="ml-auto xl:ml-1.5 shrink-0">
@@ -132,9 +124,47 @@ export default async function AppLayout({
         </div>
       </header>
 
-      <main className="flex-1 mx-auto w-full max-w-[1200px] px-5 py-7 pb-24 xl:pb-8">
-        {children}
-      </main>
+      <div className="flex-1 mx-auto w-full max-w-[1200px] flex">
+        {/* The sidebar replaces the top nav at the same breakpoint the top
+            nav used, so `hidden xl:flex` still governs desktop navigation and
+            every rule about the phone bar staying in step is unchanged.
+
+            It also dissolves the problem the old bar was fighting. A
+            horizontal row of thirteen items needed 1173px inside a 1200px
+            box, remeasured twice, with the honest next step being a shorter
+            label or fewer items. A vertical list has no such budget: a
+            fourteenth item costs 36px of height, of which there is plenty. */}
+        <nav
+          data-appshell
+          className="hidden xl:flex flex-col gap-0.5 w-[196px] shrink-0 py-7 pr-4 border-r border-[var(--border)]"
+        >
+          {NAV.map((n) => {
+            const c = badge(n.key);
+            return (
+              <Link
+                key={n.key}
+                href={n.href}
+                data-nav-modes={n.modes.join(" ")}
+                className="px-3 py-2 rounded-[9px] text-[0.84rem] font-semibold text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--bg-2)] no-underline transition-colors flex items-center gap-2"
+              >
+                <span className="text-[0.95rem] leading-none w-4 shrink-0">{n.icon}</span>
+                <span className="min-w-0 flex-1 truncate">{n.label}</span>
+                {!!c && (
+                  <span className="mono shrink-0 text-[0.66rem] px-1.5 py-0.5 rounded-full bg-[var(--border)] text-[var(--muted)]">
+                    {c}
+                  </span>
+                )}
+              </Link>
+            );
+          })}
+
+          <p className="mt-auto px-3 text-[0.66rem] text-[var(--faint)] leading-relaxed">
+            ⌘K to find anything
+          </p>
+        </nav>
+
+        <main className="flex-1 min-w-0 px-5 py-7 pb-24 xl:pb-8">{children}</main>
+      </div>
 
       {/* ⌘K is a LAYER, not a route — it opens over whatever you were doing.
           It renders nothing until pressed and fetches nothing until opened. */}
