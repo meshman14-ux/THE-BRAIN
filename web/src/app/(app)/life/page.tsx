@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ModuleDoors from "@/components/ModuleDoors";
 import { createClient } from "@/lib/supabase/server";
 import {
   type Goal,
@@ -312,18 +313,21 @@ export default async function LifeOs() {
           one that needs you most is on top. Business is EMPIRE_OS&apos;s
           problem.
         </p>
+        {/* Metrics has no parent tile of its own — it is reached from here
+            and nowhere else, so it keeps a chip. Debts and Vehicles lost
+            theirs on 2026-08-17: they are Money's sub-modules and the doors
+            below now list them from the registry, which is the only way a
+            module cannot go missing from its own system's front page. */}
         <div className="flex gap-2 mt-3.5 flex-wrap">
-          <Link href="/life/money/accounts" className="chip no-underline">
-            £ Debts · the creditors
-          </Link>
-          <Link href="/life/money/vehicles" className="chip no-underline">
-            ⛭ Vehicles · tax, MOT, insurance
-          </Link>
-          <Link href="/life/metrics" className="chip no-underline">
+          <Link href="/life/metrics" className="chip tap no-underline">
             ∿ Metrics · numbers that move
           </Link>
         </div>
       </header>
+
+      <div className="mb-6">
+        <ModuleDoors layer="life" />
+      </div>
 
       {/* -- what the system does not know -------------------------- *
        *

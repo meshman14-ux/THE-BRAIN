@@ -1,4 +1,5 @@
 import Link from "next/link";
+import ModuleDoors from "@/components/ModuleDoors";
 import { createClient } from "@/lib/supabase/server";
 import {
   type Goal,
@@ -226,6 +227,10 @@ export default async function EmpirePage() {
           revenue.
         </p>
       </header>
+
+      <div className="mb-6">
+        <ModuleDoors layer="empire" />
+      </div>
 
       {/* -- KPI tiles --------------------------------------------- */}
       <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
