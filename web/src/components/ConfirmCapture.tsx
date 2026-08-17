@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { invokeFunction } from "@/lib/invoke";
 import {
   actionWord,
   confidenceWord,
@@ -85,12 +86,13 @@ export default function ConfirmCapture({ capture, proposals, fileUrl, folders }:
     setFiling(true);
     setDriveMsg("");
     setErr("");
-    const { error } = await supabase.functions.invoke("capture-file-drive", {
-      body: { capture_id: capture.id, ...(folderKey ? { folder_key: folderKey } : {}) },
+    const { error } = await invokeFunction(supabase, "capture-file-drive", {
+      capture_id: capture.id,
+      ...(folderKey ? { folder_key: folderKey } : {}),
     });
     if (error) {
       setErr(
-        `Filing to Drive failed — ${error.message}. The document is still stored here; only the Drive copy is missing.`
+        `Filing to Drive failed — ${error}. The document is still stored here; only the Drive copy is missing.`
       );
     } else {
       setDriveMsg(folderKey ? "Moved." : "Filed to Drive.");

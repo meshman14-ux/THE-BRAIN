@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { InboxItem } from "@/lib/types";
-import { functionErrorMessage } from "@/lib/fnerror";
+import { invokeFunction } from "@/lib/invoke";
 import {
   ACCEPT_DOCUMENT,
   ACCEPT_PHOTO,
@@ -221,13 +221,11 @@ export default function Capture({ door = null }: { door?: CaptureDoor | null }) 
     // Extraction runs under the caller's token, so RLS applies to it too.
     // A failure here is not a lost capture: the row stays, marked failed, and
     // the list offers a retry.
-    const { error: fnErr } = await supabase.functions.invoke("capture-process", {
-      body: { capture_id: capture.id },
+    const { error: fnErr } = await invokeFunction(supabase, "capture-process", {
+      capture_id: capture.id,
     });
     if (fnErr) {
-      setError(
-        `Stored safely, but reading it failed — ${await functionErrorMessage(fnErr)}. Open it from the list to try again.`
-      );
+      setError(`Stored safely, but reading it failed — ${fnErr}. Open it from the list to try again.`);
     }
     router.push(`/capture/${capture.id}`);
   }

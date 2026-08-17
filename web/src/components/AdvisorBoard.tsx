@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { countVote, POSITION_WORD, type Opinion } from "@/lib/reflect";
-import { functionErrorMessage } from "@/lib/fnerror";
+import { invokeFunction } from "@/lib/invoke";
 
 type Seat = { key: string; name: string; brief: string; bias: string };
 
@@ -48,14 +48,14 @@ export default function AdvisorBoard({ seats }: { seats: Seat[] }) {
     setBusy(true);
     setErr("");
     setOut(null);
-    const { data, error } = await supabase.functions.invoke("advisor", {
-      body: { mode: "board", question: q },
+    const { data, error } = await invokeFunction<Hearing>(supabase, "advisor", {
+      mode: "board",
+      question: q,
     });
     if (error) {
-      // The function's own words, not supabase-js's generic line.
-      setErr(`The board could not sit — ${await functionErrorMessage(error)}`);
+      setErr(`The board could not sit — ${error}`);
     } else {
-      setOut(data as Hearing);
+      setOut(data);
     }
     setBusy(false);
   }

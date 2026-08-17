@@ -3,7 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { functionErrorMessage } from "@/lib/fnerror";
+import { invokeFunction } from "@/lib/invoke";
 import {
   ENERGY_WORDS,
   energyWord,
@@ -152,12 +152,15 @@ export default function Reflect({
     setBusy(true);
     setErr("");
     setMsg("");
-    const { error } = await supabase.functions.invoke("advisor", {
-      body: { mode: "parse", transcript, kind, on_date: date },
+    const { error } = await invokeFunction(supabase, "advisor", {
+      mode: "parse",
+      transcript,
+      kind,
+      on_date: date,
     });
     if (error) {
       // Never lose the words because the reader was unavailable.
-      const why = await functionErrorMessage(error);
+      const why = error;
       const kept = await save({ transcript });
       setErr(
         kept
