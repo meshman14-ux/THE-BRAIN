@@ -46,6 +46,28 @@ export default function ConfirmCapture({ capture, proposals, fileUrl, folders }:
   const unclear = readUnclear(capture.extraction);
   const sheet = readSheetCode(capture.extraction);
   const conf = confidenceWord(capture.confidence);
+  const [retrying, setRetrying] = useState(false);
+  const [retryErr, setRetryErr] = useState("");
+
+  /**
+   * "Nothing proposed" and "the reader failed" are different facts and were
+   * showing as the same screen — a photo that failed silently looked
+   * identical to one that succeeded and found nothing. status === 'failed'
+   * is the one state that must never be dressed up as an empty success.
+   */
+  async function retry() {
+    setRetrying(true);
+    setRetryErr("");
+    const { error } = await invokeFunction(supabase, "capture-process", {
+      capture_id: capture.id,
+    });
+    if (error) {
+      setRetryErr(error);
+      setRetrying(false);
+    } else {
+      router.refresh();
+    }
+  }
 
   async function accept(p: ProposalRow) {
     setBusy(p.id);
@@ -140,7 +162,33 @@ export default function ConfirmCapture({ capture, proposals, fileUrl, folders }:
 
       {err && <p className="text-sm text-[var(--bad)]">⚠ {err}</p>}
 
-      {rows.length === 0 ? (
+      {capture.status === "failed" ? (
+        <div className="card p-6 text-center border-[var(--bad)]">
+          <p className="font-semibold text-[var(--bad)]">The reader failed</p>
+          <p className="text-sm text-[var(--muted)] mt-2 leading-relaxed">
+            {capture.error ?? "No reason was recorded."}
+          </p>
+          <p className="text-xs text-[var(--faint)] mt-2 leading-relaxed">
+            The photo is safely stored — only the reading step failed. Fix the
+            cause, then try again on this same capture.
+          </p>
+          <button
+            className="btn tap text-sm py-2.5 mt-4"
+            onClick={retry}
+            disabled={retrying}
+          >
+            {retrying ? "Reading…" : "Try reading it again"}
+          </button>
+          {retryErr && <p className="text-sm text-[var(--bad)] mt-2">⚠ {retryErr}</p>}
+        </div>
+      ) : capture.status === "pending" || capture.status === "processing" ? (
+        <div className="card p-6 text-center">
+          <p className="font-semibold">Still reading…</p>
+          <p className="text-sm text-[var(--muted)] mt-2 leading-relaxed">
+            Reload this page in a moment.
+          </p>
+        </div>
+      ) : rows.length === 0 ? (
         <div className="card p-6 text-center">
           <p className="font-semibold">Nothing proposed</p>
           <p className="text-sm text-[var(--muted)] mt-2 leading-relaxed">
