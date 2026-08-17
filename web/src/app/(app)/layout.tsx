@@ -5,6 +5,7 @@ import { supabaseConfigured } from "@/lib/supabase/env";
 import ThemeToggle from "@/components/ThemeToggle";
 import ModeSwitch from "@/components/ModeSwitch";
 import { NAV } from "@/lib/nav";
+import CommandK from "@/components/CommandK";
 
 /**
  * The app shell.
@@ -134,6 +135,10 @@ export default async function AppLayout({
       <main className="flex-1 mx-auto w-full max-w-[1200px] px-5 py-7 pb-24 xl:pb-8">
         {children}
       </main>
+
+      {/* ⌘K is a LAYER, not a route — it opens over whatever you were doing.
+          It renders nothing until pressed and fetches nothing until opened. */}
+      <CommandK />
 
       {/* `xl:hidden` must mirror the top nav's `xl:flex` — in step, or a
           width exists with no navigation. `data-appshell` is how the print
