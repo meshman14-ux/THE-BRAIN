@@ -11,6 +11,7 @@ import {
   ACCEPT_PHOTO,
   attachmentPath,
   captureLine,
+  captureSource,
   fileTooLarge,
   MAX_UPLOAD_BYTES,
   mimeRejected,
@@ -194,7 +195,7 @@ export default function Capture({ door = null }: { door?: CaptureDoor | null }) 
         user_id: uid,
         storage_path: path,
         mime_type: file.type || "image/jpeg",
-        source: kind,
+        source: captureSource(kind),
       })
       .select("id")
       .single();

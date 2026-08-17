@@ -83,6 +83,24 @@ export function captureLine(kind: "photo" | "document", filename: string): strin
   return `${label} — ${filename}`;
 }
 
+/**
+ * `captures.source` is constrained at the database to exactly
+ * upload | camera | email | cowork | sheet — the vocabulary the OTHER
+ * capture session chose when it built that table. Our doors speak
+ * "photo" | "document"; this is the one seam where the two vocabularies
+ * meet, so it is the only place a mismatch can happen.
+ *
+ * A door that inserted its own word directly (`kind` itself) passed the
+ * check silently in dev and only failed against the real constraint —
+ * exactly the trap this function exists to close off with a type the
+ * compiler can verify.
+ */
+export type CaptureSource = "upload" | "camera" | "email" | "cowork" | "sheet";
+
+export function captureSource(kind: "photo" | "document"): CaptureSource {
+  return kind === "photo" ? "camera" : "upload";
+}
+
 export type Attachment = { path: string; mime: string | null; size: number | null };
 
 /**

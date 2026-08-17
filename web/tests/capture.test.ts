@@ -4,6 +4,7 @@ import {
   ALLOWED_MIME,
   attachmentPath,
   captureLine,
+  captureSource,
   fileTooLarge,
   MAX_UPLOAD_BYTES,
   mimeRejected,
@@ -120,5 +121,23 @@ describe("readAttachment — jsonb is never trusted", () => {
 describe("SIGNED_URL_SECONDS", () => {
   it("is the 5-minute cog-docs rule", () => {
     expect(SIGNED_URL_SECONDS).toBe(300);
+  });
+});
+
+describe("captureSource — the seam between two vocabularies", () => {
+  // captures.source is constrained at the database to exactly
+  // upload | camera | email | cowork | sheet. Our doors speak
+  // photo | document. Inserting the door's own word directly passed in
+  // dev and only failed against the live constraint — the exact bug this
+  // function and this test exist to close off.
+  it("maps every door to a word the database check constraint accepts", () => {
+    const ALLOWED = ["upload", "camera", "email", "cowork", "sheet"];
+    expect(ALLOWED).toContain(captureSource("photo"));
+    expect(ALLOWED).toContain(captureSource("document"));
+  });
+
+  it("maps photo to camera and document to upload", () => {
+    expect(captureSource("photo")).toBe("camera");
+    expect(captureSource("document")).toBe("upload");
   });
 });
