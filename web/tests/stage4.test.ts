@@ -188,6 +188,7 @@ describe("nav by mode", () => {
       // was the fourth surface answering "what am I doing" and the only
       // one outside the Plan strip, so it became the fourth chip in it.
       // The route is untouched; the OAuth callback still returns there.
+      "Reflect",
       "Capture",
       "Account",
       "Inbox",
@@ -209,6 +210,10 @@ describe("nav by mode", () => {
       // The estate, 2026-08-17. Divisions by what they are DOING — earning,
       // being built, or parked — which is the question /empire's stage list
       // does not answer. Desk job, so no phone slot, same as Holdings.
+      // Reflection, 2026-08-17. In every mode for the same reason Capture is:
+      // the ritual he historically does not open must not also be one he has
+      // to be in the right mode to reach.
+      "Reflect",
       "Estate",
       "Capture",
       "Account",
@@ -233,6 +238,11 @@ describe("nav by mode", () => {
       // items, down from thirteen — the header room §A7 said was nearly
       // spent, bought back twice by filing rather than cutting.
       "Advisor",
+      // Reflection, 2026-08-17. Every mode, for the same reason Capture is in
+      // every mode: the ritual he historically does not open must not also be
+      // one he has to be in the right mode to reach. The COLUMN is what makes
+      // a twelfth item cost nothing — 36px of height rather than a remeasure.
+      "Reflect",
       "Capture",
       "Account",
       "Inbox",

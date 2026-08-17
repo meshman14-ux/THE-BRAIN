@@ -248,6 +248,18 @@ export const NAV: NavItem[] = [
 
   /* -- the entry points, in every mode ----------------------------- */
   {
+    // Reflection. In every mode for the same reason Capture is: the ritual
+    // Jay historically does not open must not also be one he has to be in the
+    // right mode to reach. No phone slot — all three bars are already exactly
+    // five, and it is reached from the day screen and the shell.
+    key: "reflect",
+    href: "/reflect",
+    label: "Reflect",
+    icon: "☾",
+    modes: ["brain", "life", "empire"],
+    phoneModes: [],
+  },
+  {
     // The estate — divisions by what they are DOING, not by stage. Empire
     // only; no phone slot, because that bar is a grid of exactly five and
     // empire already fills it. Asking "what is actually earning?" is a desk

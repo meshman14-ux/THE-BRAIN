@@ -31,6 +31,7 @@ describe("the surface strips", () => {
   it("points every view at a real route", () => {
     const real = new Set([
       "/advisor",
+      "/advisor/board",
       "/diagnose",
       "/reviews",
       "/reviews/quarterly",
@@ -62,7 +63,15 @@ describe("the surface strips", () => {
   it("pairs the two screens that never linked to each other", () => {
     // Advisor and Diagnose had no link in either direction — the only
     // sibling pair in the system that didn't. The strip is that link.
-    expect(ASK_VIEWS.map((v) => v.href)).toEqual(["/advisor", "/diagnose"]);
+    //
+    // The board joined 2026-08-17 and sits BESIDE the advisor rather than
+    // replacing it: the advisor is one voice reading your own data back, the
+    // board is several voices disagreeing about a decision.
+    expect(ASK_VIEWS.map((v) => v.href)).toEqual([
+      "/advisor",
+      "/advisor/board",
+      "/diagnose",
+    ]);
   });
 
   it("holds the other three to what already existed, formalised", () => {

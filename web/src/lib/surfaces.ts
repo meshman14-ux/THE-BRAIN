@@ -32,6 +32,12 @@ export type SurfaceView = { key: string; href: string; label: string };
  */
 export const ASK_VIEWS: SurfaceView[] = [
   { key: "advisor", href: "/advisor", label: "Advisor" },
+  // The board sits BESIDE the advisor rather than replacing it. The advisor
+  // is one voice reading your own data back; the board is several voices
+  // disagreeing about a decision. Same surface, genuinely different questions,
+  // so one address each — and /advisor keeps its own, which an incoming
+  // (brain)/advisor/page.tsx would otherwise have collided with.
+  { key: "board", href: "/advisor/board", label: "The board" },
   { key: "diagnose", href: "/diagnose", label: "Diagnose" },
 ];
 
