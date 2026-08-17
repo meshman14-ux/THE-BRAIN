@@ -13,6 +13,8 @@ import {
   MAX_UPLOAD_BYTES,
 } from "@/lib/capture";
 
+import type { CaptureDoor } from "@/lib/push";
+
 const QUEUE_KEY = "brain-capture-queue-v1";
 
 /** Reads the offline queue from localStorage. */
@@ -31,7 +33,7 @@ function writeQueue(q: string[]) {
   }
 }
 
-export default function Capture() {
+export default function Capture({ door = null }: { door?: CaptureDoor | null }) {
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState<"photo" | "document" | null>(null);
@@ -70,7 +72,12 @@ export default function Capture() {
   };
 
   useEffect(() => {
-    boxRef.current?.focus();
+    // A relay landing (?door=…) wants the door in view, not the keyboard up.
+    if (door) {
+      document.getElementById(`door-${door}`)?.scrollIntoView({ block: "center" });
+    } else {
+      boxRef.current?.focus();
+    }
     setQueued(readQueue().length);
     loadRecent();
     flushQueue();
@@ -231,7 +238,8 @@ export default function Capture() {
         <p className="label mb-2.5">Other ways in</p>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
           <button
-            className="btn btn-ghost tap text-sm py-2.5"
+            id="door-photo"
+            className={`btn tap text-sm py-2.5 ${door === "photo" ? "" : "btn-ghost"}`}
             type="button"
             onClick={() => photoRef.current?.click()}
             disabled={uploading !== null}
@@ -239,7 +247,8 @@ export default function Capture() {
             {uploading === "photo" ? "Uploading…" : "📷 Take a photo"}
           </button>
           <button
-            className="btn btn-ghost tap text-sm py-2.5"
+            id="door-document"
+            className={`btn tap text-sm py-2.5 ${door === "document" ? "" : "btn-ghost"}`}
             type="button"
             onClick={() => docRef.current?.click()}
             disabled={uploading !== null}

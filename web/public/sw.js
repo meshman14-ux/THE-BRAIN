@@ -23,6 +23,41 @@ self.addEventListener("activate", (event) => {
   );
 });
 
+/* Phone relay — a push is a nudge to open capture, nothing more. The camera
+   can only ever fire from a tap on this device; the notification's job is to
+   put the capture page one tap away. */
+self.addEventListener("push", (event) => {
+  let data = {};
+  try {
+    data = event.data ? event.data.json() : {};
+  } catch {
+    /* a malformed payload is still a nudge */
+  }
+  event.waitUntil(
+    self.registration.showNotification(data.title || "THE BRAIN", {
+      body: data.body || "Tap to open capture.",
+      icon: "/icons/icon.png",
+      badge: "/icons/icon.png",
+      data: { url: data.url || "/capture?door=photo" },
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || "/capture";
+  event.waitUntil(
+    clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then((list) => {
+        for (const c of list) {
+          if (c.url.includes("/capture") && "focus" in c) return c.focus();
+        }
+        return clients.openWindow(url);
+      })
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET") return;

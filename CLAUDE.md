@@ -500,7 +500,23 @@ localStorage the way text does, and the file is still on the device. The 20MB ce
 the storage-path rules are pure and tested (`tests/capture.test.ts`). **Never make this
 bucket public** — it will hold photographed bills and paperwork.
 
-Verified in this repo: **1583/1583 tests pass** across 40 files (vitest), `npm run lint` is
+**The phone relay landed the same day** — the desk-to-pocket handoff, two rungs, both on
+`/capture` (`PhoneRelay.tsx`, pure half in `src/lib/push.ts`, 11 tests). The **QR rung**
+needs nothing: the desktop shows a code, the phone scans it and lands on
+`/capture?door=photo` with the photo door highlighted and scrolled into view (`readDoor`
+never trusts the param). The **push rung** is real web push: `push_subscriptions` (table
+45, same uniform RLS policy), push + notificationclick handlers in `sw.js`, and
+`/api/push/send`, which runs as the signed-in user so RLS means it can only ever buzz the
+caller's own devices — no service-role key, as everywhere. Endpoints answering 404/410
+are cleaned; a 429/5xx never deletes a row (deleting on a transient failure would
+silently unsubscribe a working phone, and there is a test). **Push needs
+`NEXT_PUBLIC_VAPID_PUBLIC_KEY` + `VAPID_PRIVATE_KEY` in Vercel** (optional
+`VAPID_SUBJECT`); without them the UI and the route both say so plainly and the QR rung
+still works. On iPhone, push requires the PWA installed to the home screen — Apple's
+rule. **The camera can never fire without a tap on the phone itself** — that is the
+browser's privacy rule, and the relay's job is only to put the door one tap away.
+
+Verified in this repo: **1594/1594 tests pass** across 41 files (vitest), `npm run lint` is
 clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 55 entries — 43 pages,
 `/_not-found`, and 11 API routes.** The route figure is counted from the build output rather
 than remembered: this section said 48 and §A9 said 39 at the same time, which is the same
