@@ -1635,7 +1635,13 @@ describe("app shell breakpoints", () => {
     // such budget, and this assertion is what stops it quietly becoming a
     // row again.
     expect(shell).toMatch(/hidden xl:flex flex-col/);
-    expect(shell).not.toMatch(/ml-auto hidden xl:flex items-center/);
+    // The ban is on the THING, not the class combination: NAV must not be
+    // rendered as a horizontal row in the header again. A small mode-scoped
+    // module row up there is fine and is asserted separately below — what
+    // cannot come back is the full twelve-item list fighting for width.
+    expect(shell).not.toMatch(/items-center[^>]*>\s*\{NAV\.map/);
+    // NAV renders exactly once, in the column and in the phone bar.
+    expect(shell.match(/\{NAV\.map/g) ?? []).toHaveLength(1);
   });
 
   it("keeps the sidebar's labels shrinkable", () => {
@@ -1643,6 +1649,28 @@ describe("app shell breakpoints", () => {
     // to min-width:auto, so a long label pushes the column wider instead of
     // truncating inside it. The `min-w-0` belongs on the shrinking child.
     expect(shell).toMatch(/min-w-0 flex-1 truncate/);
+  });
+
+  /* -- the quick bar, 2026-08-17 ----------------------------------- */
+
+  it("puts Capture in the header at EVERY width", () => {
+    // It is the entry point (locked decision 4). A thought had while looking
+    // for the capture button is a thought already half lost, so this is the
+    // one control that must not be behind a breakpoint or a mode.
+    expect(shell).toMatch(/href="\/capture"[\s\S]{0,400}Capture/);
+    expect(shell).not.toMatch(/hidden xl:[a-z-]+[^>]*href="\/capture"/);
+  });
+
+  it("scopes the header's module links to one system at a time", () => {
+    // LIFE has four modules and EMPIRE five. Rendering both in `brain` would
+    // put nine links back in the header and re-create the exact width problem
+    // the column was built to dissolve, so the links carry the layer as their
+    // mode filter rather than being listed per mode.
+    expect(shell).toMatch(/data-nav-modes=\{p\.layer\}/);
+  });
+
+  it("keeps the header's module row behind the same xl breakpoint", () => {
+    expect(shell).toMatch(/ml-auto hidden xl:flex items-center gap-0\.5/);
   });
 
   it("gives main a min-w-0 beside the fixed-width sidebar", () => {

@@ -5,6 +5,7 @@ import { supabaseConfigured } from "@/lib/supabase/env";
 import ThemeToggle from "@/components/ThemeToggle";
 import ModeSwitch from "@/components/ModeSwitch";
 import { NAV } from "@/lib/nav";
+import { ALL_PARENTS } from "@/lib/parents";
 import CommandK from "@/components/CommandK";
 
 /**
@@ -80,35 +81,71 @@ export default async function AppLayout({
             </span>
           </Link>
 
-          {/* The full nav appears at `xl` (1280px), NOT `lg`, and the number
-              is measured rather than chosen. In `brain` mode the bar carries
-              THIRTEEN items (Diagnose joined after the first measurement);
-              beside the brand, the mode switch, the theme toggle and
-              sign-out, twelve at `px-2.5` needed 1221px of header inside a
-              box capped at `max-w-[1200px]`. At `lg` that overflowed the
-              page by 197px, and it never fitted its own container at ANY
-              width — it simply stopped pushing the page once the viewport
-              was wide enough for the spill to land in the outer margin.
+          {/* THE HEADER'S WIDTH HISTORY, kept because it is the reason for the
+              shape of this file. The nav used to be a horizontal row here and
+              was permanently one item from overflowing: thirteen items at
+              `px-1.5` measured ~1173px inside a `max-w-[1200px]` box, and at
+              `lg` it pushed the page 197px sideways. It moved to a COLUMN on
+              2026-08-17, which removed the budget entirely — a fourteenth
+              item now costs 36px of height instead of a remeasure.
 
-              `px-1.5` is the second remeasurement: `px-2` brought twelve
-              inside 1200, then Diagnose's 74px put thirteen back over by
-              ~25px (canvas-measured against the real Public Sans). Thirteen
-              at `px-1.5` is ~1173px — inside with ~27px of room. If a
-              FOURTEENTH item ever joins this bar, measure again; the honest
-              alternatives at that point are a shorter label or fewer brain
-              items, not another padding shave.
+              What is left here is deliberately small and mode-scoped, so the
+              header can never go back to being the constraint. Every `xl:` in
+              this file is still one decision and they must stay in step: if
+              the phone bar hides before desktop navigation appears there is a
+              width with no navigation at all, and if `main` drops `pb-24`
+              early the bar covers the last row. */}
+          {/* The quick bar — the current system's modules, beside the switch
+              that chooses the system.
 
-              Every `xl:` in this file is part of that one decision — the top
-              nav, the mode switch's margin, sign-out, `main`'s bottom padding
-              and the phone bar. They must stay in step: if the bottom bar
-              hides before the top nav appears there is a width with no
-              navigation at all, and if `main` drops `pb-24` early the bar
-              covers the last row of the page. */}
+              MODE-SCOPED ON PURPOSE. LIFE carries four modules and EMPIRE
+              five; showing both in `brain` would put nine short links in the
+              header and re-create precisely the width problem the column was
+              built to dissolve. Brain is the neutral position and its sidebar
+              already lists everything, so it keeps the two actions and no
+              modules. Filtering is the same fail-closed CSS the nav uses, so
+              this is correct on the first frame with no JavaScript.
+
+              `xl` because that is every breakpoint in this file: below it the
+              phone bar is the navigation, and it already carries Capture. */}
+          <nav className="ml-auto hidden xl:flex items-center gap-0.5">
+            {ALL_PARENTS.map((p) => (
+              <Link
+                key={p.id}
+                href={p.href}
+                data-nav-modes={p.layer}
+                title={p.question}
+                className="px-2 py-2 rounded-[9px] text-[0.78rem] font-semibold text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--bg-2)] no-underline transition-colors whitespace-nowrap"
+              >
+                {p.name}
+              </Link>
+            ))}
+          </nav>
+
           {/* The two buttons from Jay's sheet. In the bar at every width —
               on a phone this is the only way to change system. */}
           <span className="ml-auto xl:ml-1.5 shrink-0">
             <ModeSwitch />
           </span>
+
+          {/* Capture, beside the switch, at EVERY width.
+              It is the entry point (locked decision 4) and the one control
+              whose value is entirely in being reachable without thinking —
+              a thought had while looking for the capture button is a thought
+              already half lost. The count is documents read and not yet
+              confirmed, so an unfinished capture cannot go quiet. */}
+          <Link
+            href="/capture"
+            className="btn tap shrink-0 text-[0.82rem] py-2 px-3 whitespace-nowrap no-underline flex items-center gap-1.5"
+          >
+            <span aria-hidden>＋</span>
+            <span>Capture</span>
+            {!!captureCount && (
+              <span className="mono text-[0.66rem] px-1.5 py-0.5 rounded-full bg-[var(--bg)]/30">
+                {captureCount}
+              </span>
+            )}
+          </Link>
           <span className="shrink-0">
             <ThemeToggle />
           </span>
