@@ -19,18 +19,27 @@ export default function SeededTasks({
   const [busy, setBusy] = useState<string | null>(null);
   const router = useRouter();
   const supabase = createClient();
+  const [err, setErr] = useState("");
 
   if (suggestions.length === 0) return null;
 
   async function add(s: SeedSuggestion) {
     setBusy(s.key);
-    await supabase.from("tasks").insert({
+    setErr("");
+    // The dedup is the task itself existing, so a silent failure means the
+    // suggestion reappears next render and the tap looks like it did
+    // nothing at all — twice.
+    const { error } = await supabase.from("tasks").insert({
       title: s.title,
       priority: "High",
       status: "open",
       ...(s.pillarId ? { pillar_id: s.pillarId } : {}),
     });
     setBusy(null);
+    if (error) {
+      setErr(error.message);
+      return;
+    }
     // The created task's title is the dedup — the suggestion satisfies
     // itself on the next render, no bookkeeping row anywhere.
     router.refresh();
@@ -51,16 +60,25 @@ export default function SeededTasks({
         : {};
     const dismissed = new Set(dismissedKeys(meta));
     dismissed.add(s.key);
-    await supabase
+    const { error } = await supabase
       .from("diagnostic_runs")
       .update({ meta: { ...meta, dismissed_suggestions: [...dismissed] } })
       .eq("id", s.runId);
     setBusy(null);
+    if (error) {
+      setErr(error.message);
+      return;
+    }
     router.refresh();
   }
 
   return (
     <div className="card p-4 grid gap-3">
+      {err && (
+        <p className="text-[0.78rem] m-0" style={{ color: "var(--bad)" }} role="alert">
+          ⚠ That did not save — {err}
+        </p>
+      )}
       <div>
         <p className="label">From your diagnostics · {suggestions.length}</p>
         <p className="text-[0.72rem] text-[var(--faint)] mt-1 leading-relaxed">

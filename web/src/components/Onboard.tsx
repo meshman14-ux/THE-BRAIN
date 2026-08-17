@@ -167,7 +167,17 @@ export default function Onboard({
     if (!done.complete || metaNow[ONBOARDED_AT_KEY] != null) return;
     const next = { ...metaNow, [ONBOARDED_AT_KEY]: new Date().toISOString() };
     setMeta(next);
-    await supabase.from("ventures").update({ meta: next }).eq("id", venture.id);
+    // Carries the EMPIRE placement keys (parent, proving, operated,
+    // pipeline) through, because `next` spreads the meta this component was
+    // handed rather than rebuilding it.
+    const { error: metaErr } = await supabase
+      .from("ventures")
+      .update({ meta: next })
+      .eq("id", venture.id);
+    if (metaErr) {
+      setError(metaErr.message);
+      return;
+    }
     router.refresh();
   }
 
@@ -265,7 +275,13 @@ export default function Onboard({
         .eq("status", "open")
         .limit(1);
       if ((existing ?? []).length === 0) {
-        await supabase.from("inbox").insert({ raw_text: text, source: "onboarding" });
+        const { error: inboxErr } = await supabase
+          .from("inbox")
+          .insert({ raw_text: text, source: "onboarding" });
+        if (inboxErr) {
+          setError(inboxErr.message);
+          return;
+        }
         setFlash("Added to your inbox to triage.");
       } else {
         setFlash("Already in your inbox.");

@@ -54,6 +54,7 @@ export type MealCard = Meal & {
 export default function Meals({ meals, today }: { meals: MealCard[]; today: string }) {
   const [f, setF] = useState<MealFilter>(NO_FILTER);
   const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState("");
   // "Placing": a pool pick waiting for a slot tap. {mealId, index into picks}.
   const [placing, setPlacing] = useState<{ mealId: string; i: number } | null>(null);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
@@ -115,11 +116,16 @@ export default function Meals({ meals, today }: { meals: MealCard[]; today: stri
 
   async function writePicks(m: MealCard, picks: MealPick[]) {
     setBusy(m.id);
-    await supabase
+    setErr("");
+    const { error } = await supabase
       .from("meals")
       .update({ meta: withPlan(m.meta, monday, picks) })
       .eq("id", m.id);
     setBusy(null);
+    if (error) {
+      setErr(error.message);
+      return;
+    }
     setPlacing(null);
     router.refresh();
   }
@@ -141,19 +147,36 @@ export default function Meals({ meals, today }: { meals: MealCard[]; today: stri
 
   async function toggleFavourite(m: MealCard) {
     setBusy(m.id);
-    await supabase.from("meals").update({ favourite: !m.favourite }).eq("id", m.id);
+    setErr("");
+    const { error } = await supabase
+      .from("meals")
+      .update({ favourite: !m.favourite })
+      .eq("id", m.id);
     setBusy(null);
+    if (error) {
+      setErr(error.message);
+      return;
+    }
     router.refresh();
   }
 
   async function cooked(m: MealCard) {
     if (m.last_cooked_on === today) return; // once per day — a double tap is one dinner
     setBusy(m.id);
-    await supabase
+    setErr("");
+    // The only writer of last_cooked_on, which is the entire nutrition
+    // signal: fedState reads it, the standing board scores from that, and
+    // readingsFromMeals feeds it to readiness. Fifty meals, none ever
+    // marked cooked — so if this has been failing, nothing said so.
+    const { error } = await supabase
       .from("meals")
       .update({ last_cooked_on: today, times_cooked: m.times_cooked + 1 })
       .eq("id", m.id);
     setBusy(null);
+    if (error) {
+      setErr(error.message);
+      return;
+    }
     router.refresh();
   }
 
@@ -199,6 +222,16 @@ export default function Meals({ meals, today }: { meals: MealCard[]; today: stri
 
   return (
     <div className="grid gap-4">
+      {err && (
+        <p
+          className="panel text-[0.82rem] m-0"
+          style={{ color: "var(--bad)", borderColor: "var(--bad)" }}
+          role="alert"
+        >
+          ⚠ That did not save — {err}
+        </p>
+      )}
+
       {/* -- this week: the pool and the grid ----------------------- */}
       <div className="panel grid gap-3">
         <div className="flex items-baseline gap-2 flex-wrap">

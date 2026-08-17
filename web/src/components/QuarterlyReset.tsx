@@ -98,12 +98,18 @@ export default function QuarterlyReset({
     const stamp = new Date().toISOString();
     await save({ completed_at: stamp });
     // The reset is itself a finish — recorded once, on the day it closed.
-    await supabase.from("finishes").insert({
+    // finishes is what the momentum test counts, so losing this one
+    // silently costs the quarter its only guaranteed entry.
+    const { error: finishErr } = await supabase.from("finishes").insert({
       title: `Closed ${label} — the quarterly reset`,
       kind: "milestone",
       happened_on: stamp.slice(0, 10),
     });
     setClosing(false);
+    if (finishErr) {
+      setErr(finishErr.message);
+      return;
+    }
     router.refresh();
   }
 
