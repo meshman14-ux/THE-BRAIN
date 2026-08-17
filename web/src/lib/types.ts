@@ -82,6 +82,8 @@ export type InboxItem = {
   raw_text: string;
   captured_at: string;
   status: string;
+  /** jsonb — may carry `attachment` for photo/document captures. Read via readAttachment, never trusted. */
+  meta?: unknown;
 };
 
 export type Priority = "High" | "Med" | "Low";

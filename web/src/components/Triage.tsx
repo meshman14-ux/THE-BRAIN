@@ -6,9 +6,14 @@ import { createClient } from "@/lib/supabase/client";
 import type { InboxItem, Pillar } from "@/lib/types";
 import { taskTitleFromCapture, noteFromCapture } from "@/lib/logic";
 
-type Props = { items: InboxItem[]; pillars: Pillar[] };
+type Props = {
+  items: InboxItem[];
+  pillars: Pillar[];
+  /** Short-lived signed URLs for rows carrying an attachment, keyed by item id. */
+  fileUrls?: Record<string, string>;
+};
 
-export default function Triage({ items, pillars }: Props) {
+export default function Triage({ items, pillars, fileUrls = {} }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
   const [err, setErr] = useState("");
@@ -90,6 +95,21 @@ export default function Triage({ items, pillars }: Props) {
             <p className="text-[0.94rem] leading-relaxed whitespace-pre-wrap">
               {item.raw_text}
             </p>
+            {fileUrls[item.id] && (
+              <p className="mt-2">
+                <a
+                  href={fileUrls[item.id]}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-sm text-[var(--accent)] underline underline-offset-2"
+                >
+                  View the file ↗
+                </a>
+                <span className="text-xs text-[var(--faint)] ml-2">
+                  link lasts 5 minutes — reload for a fresh one
+                </span>
+              </p>
+            )}
             <p className="text-xs text-[var(--faint)] mt-2">
               {new Date(item.captured_at).toLocaleString(undefined, {
                 weekday: "short",

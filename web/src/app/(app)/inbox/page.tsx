@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Triage from "@/components/Triage";
+import { readAttachment, SIGNED_URL_SECONDS } from "@/lib/capture";
 import type { InboxItem, Pillar } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -10,7 +11,7 @@ export default async function InboxPage() {
   const [{ data: items }, { data: pillars }] = await Promise.all([
     supabase
       .from("inbox")
-      .select("id, raw_text, captured_at, status")
+      .select("id, raw_text, captured_at, status, meta")
       .eq("status", "open")
       .order("captured_at", { ascending: true }),
     supabase
@@ -19,6 +20,22 @@ export default async function InboxPage() {
       .eq("active", true)
       .order("sort_order"),
   ]);
+
+  // Photo/document captures carry an attachment in the private `captures`
+  // bucket. Sign a short-lived URL per row here, server-side, so Triage can
+  // show the file without the bucket ever being public. A failed signing
+  // simply means no link — the row still triages as text.
+  const fileUrls: Record<string, string> = {};
+  await Promise.all(
+    (items ?? []).map(async (item) => {
+      const att = readAttachment(item.meta);
+      if (!att) return;
+      const { data } = await supabase.storage
+        .from("captures")
+        .createSignedUrl(att.path, SIGNED_URL_SECONDS);
+      if (data?.signedUrl) fileUrls[item.id] = data.signedUrl;
+    })
+  );
 
   return (
     <div className="max-w-[760px] mx-auto">
@@ -34,6 +51,7 @@ export default async function InboxPage() {
       <Triage
         items={(items ?? []) as InboxItem[]}
         pillars={(pillars ?? []) as Pillar[]}
+        fileUrls={fileUrls}
       />
     </div>
   );

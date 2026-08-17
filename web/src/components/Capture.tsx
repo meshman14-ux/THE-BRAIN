@@ -1,8 +1,17 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import type { InboxItem } from "@/lib/types";
+import {
+  ACCEPT_DOCUMENT,
+  ACCEPT_PHOTO,
+  attachmentPath,
+  captureLine,
+  fileTooLarge,
+  MAX_UPLOAD_BYTES,
+} from "@/lib/capture";
 
 const QUEUE_KEY = "brain-capture-queue-v1";
 
@@ -25,10 +34,14 @@ function writeQueue(q: string[]) {
 export default function Capture() {
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState<"photo" | "document" | null>(null);
   const [toast, setToast] = useState("");
+  const [error, setError] = useState("");
   const [recent, setRecent] = useState<InboxItem[]>([]);
   const [queued, setQueued] = useState(0);
   const boxRef = useRef<HTMLTextAreaElement>(null);
+  const photoRef = useRef<HTMLInputElement>(null);
+  const docRef = useRef<HTMLInputElement>(null);
 
   const supabase = createClient();
 
@@ -68,6 +81,7 @@ export default function Capture() {
   }, []);
 
   const flash = (msg: string) => {
+    setError("");
     setToast(msg);
     setTimeout(() => setToast(""), 2200);
   };
@@ -99,6 +113,69 @@ export default function Capture() {
     boxRef.current?.focus();
   }
 
+  /**
+   * The photo and document doors. The file goes to the private `captures`
+   * bucket first, then an inbox row points at it — so a file capture joins
+   * the same triage queue as a typed one, and never bypasses it.
+   *
+   * Unlike text, a file cannot queue in localStorage, so a failed upload says
+   * so plainly. The file is still on the device; nothing is lost by retrying.
+   */
+  async function handleFile(kind: "photo" | "document", file: File | undefined) {
+    if (!file || uploading) return;
+    setError("");
+
+    if (fileTooLarge(file.size)) {
+      setError(
+        `That file is ${(file.size / 1024 / 1024).toFixed(1)}MB — the ceiling is ${MAX_UPLOAD_BYTES / 1024 / 1024}MB. A photo of the page beats a scan of the book.`
+      );
+      return;
+    }
+
+    setUploading(kind);
+
+    const { data: userData } = await supabase.auth.getUser();
+    const uid = userData?.user?.id;
+    if (!uid) {
+      setError("No signed-in session — sign in again, then retry. The file is still on your device.");
+      setUploading(null);
+      return;
+    }
+
+    const path = attachmentPath(uid, file.name, Date.now());
+    const { error: upErr } = await supabase.storage
+      .from("captures")
+      .upload(path, file, { contentType: file.type || undefined });
+
+    if (upErr) {
+      setError(`The upload failed (${upErr.message}). The file is still on your device — try again.`);
+      setUploading(null);
+      return;
+    }
+
+    const { error: insErr } = await supabase.from("inbox").insert({
+      raw_text: captureLine(kind, file.name),
+      source: kind === "photo" ? "photo" : "upload",
+      meta: {
+        attachment: { path, mime: file.type || null, size: file.size },
+      },
+    });
+
+    if (insErr) {
+      // The file made it to storage but the inbox row did not — say exactly
+      // that, because "try again" would double the file and still be honest.
+      setError(
+        `The file uploaded but the inbox entry failed (${insErr.message}). Try again — a duplicate file is cheaper than a lost capture.`
+      );
+      setUploading(null);
+      return;
+    }
+
+    flash(kind === "photo" ? "Photo captured" : "Document captured");
+    setUploading(null);
+    loadRecent();
+  }
+
   return (
     <div className="grid gap-5">
       <form onSubmit={save} className="card p-4 grid gap-3">
@@ -126,9 +203,63 @@ export default function Capture() {
         </div>
       </form>
 
+      {/* The other three doors. Hidden inputs, real buttons — `capture` on the
+          photo input sends a phone straight to the camera. */}
+      <input
+        ref={photoRef}
+        type="file"
+        accept={ACCEPT_PHOTO}
+        capture="environment"
+        className="hidden"
+        onChange={(e) => {
+          handleFile("photo", e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+      <input
+        ref={docRef}
+        type="file"
+        accept={ACCEPT_DOCUMENT}
+        className="hidden"
+        onChange={(e) => {
+          handleFile("document", e.target.files?.[0]);
+          e.target.value = "";
+        }}
+      />
+
+      <section>
+        <p className="label mb-2.5">Other ways in</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          <button
+            className="btn btn-ghost tap text-sm py-2.5"
+            type="button"
+            onClick={() => photoRef.current?.click()}
+            disabled={uploading !== null}
+          >
+            {uploading === "photo" ? "Uploading…" : "📷 Take a photo"}
+          </button>
+          <button
+            className="btn btn-ghost tap text-sm py-2.5"
+            type="button"
+            onClick={() => docRef.current?.click()}
+            disabled={uploading !== null}
+          >
+            {uploading === "document" ? "Uploading…" : "📄 Upload a document"}
+          </button>
+          <Link href="/setup" className="btn btn-ghost tap text-sm py-2.5 text-center">
+            📋 Answer the questions
+          </Link>
+        </div>
+        <p className="text-xs text-[var(--faint)] mt-2 leading-relaxed">
+          A photo or document lands in the inbox like anything else and gets a
+          home at triage. No passwords, bank logins or PINs — not even in a photo.
+        </p>
+      </section>
+
       {toast && (
         <div className="text-sm text-[var(--good)] font-semibold">✓ {toast}</div>
       )}
+      {error && <p className="text-sm text-[var(--bad)]">⚠ {error}</p>}
 
       {recent.length > 0 && (
         <section>

@@ -487,7 +487,20 @@ URL and a magic-link round trip has been completed against it.
 
 ## A5. Build state (as of 2026-08-14)
 
-Verified in this repo: **1510/1510 tests pass** across 37 files (vitest), `npm run lint` is
+**The capture doors landed 2026-08-17.** `/capture` is four doors sharing one queue: the
+box, take a photo (camera-direct on phones via `capture="environment"`), upload a document,
+and answer the `/setup` questions. Files go to the **private `captures` storage bucket** —
+the project's FIRST bucket, migration `capture_attachments`, policies pinned to
+`bucket_id = 'captures'` and owner-scoped by path prefix (`<user_id>/…`) — and an inbox
+row points at each (`meta.attachment`, validated by `readAttachment` in
+`src/lib/capture.ts`, never trusted). A file capture therefore joins the SAME triage
+queue as a typed one and never bypasses it; Triage shows a 5-minute signed URL per
+attachment, signed server-side. A failed upload says so plainly — a file cannot queue in
+localStorage the way text does, and the file is still on the device. The 20MB ceiling and
+the storage-path rules are pure and tested (`tests/capture.test.ts`). **Never make this
+bucket public** — it will hold photographed bills and paperwork.
+
+Verified in this repo: **1583/1583 tests pass** across 40 files (vitest), `npm run lint` is
 clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 55 entries — 43 pages,
 `/_not-found`, and 11 API routes.** The route figure is counted from the build output rather
 than remembered: this section said 48 and §A9 said 39 at the same time, which is the same
