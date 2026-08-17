@@ -500,6 +500,72 @@ localStorage the way text does, and the file is still on the device. The 20MB ce
 the storage-path rules are pure and tested (`tests/capture.test.ts`). **Never make this
 bucket public** — it will hold photographed bills and paperwork.
 
+**The capture engine was MERGED with a second one on 2026-08-17, and the merge is the story.**
+Two sessions built a capture engine into this project the same afternoon. The other one's
+backend is live and was NOT rebuilt: `captures` (evidence), `capture_proposals` (opinion),
+`drive_folders` (22 folder ids — routing is data, not code), `apply_capture_proposal()`
+(`security definer`, table whitelist, `anon` revoked), and two edge functions —
+`capture-process` (vision extraction, sheet-aware at v3) and `capture-file-drive`. The
+frontend here was written against that live contract rather than against its zip, so the
+merge needed no files: `/capture/[id]` is the confirm screen, `src/lib/proposals.ts` is its
+pure half (19 tests).
+
+**The rule the whole engine turns on: nothing reaches a real table without an explicit
+accept, and proposals are per FIELD, not per document.** A statement whose balance reads
+correctly and whose APR is misread gives you the balance and costs you only the APR.
+All-or-nothing confirmation is why capture systems get switched off.
+
+**Two defects were found by checking that pipeline against the real schema**, both of which
+would have failed in front of Jay rather than in a test. The extractor proposes tasks with
+`status: 'todo'` and `priority: 'Normal'`; neither exists here, so **every task proposal —
+the one kind EVERY document produces — would have raised on Accept.** Normalised in
+`apply_capture_proposal`, which is the seam every proposal must cross whatever produced it;
+unknown values still fail loudly rather than being coerced. And **`captures.user_id` has no
+default**, unlike the other 44 tables, so it is set explicitly on insert — left to
+`auth.uid()` the row would be invisible to its owner forever (the `cog_config` trap).
+
+**The bucket is shared, and it is THEIR configuration that won**: `captures` caps at 25MB and
+allows jpeg/png/webp/heic/pdf only. `ALLOWED_MIME` in `capture.ts` is that list, and
+`ACCEPT_DOCUMENT` is derived from it — a picker offering a type the bucket refuses is a
+guaranteed failed upload, and there is a test holding the two in step.
+
+**The command centre landed 2026-08-17**, in two commits kept separate so the invasive half
+can be reverted alone.
+
+- **⌘K is a LAYER, not a route** (`CommandK.tsx`, pure half in `src/lib/commandk.ts`), and
+  that is the whole difference from the `/search` page it replaces: the old one made you
+  leave what you were doing to look something up. Pages, divisions, people, notes and
+  vehicles; fetched ONCE, lazily, on first open, from the keystroke rather than from an
+  effect watching `open` — so a session that never presses it costs nothing and the
+  `set-state-in-effect` exception list stays at four files. Ranking is deliberately
+  explicable (exact → prefix → word boundary → substring → hint-only last), because a search
+  whose order you cannot predict is one you stop trusting. No palette library: this app has
+  no client-side query layer and does not need its first dependency to render a list.
+- **`/estate`** groups divisions by what they are DOING, which `/empire`'s stage list does
+  not answer. Parked beats any stage (not-active is a decision already taken); an `idea` is
+  *being built*, because you still intend to. **Empty groups still render** — "nothing is
+  earning" is the most useful sentence the page can say. MAINFRAME never appears.
+- **The nav is a COLUMN, and that dissolves a problem rather than moving it.** The horizontal
+  bar had been one item from overflowing since August — thirteen items at 1173px inside a
+  1200px box, canvas-measured, remeasured twice, with this file admitting the next honest
+  step was a shorter label or fewer items. A vertical list has no such budget: a fourteenth
+  item costs 36px of height. Estate joined the same day and needed no measuring. Every rule
+  the bar kept, the column keeps — same `xl` breakpoint, same `data-nav-modes` fail-closed
+  CSS filtering, counts intact, plus a new one on Capture for documents read but not yet
+  confirmed.
+- **`/` is the DAY, not the dashboard.** A dashboard answers "how are things?", a question
+  you ask sometimes; the day answers "what am I doing next?", which is where a morning
+  starts. **`MODE_HOME` is deliberately unchanged** — selecting a system still lands on that
+  system's dashboard, because that IS a "how are things" question and `/day` is not scoped to
+  a system.
+
+**Three instructions in the incoming handover did not apply to this repo, and were checked
+rather than followed.** It asks for an edit to `tailwind.config.ts` — there isn't one, this
+is Tailwind v4 with the tokens in `globals.css` under `@theme`. It asks for a
+`brain-theme.css` defining `--brain-*` colours, which would be a **second palette** beside
+Palette B — exactly what `tests/palette.test.ts` exists to prevent. Its route-collision
+warning was real (`/day` already exists). Its ten "ghost routes" are all already gone.
+
 **The phone relay landed the same day** — the desk-to-pocket handoff, two rungs, both on
 `/capture` (`PhoneRelay.tsx`, pure half in `src/lib/push.ts`, 11 tests). The **QR rung**
 needs nothing: the desktop shows a code, the phone scans it and lands on
@@ -516,7 +582,7 @@ still works. On iPhone, push requires the PWA installed to the home screen — A
 rule. **The camera can never fire without a tap on the phone itself** — that is the
 browser's privacy rule, and the relay's job is only to put the door one tap away.
 
-Verified in this repo: **1594/1594 tests pass** across 41 files (vitest), `npm run lint` is
+Verified in this repo: **1643/1643 tests pass** across 43 files (vitest), `npm run lint` is
 clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 55 entries — 43 pages,
 `/_not-found`, and 11 API routes.** The route figure is counted from the build output rather
 than remembered: this section said 48 and §A9 said 39 at the same time, which is the same
