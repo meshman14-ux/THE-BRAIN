@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { functionErrorMessage } from "@/lib/fnerror";
 import {
   ENERGY_WORDS,
   energyWord,
@@ -156,11 +157,12 @@ export default function Reflect({
     });
     if (error) {
       // Never lose the words because the reader was unavailable.
+      const why = await functionErrorMessage(error);
       const kept = await save({ transcript });
       setErr(
         kept
-          ? `Saved your words, but the Advisor could not read them (${error.message}).`
-          : `The Advisor failed (${error.message}) and so did saving.`
+          ? `Saved your words, but the Advisor could not read them — ${why}`
+          : `The Advisor failed — ${why} — and so did saving.`
       );
     } else {
       setMsg("Read and filed.");

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { InboxItem } from "@/lib/types";
+import { functionErrorMessage } from "@/lib/fnerror";
 import {
   ACCEPT_DOCUMENT,
   ACCEPT_PHOTO,
@@ -225,7 +226,7 @@ export default function Capture({ door = null }: { door?: CaptureDoor | null }) 
     });
     if (fnErr) {
       setError(
-        `Stored safely, but reading it failed (${fnErr.message}). Open it from the list to try again.`
+        `Stored safely, but reading it failed — ${await functionErrorMessage(fnErr)}. Open it from the list to try again.`
       );
     }
     router.push(`/capture/${capture.id}`);

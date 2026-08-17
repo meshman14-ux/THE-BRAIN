@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { countVote, POSITION_WORD, type Opinion } from "@/lib/reflect";
+import { functionErrorMessage } from "@/lib/fnerror";
 
 type Seat = { key: string; name: string; brief: string; bias: string };
 
@@ -51,9 +52,8 @@ export default function AdvisorBoard({ seats }: { seats: Seat[] }) {
       body: { mode: "board", question: q },
     });
     if (error) {
-      setErr(
-        `The board could not sit — ${error.message}. If that names a missing API key, it is a setting rather than a fault here.`
-      );
+      // The function's own words, not supabase-js's generic line.
+      setErr(`The board could not sit — ${await functionErrorMessage(error)}`);
     } else {
       setOut(data as Hearing);
     }
