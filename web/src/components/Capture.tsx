@@ -11,6 +11,7 @@ import {
   captureLine,
   fileTooLarge,
   MAX_UPLOAD_BYTES,
+  mimeRejected,
 } from "@/lib/capture";
 
 import type { CaptureDoor } from "@/lib/push";
@@ -139,6 +140,13 @@ export default function Capture({ door = null }: { door?: CaptureDoor | null }) 
       return;
     }
 
+    if (mimeRejected(file.type)) {
+      setError(
+        `The captures bucket takes photos and PDFs only — ${file.type} is not one. Photograph the page, or print it to PDF first.`
+      );
+      return;
+    }
+
     setUploading(kind);
 
     const { data: userData } = await supabase.auth.getUser();
@@ -253,7 +261,7 @@ export default function Capture({ door = null }: { door?: CaptureDoor | null }) 
             onClick={() => docRef.current?.click()}
             disabled={uploading !== null}
           >
-            {uploading === "document" ? "Uploading…" : "📄 Upload a document"}
+            {uploading === "document" ? "Uploading…" : "📄 Upload a PDF or scan"}
           </button>
           <Link href="/setup" className="btn btn-ghost tap text-sm py-2.5 text-center">
             📋 Answer the questions

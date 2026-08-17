@@ -11,15 +11,40 @@
  * bill is exactly the kind of thing the cog-docs precedent exists for.
  */
 
+/**
+ * What the bucket itself allows. The `captures` bucket is configured with this
+ * exact list, so anything outside it is rejected by storage no matter what the
+ * file picker offered — which is why the accept attributes are DERIVED from
+ * this constant rather than written separately. A picker that offers a type
+ * the bucket refuses is a guaranteed failed upload.
+ */
+export const ALLOWED_MIME = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "image/heic",
+  "application/pdf",
+] as const;
+
 /** What the document door accepts. Images included — a screenshot is a document. */
-export const ACCEPT_DOCUMENT = ".pdf,.docx,.txt,.csv,image/*";
+export const ACCEPT_DOCUMENT = ALLOWED_MIME.join(",");
 /** What the photo door accepts. `capture` on the input sends phones to the camera. */
 export const ACCEPT_PHOTO = "image/*";
 
 /**
- * Upload ceiling. Supabase free tier allows 50MB per object; 20MB is plenty
- * for a phone photo or a scanned PDF and keeps a fat video from eating the
- * project's storage by accident.
+ * True when storage will refuse this file's type. An empty mime (some Android
+ * pickers) is allowed through — the extension check has already narrowed it,
+ * and refusing on a missing header would block real photos.
+ */
+export function mimeRejected(mime: string): boolean {
+  if (!mime) return false;
+  return !(ALLOWED_MIME as readonly string[]).includes(mime);
+}
+
+/**
+ * Upload ceiling. The bucket caps objects at 25MB; 20MB here keeps the app's
+ * refusal ahead of storage's, so the user gets our sentence rather than a raw
+ * storage error.
  */
 export const MAX_UPLOAD_BYTES = 20 * 1024 * 1024;
 

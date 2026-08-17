@@ -1,13 +1,38 @@
 import { describe, it, expect } from "vitest";
 import {
+  ACCEPT_DOCUMENT,
+  ALLOWED_MIME,
   attachmentPath,
   captureLine,
   fileTooLarge,
   MAX_UPLOAD_BYTES,
+  mimeRejected,
   readAttachment,
   sanitizeFilename,
   SIGNED_URL_SECONDS,
 } from "../src/lib/capture";
+
+describe("the bucket's own mime list is the single source", () => {
+  it("offers exactly what storage allows — a picker that offers more guarantees a failed upload", () => {
+    expect(ACCEPT_DOCUMENT.split(",")).toEqual([...ALLOWED_MIME]);
+  });
+
+  it("rejects types the bucket refuses", () => {
+    expect(
+      mimeRejected("application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+    ).toBe(true);
+    expect(mimeRejected("text/csv")).toBe(true);
+    expect(mimeRejected("video/mp4")).toBe(true);
+  });
+
+  it("passes the five the bucket takes", () => {
+    for (const m of ALLOWED_MIME) expect(mimeRejected(m)).toBe(false);
+  });
+
+  it("lets an empty mime through — some Android pickers send none, and refusing would block real photos", () => {
+    expect(mimeRejected("")).toBe(false);
+  });
+});
 
 describe("sanitizeFilename", () => {
   it("keeps ordinary names", () => {
