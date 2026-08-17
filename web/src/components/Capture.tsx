@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import type { InboxItem } from "@/lib/types";
 import {
@@ -15,6 +16,10 @@ import {
 } from "@/lib/capture";
 
 import type { CaptureDoor } from "@/lib/push";
+import {
+  captureLine as captureStatusLine,
+  type CaptureRow,
+} from "@/lib/proposals";
 
 const QUEUE_KEY = "brain-capture-queue-v1";
 
@@ -41,11 +46,13 @@ export default function Capture({ door = null }: { door?: CaptureDoor | null }) 
   const [toast, setToast] = useState("");
   const [error, setError] = useState("");
   const [recent, setRecent] = useState<InboxItem[]>([]);
+  const [captures, setCaptures] = useState<CaptureRow[]>([]);
   const [queued, setQueued] = useState(0);
   const boxRef = useRef<HTMLTextAreaElement>(null);
   const photoRef = useRef<HTMLInputElement>(null);
   const docRef = useRef<HTMLInputElement>(null);
 
+  const router = useRouter();
   const supabase = createClient();
 
   const loadRecent = async () => {
@@ -56,6 +63,16 @@ export default function Capture({ door = null }: { door?: CaptureDoor | null }) 
       .order("captured_at", { ascending: false })
       .limit(5);
     setRecent((data ?? []) as InboxItem[]);
+
+    // Documents still worth a decision: anything not fully settled, newest
+    // first. A capture nobody confirmed must never become invisible.
+    const { data: caps } = await supabase
+      .from("captures")
+      .select("id, storage_path, mime_type, status, doc_type, title, confidence, error, captured_at")
+      .neq("status", "confirmed")
+      .order("captured_at", { ascending: false })
+      .limit(6);
+    setCaptures((caps ?? []) as CaptureRow[]);
   };
 
   /** Push anything captured while offline. */
@@ -168,27 +185,50 @@ export default function Capture({ door = null }: { door?: CaptureDoor | null }) 
       return;
     }
 
-    const { error: insErr } = await supabase.from("inbox").insert({
-      raw_text: captureLine(kind, file.name),
-      source: kind === "photo" ? "photo" : "upload",
-      meta: {
-        attachment: { path, mime: file.type || null, size: file.size },
-      },
-    });
+    // The evidence row. `captures.user_id` has NO default, so it is set
+    // explicitly — a row without an owner is invisible to RLS forever after.
+    const { data: capture, error: capErr } = await supabase
+      .from("captures")
+      .insert({
+        user_id: uid,
+        storage_path: path,
+        mime_type: file.type || "image/jpeg",
+        source: kind,
+      })
+      .select("id")
+      .single();
 
-    if (insErr) {
-      // The file made it to storage but the inbox row did not — say exactly
-      // that, because "try again" would double the file and still be honest.
+    if (capErr || !capture) {
+      // The file is in storage but nothing points at it. Fall back to the
+      // inbox so the capture still exists as something Jay can see and act on.
+      await supabase.from("inbox").insert({
+        raw_text: captureLine(kind, file.name),
+        source: kind === "photo" ? "photo" : "upload",
+        meta: { attachment: { path, mime: file.type || null, size: file.size } },
+      });
       setError(
-        `The file uploaded but the inbox entry failed (${insErr.message}). Try again — a duplicate file is cheaper than a lost capture.`
+        `Uploaded, but the reader could not be started (${capErr?.message ?? "unknown"}). It is in your inbox as a plain photo.`
       );
       setUploading(null);
+      loadRecent();
       return;
     }
 
-    flash(kind === "photo" ? "Photo captured" : "Document captured");
+    flash(kind === "photo" ? "Photo captured — reading it…" : "Document captured — reading it…");
     setUploading(null);
-    loadRecent();
+
+    // Extraction runs under the caller's token, so RLS applies to it too.
+    // A failure here is not a lost capture: the row stays, marked failed, and
+    // the list offers a retry.
+    const { error: fnErr } = await supabase.functions.invoke("capture-process", {
+      body: { capture_id: capture.id },
+    });
+    if (fnErr) {
+      setError(
+        `Stored safely, but reading it failed (${fnErr.message}). Open it from the list to try again.`
+      );
+    }
+    router.push(`/capture/${capture.id}`);
   }
 
   return (
@@ -277,6 +317,29 @@ export default function Capture({ door = null }: { door?: CaptureDoor | null }) 
         <div className="text-sm text-[var(--good)] font-semibold">✓ {toast}</div>
       )}
       {error && <p className="text-sm text-[var(--bad)]">⚠ {error}</p>}
+
+      {captures.length > 0 && (
+        <section>
+          <p className="label mb-2.5">Documents read</p>
+          <ul className="grid gap-2 list-none p-0 m-0">
+            {captures.map((c) => (
+              <li key={c.id}>
+                <Link
+                  href={`/capture/${c.id}`}
+                  className="card px-4 py-3 flex items-center gap-2 no-underline"
+                >
+                  <span className="min-w-0 flex-1 text-sm leading-relaxed truncate">
+                    {captureStatusLine(c)}
+                  </span>
+                  <span className="chip shrink-0 text-xs">
+                    {c.status === "extracted" ? "confirm" : c.status}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {recent.length > 0 && (
         <section>
