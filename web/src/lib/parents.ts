@@ -122,7 +122,10 @@ export const LIFE_PARENTS: ParentArea[] = [
   {
     id: "standing",
     layer: "life",
-    name: "Standing",
+    // Renamed 2026-08-18 (Jay's sheet). `id` stays "standing" — the
+    // registry key — because nothing hangs off it by name; only the
+    // label people actually read changes.
+    name: "Personal Life",
     href: "/life",
     icon: "◧",
     question: "How am I actually doing?",
@@ -199,15 +202,20 @@ export const LIFE_PARENTS: ParentArea[] = [
   {
     id: "people",
     layer: "life",
-    name: "People",
-    href: "/life/people",
+    // Renamed 2026-08-18 (Jay's sheet) — "Family" is the better word:
+    // /life/family is a list of the people you owe time to, not a
+    // catalogue of everyone. `id` stays "people" (the registry key,
+    // unchanged) and the route moved with the name — see the
+    // /life/people redirect stub.
+    name: "Family",
+    href: "/life/family",
     icon: "◎",
     question: "Am I present?",
     views: [
       // Roster IS this page — logging contact is doing, and its place is
       // the parent itself rather than a child of it. This is why a `page`
       // view carries its own path instead of deriving one.
-      { id: "roster", label: "Roster", hint: "who, and how often", kind: "page", path: "/life/people" },
+      { id: "roster", label: "Roster", hint: "who, and how often", kind: "page", path: "/life/family" },
       { id: "occasions", label: "Occasions", hint: "birthdays and dates", kind: "filter" },
     ],
     cost: "one tap",
@@ -251,8 +259,9 @@ export const EMPIRE_PARENTS: ParentArea[] = [
   {
     id: "trade",
     layer: "empire",
-    name: "Trade",
-    href: "/empire/trade",
+    // Renamed 2026-08-18 (Jay's sheet). `id` stays "trade" (registry key).
+    name: "Retail",
+    href: "/empire/retail",
     icon: "⚒",
     question: "What am I selling my hours to?",
     views: [
@@ -274,8 +283,9 @@ export const EMPIRE_PARENTS: ParentArea[] = [
   {
     id: "digital",
     layer: "empire",
-    name: "Digital",
-    href: "/empire/digital",
+    // Renamed 2026-08-18 (Jay's sheet). `id` stays "digital" (registry key).
+    name: "Online",
+    href: "/empire/online",
     icon: "◉",
     question: "What is built once and kept?",
     views: [{ id: "builds", label: "Builds", hint: "software and platforms", kind: "filter" }],
@@ -284,8 +294,9 @@ export const EMPIRE_PARENTS: ParentArea[] = [
   {
     id: "pipeline",
     layer: "empire",
-    name: "Pipeline",
-    href: "/empire/pipeline",
+    // Renamed 2026-08-18 (Jay's sheet). `id` stays "pipeline" (registry key).
+    name: "Ideas",
+    href: "/empire/ideas",
     icon: "✦",
     question: "What is not started yet?",
     views: [

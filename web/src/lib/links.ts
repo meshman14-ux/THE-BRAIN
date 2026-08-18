@@ -123,7 +123,7 @@ export const LINKABLE: Record<LinkableType, LinkableSpec> = {
     table: "people",
     titleColumn: "name",
     reach: "list",
-    href: () => `/life/people`,
+    href: () => `/life/family`,
   },
 };
 

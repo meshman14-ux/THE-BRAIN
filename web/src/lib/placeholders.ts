@@ -58,7 +58,7 @@ export const PLACEHOLDERS: Placeholder[] = [
   // "vehicles" was retired 2026-08-01: the view it promised is built at
   // /life/vehicles. BRANCH_ALIASES redirects the old slug there.
   // "family" left 2026-08-10: the people ledger it promised — cadences,
-  // occasions and the one-tap contact log — is built at /life/people.
+  // occasions and the one-tap contact log — is built at /life/family.
   // "opportunities" left 2026-08-14, and it was the LAST entry in this
   // registry. The deal board is built at the same address, /opportunities,
   // so the real route simply wins over the catch-all — the same way
@@ -149,7 +149,7 @@ export const BUILT_BRANCHES: Record<string, { name: string; href: string }> = {
   finance: { name: "Finance", href: "/life/money" },
   food: { name: "Food", href: "/life/health/food" },
   "debt-payoff": { name: "Debt payoff plan", href: "/life/money" },
-  family: { name: "Family", href: "/life/people" },
+  family: { name: "Family", href: "/life/family" },
   ...Object.fromEntries(
     DIVISION_NAMES.map((name) => [
       ventureSlug(name),
