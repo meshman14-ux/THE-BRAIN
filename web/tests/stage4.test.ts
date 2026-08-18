@@ -294,6 +294,51 @@ describe("the four boxes", () => {
       }
     }
   });
+
+  /* -- NO NAV ITEM MAY POINT AT A REDIRECT, 2026-08-18 --------------
+   *
+   * Three of them did. Health pointed at /life/health, Food at
+   * /life/food and Debt Pay Off Plan at /life/debts — every one of them
+   * a page whose entire body is `redirect(...)` into the address that
+   * actually holds the thing. Nothing was broken and nothing looked
+   * wrong, which is exactly why it survived a rebuild of the whole nav.
+   *
+   * The redirects themselves MUST stay: house rule 12 is redirect,
+   * never delete, and it exists because LIFE_OS v2 step 1 broke it four
+   * times. The rule is narrower than that — a nav is the one place the
+   * canonical address has to be written down, because it is where you
+   * learn where things live. Every other link in the app is allowed to
+   * be an old one that still works.
+   *
+   * This reads the page files rather than trusting a list, so it keeps
+   * working when a page becomes a redirect LATER — which is the
+   * direction this repo actually moves in.
+   */
+  it("never points a nav item at a page that only redirects", () => {
+    const offenders: string[] = [];
+
+    for (const n of NAV) {
+      if (n.href.includes("[")) continue; // no dynamic hrefs today
+      const file = new URL(`../src/app/(app)${n.href}/page.tsx`, import.meta.url);
+
+      let src: string;
+      try {
+        src = readFileSync(file, "utf8");
+      } catch {
+        // A nav item whose page does not exist at all is the OTHER
+        // failure this guards — the /motivation case, a 404 in the nav.
+        offenders.push(`${n.label} → ${n.href} (no page.tsx)`);
+        continue;
+      }
+
+      if (/\bredirect\s*\(/.test(src)) {
+        const to = src.match(/\bredirect\s*\(\s*["'`]([^"'`]+)/)?.[1] ?? "?";
+        offenders.push(`${n.label} → ${n.href} redirects to ${to}`);
+      }
+    }
+
+    expect(offenders, offenders.join("; ")).toEqual([]);
+  });
 });
 
 const labelsIn = (g: string) =>

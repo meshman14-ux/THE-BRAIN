@@ -708,8 +708,8 @@ list you *read*.
 |---|---|
 | **Workspace** | Today `/day` · Calendar · Work Diary `/week` · Feed the System `/capture` · Tasks `/planner` · Weekly Review |
 | **Money** | Finances `/life/money` · Ventures `/empire` · Vehicles |
-| **Life Plan** | Health · Food · Family `/life/people` |
-| **Information Library** | Library · Life Principles · Documents `/library/notes` · Debt Pay Off Plan |
+| **Life Plan** | Health `/life/body` · Food `/life/body/food` · Family `/life/people` |
+| **Information Library** | Library · Life Principles · Documents `/library/notes` · Debt Pay Off Plan `/life/money/accounts` |
 
 - **The four groups are the SAME in every mode, and that is the design rather than an
   oversight.** A group whose membership changed under you would defeat the point of naming
@@ -722,8 +722,9 @@ list you *read*.
   all four boxes, so neither could sit honestly inside one. **Both keep a phone-bar slot** —
   a control promoted to the top bar must not vanish below `xl`, which is exactly where the
   header's own links hide.
-- **Eleven addresses are in the registry with no box** (`hidden: true`): dashboard, life,
-  body, estate, holdings, opportunities, goals, checkin, reflect, diagnose, account. Real
+- **Ten addresses are in the registry with no box** (`hidden: true`): dashboard, life,
+  estate, holdings, opportunities, goals, checkin, reflect, diagnose, account. (`body` was
+  the eleventh until 2026-08-18, when Health took over its address — see below.) Real
   links point at each from inside pages, and ⌘K finds them all by name. They stay in the
   registry because **an address you can only reach by typing it is a page nobody opens**; they
   stay out of the boxes because a sidebar that lists everything is the list you scan.
@@ -750,14 +751,36 @@ list you *read*.
   still a five-column grid and still yields exactly five: **Today · Feed · Tasks · Advisor ·
   Inbox**, Finances having given up its slot to Advisor.
 
-**Three of the fifteen nav hrefs land on a redirect rather than the canonical address**, and
-that is recorded rather than quietly fixed. Health points at `/life/health` (→ `/life/body`),
-Food at `/life/food` (→ `/life/body/food`) and Debt Pay Off Plan at `/life/debts`. Every one
-resolves, and house rule 12 is why the redirects exist at all — but a nav is the one place
-the canonical address should be written down, and an extra hop on three of fifteen is a paper
-cut that will outlive whoever notices it. See §A8 item 22.
+**Three nav hrefs pointed at a redirect rather than the canonical address, and were corrected
+on 2026-08-18.** Health pointed at `/life/health` (→ `/life/body`), Food at `/life/food`
+(→ `/life/body/food`), and Debt Pay Off Plan at `/life/debts` (→ `/life/money/accounts`).
+Nothing was broken and nothing looked wrong, which is exactly how it survived a rebuild of
+the entire nav.
 
-Verified in this repo on 2026-08-18: **1696/1696 tests pass** across 46 files (vitest),
+**The redirects themselves stay** — house rule 12 is redirect, never delete, and it exists
+because LIFE_OS v2 step 1 broke it four times. The rule is narrower than that: **a nav is the
+one place the canonical address has to be written down**, because it is where you learn where
+things live. Every other link in the app is allowed to be an old one that still works.
+
+Two consequences worth knowing, because neither was a free substitution:
+
+- **`body` left the registry.** Health now carries `/life/body` directly, and two entries
+  onto one href is precisely what the uniqueness test forbids. The registry-only list is
+  therefore **ten** addresses, not eleven. The NAME survives where a name belongs: ⌘K lists
+  "Body" as an alias for the same page, and two names for one place is wrong in a nav and
+  right in a search box.
+- **Debt Pay Off Plan points at Accounts, not at the debt tab.** `/life/money` already answers
+  *"what do I owe, and when is it gone?"* — it **is** the debt tab, that being its default —
+  and Finances points there. Accounts is the distinct page: creditor by creditor, and where
+  the plan schedule actually lives.
+
+**A test now holds this permanently.** `stage4.test.ts` reads each nav item's `page.tsx` off
+disk and fails on any whose body calls `redirect(`, naming the item and where it bounces to.
+It reads the files rather than trusting a list, so it also catches a page that becomes a
+redirect *later* — which is the direction this repo actually moves in — and it fails the same
+way for a nav item whose page does not exist at all, which is the `/motivation` case.
+
+Verified in this repo on 2026-08-18: **1697/1697 tests pass** across 46 files (vitest),
 `npm run lint` is clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 67 entries
 — 54 pages, `/_not-found`, and 12 API routes.** Every one of these figures is counted from
 the tool that produces it rather than remembered. That discipline exists because this file
@@ -1560,7 +1583,8 @@ confirming a debt balance is, which is already why Money and People have no phon
 /(app)/life/debts      REDIRECT → /life/money/accounts. Debts stopped being a
                        sibling of Money and became a part of it; the address
                        survives because house rule 12 is redirect, never delete.
-                       The nav's "Debt Pay Off Plan" still points here (§A8-20)
+                       Nothing in the nav points here any more (corrected
+                       2026-08-18) — it exists for old links and bookmarks
 /(app)/life/vehicles   REDIRECT → /life/money/vehicles. A vehicle is a recurring
                        cost and a set of legal deadlines, so it is filed beside
                        the money it costs
@@ -1945,14 +1969,14 @@ Open items:
    reason and inherits the same fragility. It is recorded rather than fixed: the honest fix
    is a stable key column on `metrics` (a migration), not a second hand-map — which is the
    mistake `slugifyName` exists to prevent.
-22. **Three of the fifteen nav hrefs point at a redirect rather than the canonical address.**
-   Health → `/life/health` → `/life/body`; Food → `/life/food` → `/life/body/food`; Debt Pay
-   Off Plan → `/life/debts` → `/life/money/accounts`. Every one resolves and nothing is
-   broken, so this is a paper cut rather than a bug — but the nav is the one place the
-   canonical address ought to be written down, and each of these costs a round trip on every
-   click. The fix is three href edits in `src/lib/nav.ts` plus the three test expectations
-   that name them. The redirects themselves must stay whatever happens: house rule 12 is
-   redirect, never delete, and it exists because LIFE_OS v2 step 1 broke it four times.
+22. ~~Three nav hrefs point at a redirect rather than the canonical address.~~ **Fixed
+   2026-08-18**, and closed with a guard rather than with three edits. Health now points at
+   `/life/body`, Food at `/life/body/food` and Debt Pay Off Plan at `/life/money/accounts`;
+   all three redirects remain in place for old links (house rule 12). `body` left the
+   registry as a duplicate and survives as a ⌘K alias, so the `hidden` list is ten. **The
+   guard is the part worth keeping**: `stage4.test.ts` reads each nav item's `page.tsx` off
+   disk and fails on any that only redirects — so this cannot come back, including by a page
+   turning into a redirect after the nav item was written. See §A5.
 23. **The four nav boxes have not been seen on a real phone or by a signed-in user.** They
    were rendered headless at 260px in both themes and the whole suite is green, but the
    session that built them could not reach Supabase, and the session that applied the patch
@@ -1969,7 +1993,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1696 tests — must be green before build
+npm test                       # 1697 tests — must be green before build
 npm run lint                   # ESLint — clean before you push
 npm run build                  # 67 entries — green before you push
 ```
