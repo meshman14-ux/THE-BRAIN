@@ -83,15 +83,19 @@ describe("the surface strips", () => {
 
 describe("the nav after the merges", () => {
   it("keeps Diagnose reachable from every mode, by nav or by strip", () => {
-    // Brain: Advisor is in the nav and Diagnose is one chip past it.
-    // Empire: Advisor is NOT in the nav, so Diagnose keeps its own entry —
-    // a surface must never be reachable from a mode only by knowing the
-    // address.
-    const brain = navForMode(NAV, "brain").map((n) => n.href);
-    const empire = navForMode(NAV, "empire").map((n) => n.href);
-    expect(brain).toContain("/advisor");
-    expect(brain).not.toContain("/diagnose");
-    expect(empire).toContain("/diagnose");
+    // Rewritten 2026-08-18. Advisor moved to the TOP BAR and is in every
+    // mode there, so Diagnose no longer needs a mode-scoped entry of its
+    // own to stay reachable from `empire` — it is one chip past Advisor
+    // from anywhere, and the registry keeps its address for ⌘K.
+    //
+    // The rule this test has always been about is unchanged: a surface
+    // must never be reachable from a mode only by knowing the address.
+    for (const mode of ["brain", "life", "empire"] as const) {
+      const hrefs = navForMode(NAV, mode).map((n) => n.href);
+      expect(hrefs, `advisor in ${mode}`).toContain("/advisor");
+    }
+    expect(NAV.find((n) => n.href === "/advisor")!.topbar).toBe(true);
+    expect(ASK_VIEWS.map((v) => v.href)).toContain("/diagnose");
   });
 
   it("leaves Setup without a nav item, now with a stable second door", () => {

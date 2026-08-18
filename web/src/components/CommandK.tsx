@@ -36,9 +36,17 @@ export default function CommandK() {
       label: n.label,
       href: n.href,
     }));
-    // Addresses that carry no nav item but are real destinations.
+    // Addresses that carry no nav item but are real destinations, plus
+    // ALIASES — a second name for a page the nav already lists under a
+    // different one. Two names for one place is wrong in a nav and right
+    // here: searching is how you find a thing when you do not know what
+    // it got called.
     pages.push(
       { kind: "page", id: "page:capture", label: "Capture", href: "/capture" },
+      // "Body" was a registry entry until 2026-08-18, when Health took
+      // over its address. The name has to outlive the entry: he named
+      // that module Body for months and will type it.
+      { kind: "page", id: "page:body", label: "Body", href: "/life/body", hint: "health readiness" },
       { kind: "page", id: "page:estate", label: "Estate", href: "/estate", hint: "divisions ventures" },
       { kind: "page", id: "page:holdings", label: "What you own", href: "/holdings", hint: "assets investments" },
       { kind: "page", id: "page:metrics", label: "Metrics", href: "/life/metrics" },

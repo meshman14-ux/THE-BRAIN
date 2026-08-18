@@ -3,7 +3,7 @@
 The one canonical context file for this repo.
 
 **There is one application: THE BRAIN OS, in `web/` — Next.js + Supabase.** Its data layer is
-Supabase Postgres with RLS on 44 tables (§A4), captured at `supabase/schema.sql`. That is the
+Supabase Postgres with RLS on 55 tables (§A4), captured at `supabase/schema.sql`. That is the
 only live data layer; nothing in this
 repo stores user data in the browser.
 
@@ -343,7 +343,9 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 ## A4. Database (live project)
 
 Supabase project **`qttroyuajpyelfrbxzzt`** · https://qttroyuajpyelfrbxzzt.supabase.co
-Region eu-west-2 (London), free tier. **RLS owner-only on all 44 tables.** pgvector enabled.
+Region eu-west-2 (London), free tier. **RLS is on for all 55 tables** — owner-only on 52
+of them, and SELECT-only for `authenticated` on the three reference tables that hold no
+user data (§A4 below). pgvector enabled.
 
 ```
 command centre : vision · pillars · goals · projects · tasks · inbox · links · reviews
@@ -388,24 +390,42 @@ THE COG        : cog_checkins · cog_states · cog_pulses · cog_feedback
 
 Four things now checked against the catalogue rather than assumed:
 
-- **RLS is on for all 44 tables, every table has at least one policy, and every policy is
-  byte-identical** — `(auth.uid() = user_id)` for both `USING` and `WITH CHECK`. Verified by
-  querying for any policy whose expression differed, which returned zero rows. The uniformity
-  is the property worth defending: one shape, no exceptions, so there is no table where a
-  subtly different predicate could leak.
-- **There are no `SECURITY DEFINER` functions at all, and no triggers.** Only two project
-  functions exist — `seed_pillars()` and `cog_prune()` — and both are `SECURITY INVOKER`, so
-  RLS applies to them. Worth stating because the sibling COG repo has repeatedly been bitten
-  by `SECURITY DEFINER` functions silently re-granting `EXECUTE` to `PUBLIC`; this schema has
-  no such surface. The one asymmetry: **`cog_prune()` does not pin `search_path`** where
-  `seed_pillars()` does. Being `INVOKER` that is a hardening note rather than a hole.
-- **19 of the 44 tables have no `user_id → auth.users` foreign key** — every `cog_*` one, plus
-  `debts`, `debt_payments`, `vehicles`, `meals`, `meal_ingredients`, `seasons`, `finishes`,
-  `diagnostic_runs`, `skill_attempts`, `training_sets` and `athlete_profile`. RLS still scopes
-  all of them to `auth.uid()`, so this is an **integrity** gap, not a security one: deleting
-  the auth user would cascade-clean 25 tables and orphan 19. With one user it is theoretical.
-  Recorded rather than fixed, because 19 FKs is a migration with real locking consequences and
-  should be a decision.
+- **RLS is on for all 55 tables and every table has exactly one policy.** Re-verified live
+  2026-08-18. **52 of them are byte-identical** — a policy named `own`, `FOR ALL`, with
+  `(auth.uid() = user_id)` as both `USING` and `WITH CHECK`. That uniformity is the property
+  worth defending: one shape, no exceptions, so there is no table where a subtly different
+  predicate could leak.
+- **Three tables are deliberately NOT that shape, and the exception is worth stating
+  precisely.** `advisor_seats`, `drive_folders` and `smart_rules` hold no user data at all —
+  they are the ten advisor seats, the 22 Drive folder ids and the capture routing rules, i.e.
+  configuration that arrived with the capture and board merges. Each carries a single policy
+  named `read_all`: **`SELECT` only, granted to `authenticated` only, `USING (true)`.** No
+  `INSERT`/`UPDATE`/`DELETE` policy exists, so with RLS on, every write is denied — they are
+  read-only reference tables, and `anon` cannot read them either. These are also the only
+  three tables in the schema with **no `user_id` column**, which is why the uniform policy
+  could not have been applied to them even in principle.
+- **There is now exactly ONE `SECURITY DEFINER` function, and it arrived with the capture
+  merge.** This bullet said "none at all" until 2026-08-18 and had been wrong since 17 Aug.
+  Three project functions exist: `seed_pillars()` and `cog_prune()` are `SECURITY INVOKER`, so
+  RLS applies to them; **`apply_capture_proposal()` is `SECURITY DEFINER`**, because writing an
+  accepted proposal into a real table is precisely the privileged step. It is hardened the way
+  such a function must be — `search_path` pinned to `public, pg_catalog`, a table whitelist,
+  and `EXECUTE` revoked from `anon` — and it is the single seam every proposal crosses
+  whatever produced it (§A5). Worth watching because the sibling COG repo has repeatedly been
+  bitten by `SECURITY DEFINER` functions silently re-granting `EXECUTE` to `PUBLIC`. The
+  remaining asymmetry is unchanged: **`cog_prune()` does not pin `search_path`** where the
+  other two do. Being `INVOKER` that is a hardening note rather than a hole. There are still
+  no triggers.
+- **23 of the 55 tables have no `user_id → auth.users` foreign key** (recounted live
+  2026-08-18; it was 19 of 44). Every `cog_*` one, plus `debts`, `debt_payments`, `vehicles`,
+  `meals`, `meal_ingredients`, `seasons`, `finishes`, `diagnostic_runs`, `skill_attempts`,
+  `training_sets`, `athlete_profile` and `push_subscriptions` — twenty that have the column
+  without the constraint — and the three reference tables above, which have no `user_id` at
+  all and so are a different case. RLS still scopes every one of the twenty to `auth.uid()`,
+  so this is an **integrity** gap, not a security one: deleting the auth user would
+  cascade-clean 32 tables and orphan 23. With one user it is theoretical. Recorded rather than
+  fixed, because twenty FKs is a migration with real locking consequences and should be a
+  decision.
 - **`cog_*` is a name this account uses twice.** In this repo it is the engine layer above.
   The sibling repo `meshman14-ux/the-cog` is a festival-operations system that prefixes
   *every* object `cog_` as well — and **`cog_events` exists in both schemas meaning entirely
@@ -485,7 +505,7 @@ reviews and the inbox start empty — the first-run empty states are load-bearin
 (`meshman14@gmail.com`). Supabase Site URL and redirect allow-list point at the live Vercel
 URL and a magic-link round trip has been completed against it.
 
-## A5. Build state (as of 2026-08-14)
+## A5. Build state (as of 2026-08-18)
 
 **The capture doors landed 2026-08-17.** `/capture` is four doors sharing one queue: the
 box, take a photo (camera-direct on phones via `capture="environment"`), upload a document,
@@ -521,7 +541,7 @@ would have failed in front of Jay rather than in a test. The extractor proposes 
 the one kind EVERY document produces — would have raised on Accept.** Normalised in
 `apply_capture_proposal`, which is the seam every proposal must cross whatever produced it;
 unknown values still fail loudly rather than being coerced. And **`captures.user_id` has no
-default**, unlike the other 44 tables, so it is set explicitly on insert — left to
+default**, unlike almost every other table, so it is set explicitly on insert — left to
 `auth.uid()` the row would be invisible to its owner forever (the `cog_config` trap).
 
 **The bucket is shared, and it is THEIR configuration that won**: `captures` caps at 25MB and
@@ -545,14 +565,14 @@ can be reverted alone.
   not answer. Parked beats any stage (not-active is a decision already taken); an `idea` is
   *being built*, because you still intend to. **Empty groups still render** — "nothing is
   earning" is the most useful sentence the page can say. MAINFRAME never appears.
-- **The nav is a COLUMN, and that dissolves a problem rather than moving it.** The horizontal
-  bar had been one item from overflowing since August — thirteen items at 1173px inside a
-  1200px box, canvas-measured, remeasured twice, with this file admitting the next honest
-  step was a shorter label or fewer items. A vertical list has no such budget: a fourteenth
-  item costs 36px of height. Estate joined the same day and needed no measuring. Every rule
-  the bar kept, the column keeps — same `xl` breakpoint, same `data-nav-modes` fail-closed
-  CSS filtering, counts intact, plus a new one on Capture for documents read but not yet
-  confirmed.
+- **The nav became a COLUMN, and that dissolved a problem rather than moving it.** The
+  horizontal bar had been one item from overflowing since August — thirteen items at 1173px
+  inside a 1200px box, canvas-measured, remeasured twice, with this file admitting the next
+  honest step was a shorter label or fewer items. A vertical list has no such budget: a
+  fourteenth item costs 36px of height. Estate joined the same day and needed no measuring.
+  Every rule the bar kept, the column keeps — same `xl` breakpoint, same `data-nav-modes`
+  fail-closed CSS filtering, counts intact, plus a new one on Capture for documents read but
+  not yet confirmed. **The column was then grouped into four boxes on 2026-08-18; see below.**
 - **`/` is the DAY, not the dashboard.** A dashboard answers "how are things?", a question
   you ask sometimes; the day answers "what am I doing next?", which is where a morning
   starts. **`MODE_HOME` is deliberately unchanged** — selecting a system still lands on that
@@ -582,11 +602,191 @@ still works. On iPhone, push requires the PWA installed to the home screen — A
 rule. **The camera can never fire without a tap on the phone itself** — that is the
 browser's privacy rule, and the relay's job is only to put the door one tap away.
 
-Verified in this repo: **1643/1643 tests pass** across 43 files (vitest), `npm run lint` is
-clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 55 entries — 43 pages,
-`/_not-found`, and 11 API routes.** The route figure is counted from the build output rather
-than remembered: this section said 48 and §A9 said 39 at the same time, which is the same
-drift the schema capture exists to stop.
+**Reflection and the board landed 2026-08-17** — `/reflect` and `/advisor/board`
+(`src/lib/reflect.ts`, `boardserver.ts`, `tests/reflect.test.ts`). It was built against a
+backend that was **already live and was not rebuilt**: `reflections`, `advisor_seats` (ten
+seats), `advisor_sessions`, `advisor_opinions`, and an `advisor` edge function with three
+modes — `parse`, `nightly`, `board`.
+
+The design question was not "what should it ask". The diagnosis already on record is that
+the check-in is **the ritual Jay does not open**, so building a bigger reflection on top of
+a smaller one he already skips needs an answer to *why would this one get opened*, and the
+answer chosen is that **the Advisor answers back**. Reflection that talks back is a
+conversation; reflection that only files your words is homework. Three properties hold that:
+
+- **Two taps are the whole floor** — did the one thing happen, and how was the energy. Each
+  writes on its own, so a half-finished reflection is still a reflection rather than a form
+  you abandoned.
+- **Voice is the ceiling and never required.** Jay works with his hands, and at 9pm typing
+  competes with being tired while talking does not. Speech support is **checked rather than
+  assumed**; an unsupported browser falls through to typing and the taps instead of showing
+  a dead button.
+- **It stays advisory (§A3 decision 6).** The board returns opinions. It does not write a
+  task, close a loop, or file anything on his behalf.
+
+`halfForHour` decides which half the page opens on: before 11 the useful question is what
+today is for, from 5pm it is what today was, and in between it defaults to the **evening**,
+because a mid-afternoon visit is nearly always a late morning plan or an early close and the
+close is the half that matters.
+
+**Both systems became command centres with doors, 2026-08-17.** `/life` and `/empire`
+already reported how things stood. What neither did was say **where to go next**, so acting
+on what the page had just told you meant going back to the nav — and that trip is where an
+intention gets lost. `ModuleDoors` is one tile per parent area: the name, the question that
+area answers, its live line, chips into each real sub-module, and what the area costs to
+keep truthful.
+
+**It is built from the registry, not written on the page.** `parentsFor(layer)` in
+`src/lib/parents.ts` is the source, so a module cannot exist in the registry and be missing
+from its own system's front page — the exact drift this codebase has already paid for once,
+when ten nav items pointed at views that did not exist. Only `page` views become doors: a
+filter is a lens on the parent's own screen, so offering it here would land you on the page
+you were about to open anyway, and a door back to where you already are reads as broken even
+though it resolves. `tests/doors.test.ts` holds both rules.
+
+**Capture and the current system's modules joined the header the same day.** Two additions
+beside the LIFE/EMPIRE switch, each with its own reason:
+
+- **Capture is in the header at every width**, and that is the point of it. It is the entry
+  point (locked decision 4) and the one control whose whole value is being reachable without
+  thinking — a thought had while looking for the capture button is a thought already half
+  lost. It carries the same count the sidebar does: documents read but **not yet confirmed**,
+  so an unfinished capture cannot go quiet.
+- **The module row is mode-scoped, and that is what keeps it safe.** LIFE has four modules
+  and EMPIRE five; rendering both in `brain` would put nine links back in the header and
+  re-create exactly the width problem the column was built to dissolve. Brain is the neutral
+  position and its sidebar already lists everything, so it shows the actions and no modules.
+  The links carry their **layer** as the mode filter rather than being listed per mode, so a
+  module added to the registry appears in its own system's header automatically.
+
+**Four failures that were invisible were made visible, 2026-08-17 to 18.** All four were
+found by Jay using the app rather than by a test, and all four share a shape: something
+failed and the app reported nothing an adult could act on.
+
+1. **A function's own error text was being thrown away.** Every edge function here answers
+   `{ error: "..." }` with something actionable — "ANTHROPIC_API_KEY is not set", "capture
+   not found" — and supabase-js throws `FunctionsHttpError` with a generic "non-2xx status
+   code", putting the real `Response` on `error.context` where nobody was reading it.
+   `functionErrorMessage` reads that body defensively — JSON first, text second, **never
+   throwing out of an error handler** even if the response was already consumed — and falls
+   back to the generic message rather than to nothing.
+2. **`supabase.functions.invoke` could not build a request at all.** It failed with *"Failed
+   to construct 'Request': 'headers' ... is not a valid ByteString"* — thrown by `fetch`
+   **before the request leaves**, because a header value held a character outside Latin-1.
+   One smart quote or em dash pasted into an environment variable is enough to make every
+   function call impossible, and that message names nothing anyone can fix. `src/lib/invoke.ts`
+   now builds the three headers itself and **checks each value first**, naming which value,
+   which character and where: *"the Supabase key contains an em dash at position 42, re-paste
+   it as plain text"*. A cause you can fix beats an error you can only report.
+   `badHeaderChar` / `describeChar` are pure and tested (`tests/invoke.test.ts`).
+3. **`captures.source` rejected every photo and document.** The column is constrained to
+   `upload | camera | email | cowork | sheet` — the vocabulary the *other* capture session
+   chose when it built the table — while our doors speak `photo | document`, and the insert
+   passed `source: kind` straight through. **Every real capture had been failing the
+   constraint and falling back to the plain inbox**, meaning the reader had never once
+   started. `captureSource()` in `capture.ts` is the single seam where the two vocabularies
+   meet, typed so the compiler verifies every door maps to a value the constraint accepts:
+   photo → `camera`, document → `upload`.
+4. **The stored Anthropic key carried a paste artifact.** `capture-process` threw the same
+   ByteString error as (2), but *inside* the Deno function building its own request — which
+   can only mean the secret in Supabase held a character outside printable ASCII. Both
+   `capture-process` and `advisor` now run the secret through `sanitizeApiKey()` before use.
+   A real key is plain ASCII by construction, so this costs a valid key nothing.
+
+**The lesson these four share is already house policy and was being broken anyway: a failure
+that does not say what failed is indistinguishable from nothing happening.** It is the same
+defect as a silent write, one layer out — and the silent-write sweep of 16 Aug exists
+because the same class of bug had already emptied half the tables.
+
+**THE NAV BECAME FOUR TITLED BOXES, 2026-08-18**, rebuilt from Jay's handwritten sheet. It
+was a column of fifteen items filtered by mode; it is now **WORKSPACE · MONEY · LIFE PLAN ·
+INFORMATION LIBRARY**, each drawn as a box whose title sits on its top edge as a tab. Fifteen
+items in one undifferentiated column is a list you *scan*; four groups of three to six is a
+list you *read*.
+
+| Box | Items |
+|---|---|
+| **Workspace** | Today `/day` · Calendar · Work Diary `/week` · Feed the System `/capture` · Tasks `/planner` · Weekly Review |
+| **Money** | Finances `/life/money` · Ventures `/empire` · Vehicles |
+| **Life Plan** | Health `/life/body` · Food `/life/body/food` · Family `/life/people` |
+| **Information Library** | Library · Life Principles · Documents `/library/notes` · Debt Pay Off Plan `/life/money/accounts` |
+
+- **The four groups are the SAME in every mode, and that is the design rather than an
+  oversight.** A group whose membership changed under you would defeat the point of naming
+  it — you learn "Money is the second box" once, not once per system. Every item therefore
+  carries all three modes, so the fail-closed `data-nav-modes` CSS in `globals.css` behaves
+  **exactly** as it did (§A7): a dropped `data-mode` still has a defined meaning, it is
+  simply no longer the difference between two navs. Mode still governs the accent, the
+  header's module row, the panels and `MODE_HOME`.
+- **Inbox and Advisor moved to the top bar.** Neither is a place you go, and both read across
+  all four boxes, so neither could sit honestly inside one. **Both keep a phone-bar slot** —
+  a control promoted to the top bar must not vanish below `xl`, which is exactly where the
+  header's own links hide.
+- **Ten addresses are in the registry with no box** (`hidden: true`): dashboard, life,
+  estate, holdings, opportunities, goals, checkin, reflect, diagnose, account. (`body` was
+  the eleventh until 2026-08-18, when Health took over its address — see below.) Real
+  links point at each from inside pages, and ⌘K finds them all by name. They stay in the
+  registry because **an address you can only reach by typing it is a page nobody opens**; they
+  stay out of the boxes because a sidebar that lists everything is the list you scan.
+- **MOTIVATION is on the sheet and is deliberately absent.** `/motivation` is one of the ten
+  ghost routes deleted on 17 Aug, and a nav entry pointing at a 404 teaches you the nav lies.
+  There is a test asserting its absence, which flips the day the page is built.
+- **Capture was renamed "Feed the System"**, the sheet's own words. The old label named the
+  mechanism; this one names the job, and the job is the habit. `short: "Feed"` keeps it
+  inside a fifth of a 390px screen.
+- **Calendar came back into the nav and is now deliberately in two places.** It left on
+  14 Aug for the Plan strip because it was a fourth surface answering "what am I doing"
+  sitting outside the strip the other three shared. Inside WORKSPACE it is plainly one of six
+  things you do this week, so the strip and the box agree rather than compete.
+- **The tab spends no colour.** It is one border with its top-left corner interrupted
+  (`.nav-box` / `.nav-box-title` / `.nav-box-items`): the title carries the top and side
+  borders, the items carry the rest, and the title's own bottom border is omitted so the two
+  read as one shape. Channel 1 is the machine and channel 2 is status, so a box title is
+  neither — prominence comes from weight, letterspacing and the border, which is also why it
+  needs no per-mode override. The title is **pinned to Public Sans** so the four tabs do not
+  change typeface when EMPIRE swaps `--headfont` to mono.
+- `navBoxes()` and `topbarNav()` in `src/lib/nav.ts` are the derived views; the layout only
+  draws them. **`navBoxes` drops an empty group rather than rendering a bare title** — a
+  title promising nothing is the same lie as a nav item pointing at a 404. The phone bar is
+  still a five-column grid and still yields exactly five: **Today · Feed · Tasks · Advisor ·
+  Inbox**, Finances having given up its slot to Advisor.
+
+**Three nav hrefs pointed at a redirect rather than the canonical address, and were corrected
+on 2026-08-18.** Health pointed at `/life/health` (→ `/life/body`), Food at `/life/food`
+(→ `/life/body/food`), and Debt Pay Off Plan at `/life/debts` (→ `/life/money/accounts`).
+Nothing was broken and nothing looked wrong, which is exactly how it survived a rebuild of
+the entire nav.
+
+**The redirects themselves stay** — house rule 12 is redirect, never delete, and it exists
+because LIFE_OS v2 step 1 broke it four times. The rule is narrower than that: **a nav is the
+one place the canonical address has to be written down**, because it is where you learn where
+things live. Every other link in the app is allowed to be an old one that still works.
+
+Two consequences worth knowing, because neither was a free substitution:
+
+- **`body` left the registry.** Health now carries `/life/body` directly, and two entries
+  onto one href is precisely what the uniqueness test forbids. The registry-only list is
+  therefore **ten** addresses, not eleven. The NAME survives where a name belongs: ⌘K lists
+  "Body" as an alias for the same page, and two names for one place is wrong in a nav and
+  right in a search box.
+- **Debt Pay Off Plan points at Accounts, not at the debt tab.** `/life/money` already answers
+  *"what do I owe, and when is it gone?"* — it **is** the debt tab, that being its default —
+  and Finances points there. Accounts is the distinct page: creditor by creditor, and where
+  the plan schedule actually lives.
+
+**A test now holds this permanently.** `stage4.test.ts` reads each nav item's `page.tsx` off
+disk and fails on any whose body calls `redirect(`, naming the item and where it bounces to.
+It reads the files rather than trusting a list, so it also catches a page that becomes a
+redirect *later* — which is the direction this repo actually moves in — and it fails the same
+way for a nav item whose page does not exist at all, which is the `/motivation` case.
+
+Verified in this repo on 2026-08-18: **1697/1697 tests pass** across 46 files (vitest),
+`npm run lint` is clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 67 entries
+— 54 pages, `/_not-found`, and 12 API routes.** Every one of these figures is counted from
+the tool that produces it rather than remembered. That discipline exists because this file
+has drifted twice: §A5 once said 48 routes while §A9 said 39, and on 2026-08-18 §A5 said 1643
+tests while §A9 said 1510 — both wrong, in the same file, at the same time. **When you change
+this number, change it in §A5 and §A9 together.**
 
 **THE COG harvest — 2026-08-12.** A second cloud drop arrived as a standalone Dockerised
 service with its own Postgres. It was NOT merged as a service — two engines to keep in
@@ -994,18 +1194,29 @@ Three modes — `brain · life · empire` — with **brain as the neutral positi
 - Persisted at `brain-mode` in localStorage and applied by `ModeScript` as a blocking inline
   script in `<head>`, **exactly as `ThemeScript` does** — `data-mode` is on `<html>` before
   first paint, so nothing flashes or rearranges on hydration.
-- **The nav is filtered in CSS, not in JavaScript.** Every item for every mode is rendered
-  once carrying `data-nav-modes`; `globals.css` hides the rest off `:root[data-mode]`. That
-  is why the top bar is correct on the first frame with no JS at all. `src/lib/nav.ts` is the
-  registry; `navForMode` / `phoneNavForMode` in `logic.ts` decide membership and are tested.
+- **Mode-scoped chrome is filtered in CSS, not in JavaScript.** Everything that can vary by
+  mode is rendered once carrying `data-nav-modes`, and `globals.css` hides the rest off
+  `:root[data-mode]`. That is why the chrome is correct on the first frame with no JS at all.
+  `src/lib/nav.ts` is the registry; `navForMode` / `phoneNavForMode` in `logic.ts` decide
+  membership and are tested.
+
+  **Since 2026-08-18 the sidebar is no longer what this filters.** Every nav item carries all
+  three modes, so the four boxes are identical in every mode by construction (§A5). The
+  mechanism is unchanged and still load-bearing for **the header's module row**, which renders
+  `data-nav-modes={p.layer}` and is the one place a mode genuinely changes what you see. The
+  fail-closed rule in §A7 therefore still applies exactly as written — do not delete it on the
+  grounds that the nav no longer needs it.
 - Selecting a system **navigates to its dashboard** (`MODE_HOME`). A Server Component cannot
   read localStorage, so that is how "dashboard scope follows the mode" is honoured honestly
   rather than by guessing on the server.
 - **Capture and Inbox appear in every mode**, and there is a test that holds them there.
   Hiding the entry points behind a mode would break phone-first capture (locked decision 4) —
-  a thought had in the wrong mode would be a thought lost.
+  a thought had in the wrong mode would be a thought lost. **That test is keyed on the ADDRESS
+  rather than the label** since 2026-08-18, because Capture is now called "Feed the System"
+  and could be renamed again: the rule is about the door, not what is written on it.
 - The phone bar is a five-column grid, so **every mode must yield exactly five phone items**.
-  A test asserts that; a sixth would silently wrap onto a second row.
+  A test asserts that; a sixth would silently wrap onto a second row. The five are **Today ·
+  Feed · Tasks · Advisor · Inbox**.
 
 | Piece | State |
 |---|---|
@@ -1024,7 +1235,8 @@ Three modes — `brain · life · empire` — with **brain as the neutral positi
 | **Hour purpose** | ✅ on `/week` — the five labels he circled over 06:00–22:00, stored in `journal.meta.hours`. States assigned vs unassigned and splits the week by label. Does not nag |
 | **Weekly review + obstacles** | ✅ `/reviews` — four questions, the fourth being what got in the way (his three circled defaults + free text) in `reviews.meta.obstacles`. The recurring-obstacle tally **stays silent below three reviews** |
 | Daily habits | ✅ `Habits.tsx` on `/life` — one tap, idempotent, untickable, 7-day dots and streak on the row |
-| **The mode switch** | ✅ `ModeScript` + `ModeSwitch` + `src/lib/nav.ts` — two buttons in the top bar, `brain` neutral, accent + nav + dashboard all follow. Flash-free; nav filtered in CSS |
+| **The mode switch** | ✅ `ModeScript` + `ModeSwitch` + `src/lib/nav.ts` — two buttons in the top bar, `brain` neutral, accent + module row + dashboard follow. Flash-free; filtered in CSS. **The sidebar no longer follows it** — four boxes, same in every mode (2026-08-18) |
+| **The four nav boxes** | ✅ `navBoxes()` / `topbarNav()` in `src/lib/nav.ts`, drawn by `(app)/layout.tsx`, styled by `.nav-box*` in `globals.css`. Workspace · Money · Life Plan · Information Library, with Inbox and Advisor in the top bar |
 | **Division onboarding** | ✅ `/empire/[id]/onboard` — seven questions per division, resumable and partial, every answer saved as it is given. Nothing is required and skipping writes NULL. `Onboard.tsx` + `ventureOnboarding` in `logic.ts` |
 | **The division dashboards** | ✅ `/empire/[id]` — one page per division: stage on the path to revenue, budget against spend, task completion, its projects, tasks and goals, the plan, and the researched profile marked as researched. Resolves a uuid **or** a name-derived slug |
 | **The calendar** | ✅ `/calendar` — two-way Google sync (§A3 decision 8). Month grid from 640px, **an agenda below it** (`monthAgenda` — the same days as a list, because seven readable columns need ~560px and a month that hides Saturday is not a month), conflicts panel, connect/disconnect, manual "Sync now". **Needs three environment variables before it can connect** — the page says which, and says so honestly rather than looking broken |
@@ -1368,9 +1580,14 @@ confirming a debt balance is, which is already why Money and People have no phon
                        itself as a finish
 /(app)/capture         one-box capture (PWA start_url)
 /(app)/inbox           triage
-/(app)/life/debts      the creditor detail — rates, references, payment days.
-                       Reached from the Money page's Debt tab
-/(app)/life/vehicles   tax · MOT · insurance · service, worst-first
+/(app)/life/debts      REDIRECT → /life/money/accounts. Debts stopped being a
+                       sibling of Money and became a part of it; the address
+                       survives because house rule 12 is redirect, never delete.
+                       Nothing in the nav points here any more (corrected
+                       2026-08-18) — it exists for old links and bookmarks
+/(app)/life/vehicles   REDIRECT → /life/money/vehicles. A vehicle is a recurring
+                       cost and a set of legal deadlines, so it is filed beside
+                       the money it costs
 /(app)/pillar/[id]     area detail + its reference shelf, back-links to its system
 /(app)/library         the reference library — every curated shelf in one place
 /(app)/library/notes   the vault — Phase 3's writing surface. Write a note
@@ -1384,6 +1601,50 @@ confirming a debt balance is, which is already why Money and People have no phon
 /(app)/library/principles
                        the principle library + the creed. A destination, never a
                        notification — nothing here appears on the dashboard
+/(app)/day             THE DAY, and `/` redirects here. A dashboard answers
+                       "how are things?", which you ask sometimes; the day
+                       answers "what am I doing next?", which is where a
+                       morning starts. Nav label: "Today"
+/(app)/reflect         the daily reflection. Two taps are the floor — did the
+                       one thing happen, how was the energy — and each half
+                       writes on its own, so a half-finished reflection is
+                       still a reflection. Voice is the ceiling and never
+                       required; speech support is checked, not assumed.
+                       Opens on the morning before 11, the evening from 5pm,
+                       and the evening in between
+/(app)/advisor/board   the board of advisors: ten seats in `advisor_seats`, a
+                       run in `advisor_sessions`, one opinion per seat in
+                       `advisor_opinions`, assembled by the `advisor` edge
+                       function in `board` mode. It answers back; it never
+                       acts (§A3 decision 6)
+/(app)/capture/[id]    the confirm screen for a document that has been read.
+                       One Accept and one Reject PER FIELD — a statement whose
+                       balance reads right and whose APR is misread costs you
+                       the APR alone. Nothing reaches a real table without a tap
+/(app)/estate          divisions by what they are DOING rather than by stage:
+                       earning · being built · parked. Empty groups still
+                       render, because "nothing is earning" is the most useful
+                       sentence the page can say. MAINFRAME never appears
+/(app)/setup           every gap in the system in one list, ranked by what
+                       filling it turns on
+/(app)/account         set a password, so a mail service outage cannot lock him
+                       out. Reachable from anywhere and prominent nowhere: it
+                       is the one page you need exactly once
+/(app)/life/bucket     the bucket list — `goals.status = 'someday'` (§A3 2b)
+/(app)/life/body       BODY, the parent area, with four sub-modules beneath it
+/(app)/life/body/readiness
+                       the readiness band, its drivers and its confidence
+/(app)/life/body/food  the nutrition ladder and the meal library
+/(app)/life/body/train today's session, assembled by HYBRID
+/(app)/life/body/skills
+                       the four skill trees as DAGs
+                       (the four /life/health/* addresses all redirect here —
+                        Health became Body on 2026-08-14)
+/(app)/life/money/accounts
+                       accounts, balances and the creditor detail
+/(app)/life/money/vehicles
+                       tax · MOT · insurance · service, worst-first. The
+                       canonical address since Vehicles moved inside Money
 /(app)/[slug]          branch pages for views not built yet: what the view will
                        be, its strings into the system, and its reference shelf
                        (src/lib/placeholders.ts + src/lib/references.ts).
@@ -1451,14 +1712,20 @@ Public paths: `/login`, `/auth`, `/manifest.webmanifest`, `/sw.js`.
      header 23px past its own box, and `xl` is exactly where the phone bar hides and a
      pointer takes over, so the touch minimum and the nav budget never apply at once.
 
-- **CSS that hides things must fail closed.** The nav is filtered by hiding what does *not*
-  belong to the current mode, so anything the selectors fail to match stays visible. A rule
-  keyed only on `:root[data-mode="…"]` therefore breaks *open* the moment the attribute is
-  missing — which is how seventeen nav items once rendered at once in production. Every such
-  rule carries a `:root:not([data-mode])` partner treating absence as `brain`, the neutral
-  position, and `tests/stage4.test.ts` reads `globals.css` to keep them there. The same
-  reasoning applies to any future attribute-driven hiding: decide what a missing attribute
-  means and write that case down, rather than letting "no match" mean "show everything".
+- **CSS that hides things must fail closed.** Mode-scoped chrome is filtered by hiding what
+  does *not* belong to the current mode, so anything the selectors fail to match stays
+  visible. A rule keyed only on `:root[data-mode="…"]` therefore breaks *open* the moment the
+  attribute is missing — which is how seventeen nav items once rendered at once in production.
+  Every such rule carries a `:root:not([data-mode])` partner treating absence as `brain`, the
+  neutral position, and `tests/stage4.test.ts` reads `globals.css` to keep them there. The
+  same reasoning applies to any future attribute-driven hiding: decide what a missing
+  attribute means and write that case down, rather than letting "no match" mean "show
+  everything".
+
+  **This rule survived the nav rebuild of 2026-08-18 and must not be removed with it.** The
+  sidebar no longer varies by mode, so it is tempting to read these selectors as dead. They
+  are not: **the header's module row** still renders `data-nav-modes={p.layer}` and is still
+  filtered by exactly this CSS. The blast radius simply moved from fifteen items to nine.
 - Headlines are serif (`h1` is serif by default); numbers use `.mono` for tabular alignment.
 - **Pure logic belongs in `src/lib/logic.ts`, never inline in a component.** Lane transitions,
   priority ordering, week maths, area roll-ups and capture routing all go there. If you write a
@@ -1507,14 +1774,26 @@ the `links` table's first ever use, and "what links here" on areas
 
 Open items:
 
-1. ~~Capture the live schema into the repo.~~ **Done, 2026-08-13.** `supabase/schema.sql`
-   holds the end state (44 tables, every constraint, index, policy and function) and
-   `supabase/migrations/` holds all **22** applied migrations, one file each, named to match
-   `schema_migrations` exactly. 21 are byte-exact captures of the stored SQL — comments and
-   all, which is most of their value — verified by character count against the source. The
-   project can now be rebuilt from this repo from nothing. **What it does NOT buy is a
-   rollback:** the `rollback` column is empty for all 22, so reversing anything means writing
-   the reverse by hand. See `supabase/README.md`.
+1. **REOPENED 2026-08-18 — the schema capture has itself drifted, and it is the one item
+   where drift costs the most.** It was closed on 2026-08-13 with `supabase/schema.sql`
+   holding the end state (44 tables, every constraint, index, policy and function) and
+   `supabase/migrations/` holding all **22** applied migrations, one file each, named to
+   match `schema_migrations` exactly. 21 were byte-exact captures of the stored SQL —
+   comments and all, which is most of their value.
+
+   Re-checked live on 2026-08-18: **the project now has 55 tables and 32 applied migrations,
+   while the repo holds a 44-table `schema.sql` and 25 migration files.** Eleven tables and
+   seven migrations arrived with the capture merge, the reflection/board work and the phone
+   relay, and none of them were captured. **The claim this item existed to earn — "the
+   project can be rebuilt from this repo from nothing" — is currently false**, and it fails
+   silently: a rebuild from `schema.sql` would come up missing `captures`,
+   `capture_proposals`, `drive_folders`, `push_subscriptions`, `reflections`,
+   `advisor_seats`, `advisor_sessions`, `advisor_opinions`, `smart_rules` and the two
+   remaining new tables, so the app would build, deploy, and then fail at the first capture.
+
+   Re-pull `schema.sql` and the seven uncaptured migrations. **What this never bought is a
+   rollback:** the `rollback` column is empty for all of them, so reversing anything means
+   writing the reverse by hand. See `supabase/README.md`.
 2. ~~Jay has never completed first sign-in.~~ **Resolved 2026-07-31** — magic-link round trip
    completed against the live URL; the 13 areas render.
 3. ~~Three missing area names.~~ **Superseded 2026-07-31** — the 13 areas were settled and
@@ -1690,6 +1969,21 @@ Open items:
    reason and inherits the same fragility. It is recorded rather than fixed: the honest fix
    is a stable key column on `metrics` (a migration), not a second hand-map — which is the
    mistake `slugifyName` exists to prevent.
+22. ~~Three nav hrefs point at a redirect rather than the canonical address.~~ **Fixed
+   2026-08-18**, and closed with a guard rather than with three edits. Health now points at
+   `/life/body`, Food at `/life/body/food` and Debt Pay Off Plan at `/life/money/accounts`;
+   all three redirects remain in place for old links (house rule 12). `body` left the
+   registry as a duplicate and survives as a ⌘K alias, so the `hidden` list is ten. **The
+   guard is the part worth keeping**: `stage4.test.ts` reads each nav item's `page.tsx` off
+   disk and fails on any that only redirects — so this cannot come back, including by a page
+   turning into a redirect after the nav item was written. See §A5.
+23. **The four nav boxes have not been seen on a real phone or by a signed-in user.** They
+   were rendered headless at 260px in both themes and the whole suite is green, but the
+   session that built them could not reach Supabase, and the session that applied the patch
+   verified the build rather than the browser. The specific things worth a look: whether
+   "Information Library" wraps in a 212px sidebar, whether the boxes push the viewport at
+   1280px where `xl` first shows them, and whether the badge counts still land beside the
+   right items now that Tasks carries the open count that used to sit on Planner.
 
 ## A9. Commands
 
@@ -1699,9 +1993,9 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1510 tests — must be green before build
+npm test                       # 1697 tests — must be green before build
 npm run lint                   # ESLint — clean before you push
-npm run build                  # 55 entries — green before you push
+npm run build                  # 67 entries — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from

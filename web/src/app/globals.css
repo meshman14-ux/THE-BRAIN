@@ -1080,6 +1080,86 @@ h2.serif,
 }
 
 /* ------------------------------------------------------------------ *
+ * The sidebar's four boxes — 2026-08-18, from Jay's sheet:
+ * "make the titles more prominent and add boxes around them like a tab
+ *  so they stand out a bit more."
+ *
+ * The title is drawn as a TAB SITTING ON the box's top edge rather than
+ * as a heavier line of text above it. That is the whole difference: a
+ * bolder heading is still text in a column, so the eye keeps reading
+ * downwards past it; a tab makes the group a NAMED CONTAINER, and the
+ * eye jumps between four names instead of scanning fifteen links.
+ *
+ * Mechanically it is one border with its top-left corner interrupted:
+ * the title carries the top and side borders and a radius on its top
+ * corners, and the items below carry the rest. The title's own bottom
+ * border is omitted so the tab and the box read as one shape.
+ *
+ * No colour is spent on this. Channel 1 is the system you are wearing
+ * and channel 2 is status (§A3 decision 11); a box title is neither, so
+ * it earns its prominence from weight, letterspacing and the border —
+ * which is also why it stays correct on all four grounds without a
+ * single per-mode override.
+ * ------------------------------------------------------------------ */
+.nav-box {
+  display: flex;
+  flex-direction: column;
+  /* Room for the next tab to breathe. Tighter and the four boxes read as
+     one striped list; looser and the sidebar needs scrolling at 1280. */
+  margin-bottom: 14px;
+  /* A flex child of the sidebar column, and the sidebar has `gap-0.5`,
+     so this must not also absorb that gap into the tab's alignment. */
+  min-width: 0;
+}
+
+.nav-box-title {
+  align-self: flex-start;
+  /* The tab's own box. `border-bottom: none` is what joins it to the
+     items below rather than drawing a line between them. */
+  border: 1px solid var(--border-bright);
+  border-bottom: none;
+  border-radius: 9px 9px 0 0;
+  background: var(--bg-2);
+  padding: 5px 10px 4px;
+  margin: 0;
+  /* Prominent without being loud: it is a label, not a heading you read
+     as a sentence, so the size stays small and the weight does the work. */
+  font-family: inherit;
+  font-size: 0.63rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+  white-space: nowrap;
+  /* Sits ON the box's edge — the negative margin is what stops a 1px
+     double line where the tab's side border meets the box's top one. */
+  margin-bottom: -1px;
+  position: relative;
+  z-index: 1;
+}
+
+.nav-box-items {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--border-bright);
+  /* Square at the top-left, where the tab lands. */
+  border-radius: 0 9px 9px 9px;
+  padding: 5px 4px;
+  min-width: 0;
+}
+
+/* `h1` is serif by default here and `h2.serif` follows `--headfont`, which
+   EMPIRE swaps to mono (decision 11). A box title is a LABEL, not a
+   headline, so it is pinned to the UI face and stays put in every mode —
+   four tabs changing typeface with the machine would make the sidebar
+   look like it had reflowed. */
+.nav-box-title {
+  font-family: "Public Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* ------------------------------------------------------------------ *
  * Hover hints — the ⓘ beside a diagnostic question.
  * Pure CSS: shows on hover and on keyboard focus, so it works without
  * JavaScript and without a mouse. On touch, focus does the job.
