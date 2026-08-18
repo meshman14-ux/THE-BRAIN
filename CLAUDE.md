@@ -3,7 +3,7 @@
 The one canonical context file for this repo.
 
 **There is one application: THE BRAIN OS, in `web/` — Next.js + Supabase.** Its data layer is
-Supabase Postgres with RLS on 55 tables (§A4), captured at `supabase/schema.sql`. That is the
+Supabase Postgres with RLS on 56 tables (§A4), captured at `supabase/schema.sql`. That is the
 only live data layer; nothing in this
 repo stores user data in the browser.
 
@@ -343,7 +343,7 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 ## A4. Database (live project)
 
 Supabase project **`qttroyuajpyelfrbxzzt`** · https://qttroyuajpyelfrbxzzt.supabase.co
-Region eu-west-2 (London), free tier. **RLS is on for all 55 tables** — owner-only on 52
+Region eu-west-2 (London), free tier. **RLS is on for all 56 tables** — owner-scoped on 53
 of them, and SELECT-only for `authenticated` on the three reference tables that hold no
 user data (§A4 below). pgvector enabled.
 
@@ -390,11 +390,14 @@ THE COG        : cog_checkins · cog_states · cog_pulses · cog_feedback
 
 Four things now checked against the catalogue rather than assumed:
 
-- **RLS is on for all 55 tables and every table has exactly one policy.** Re-verified live
-  2026-08-18. **52 of them are byte-identical** — a policy named `own`, `FOR ALL`, with
-  `(auth.uid() = user_id)` as both `USING` and `WITH CHECK`. That uniformity is the property
-  worth defending: one shape, no exceptions, so there is no table where a subtly different
-  predicate could leak.
+- **RLS is on for all 56 tables and every table has exactly one policy.** Re-verified live
+  2026-08-18. **53 of them share one predicate** — `FOR ALL`, with `(auth.uid() = user_id)`
+  as both `USING` and `WITH CHECK`. That uniformity is the property worth defending: one
+  shape, so there is no table where a subtly different predicate could leak. They do carry
+  **two different names** — 37 are called `own` and 16 `own rows` — which is cosmetic drift
+  between migrations and not a difference in effect. Recorded rather than tidied: renaming a
+  policy is a migration, and a rename that changed a predicate by accident would be far
+  worse than two names.
 - **Three tables are deliberately NOT that shape, and the exception is worth stating
   precisely.** `advisor_seats`, `drive_folders` and `smart_rules` hold no user data at all —
   they are the ten advisor seats, the 22 Drive folder ids and the capture routing rules, i.e.
@@ -416,16 +419,16 @@ Four things now checked against the catalogue rather than assumed:
   remaining asymmetry is unchanged: **`cog_prune()` does not pin `search_path`** where the
   other two do. Being `INVOKER` that is a hardening note rather than a hole. There are still
   no triggers.
-- **23 of the 55 tables have no `user_id → auth.users` foreign key** (recounted live
+- **24 of the 56 tables have no `user_id → auth.users` foreign key** (recounted live
   2026-08-18; it was 19 of 44). Every `cog_*` one, plus `debts`, `debt_payments`, `vehicles`,
   `meals`, `meal_ingredients`, `seasons`, `finishes`, `diagnostic_runs`, `skill_attempts`,
-  `training_sets`, `athlete_profile` and `push_subscriptions` — twenty that have the column
-  without the constraint — and the three reference tables above, which have no `user_id` at
-  all and so are a different case. RLS still scopes every one of the twenty to `auth.uid()`,
-  so this is an **integrity** gap, not a security one: deleting the auth user would
-  cascade-clean 32 tables and orphan 23. With one user it is theoretical. Recorded rather than
-  fixed, because twenty FKs is a migration with real locking consequences and should be a
-  decision.
+  `training_sets`, `athlete_profile`, `push_subscriptions` and `body_measurements` —
+  twenty-one that have the column without the constraint — and the three reference tables
+  above, which have no `user_id` at all and so are a different case. RLS still scopes every
+  one of the twenty-one to `auth.uid()`, so this is an **integrity** gap, not a security one:
+  deleting the auth user would cascade-clean 32 tables and orphan 24. With one user it is
+  theoretical. Recorded rather than fixed, because twenty-odd FKs is a migration with real
+  locking consequences and should be a decision.
 - **`cog_*` is a name this account uses twice.** In this repo it is the engine layer above.
   The sibling repo `meshman14-ux/the-cog` is a festival-operations system that prefixes
   *every* object `cog_` as well — and **`cog_events` exists in both schemas meaning entirely
@@ -1774,26 +1777,32 @@ the `links` table's first ever use, and "what links here" on areas
 
 Open items:
 
-1. **REOPENED 2026-08-18 — the schema capture has itself drifted, and it is the one item
-   where drift costs the most.** It was closed on 2026-08-13 with `supabase/schema.sql`
-   holding the end state (44 tables, every constraint, index, policy and function) and
-   `supabase/migrations/` holding all **22** applied migrations, one file each, named to
-   match `schema_migrations` exactly. 21 were byte-exact captures of the stored SQL —
-   comments and all, which is most of their value.
+1. ~~Capture the live schema into the repo.~~ **Done 2026-08-13, drifted, and RECAPTURED
+   2026-08-18.** `supabase/schema.sql` now holds the end state at **56 tables** and
+   `supabase/migrations/` holds all **33** applied migrations, one file each, named to match
+   `schema_migrations` exactly. **32 are byte-exact, verified by MD5 against the source**
+   rather than by character count; the exception is `meals`, whose file also carries the
+   fifty-meal seed applied separately.
 
-   Re-checked live on 2026-08-18: **the project now has 55 tables and 32 applied migrations,
-   while the repo holds a 44-table `schema.sql` and 25 migration files.** Eleven tables and
-   seven migrations arrived with the capture merge, the reflection/board work and the phone
-   relay, and none of them were captured. **The claim this item existed to earn — "the
-   project can be rebuilt from this repo from nothing" — is currently false**, and it fails
-   silently: a rebuild from `schema.sql` would come up missing `captures`,
-   `capture_proposals`, `drive_folders`, `push_subscriptions`, `reflections`,
-   `advisor_seats`, `advisor_sessions`, `advisor_opinions`, `smart_rules` and the two
-   remaining new tables, so the app would build, deploy, and then fail at the first capture.
+   **It had gone stale in five days and nobody could have told by looking.** The 13 August
+   capture described 44 tables and 22 migrations; by 18 August the project had 56 and 33.
+   Eleven tables arrived with the capture engine, the reflection and board work, push, smart
+   rules and the second calendar, and none was written down. The claim the item exists to
+   earn — *"the project can be rebuilt from this repo from nothing"* — was **false for five
+   days**, and it fails silently: a rebuild would have built, deployed, and then died at the
+   first capture. Three of the migration files were also mis-named with a date instead of the
+   real version, and none of those three was byte-exact — one was 1,013 characters against
+   4,644 applied.
 
-   Re-pull `schema.sql` and the seven uncaptured migrations. **What this never bought is a
-   rollback:** the `rollback` column is empty for all of them, so reversing anything means
-   writing the reverse by hand. See `supabase/README.md`.
+   **A table was created by another session DURING the recapture** — `body_measurements`, at
+   16:36 on 18 August, taking the count 55 → 56 between two queries minutes apart. This
+   database has more than one writer, so these files are a dated snapshot and never a live
+   mirror. `supabase/README.md` now carries **the exact refresh queries and two checksum
+   checks**, because the reason this drifted is that "re-read the catalogue" was folklore
+   rather than a recipe.
+
+   **What this never bought is a rollback:** the `rollback` column is empty for all 33, so
+   reversing anything means writing the reverse by hand.
 2. ~~Jay has never completed first sign-in.~~ **Resolved 2026-07-31** — magic-link round trip
    completed against the live URL; the 13 areas render.
 3. ~~Three missing area names.~~ **Superseded 2026-07-31** — the 13 areas were settled and

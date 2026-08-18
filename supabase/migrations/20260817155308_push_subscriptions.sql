@@ -1,10 +1,8 @@
 -- push_subscriptions — one row per device that asked to be buzzed.
--- Applied to the live project 2026-08-17.
---
 -- The endpoint is the device's push address (unique — re-enabling on the same
 -- device updates, never duplicates). p256dh/auth are the browser's public
 -- encryption keys for this subscription: not secrets, but scoped to the owner
--- like everything else. Same uniform RLS shape as every other table.
+-- like everything else. Same uniform RLS shape as all 44 existing tables.
 
 create table if not exists public.push_subscriptions (
   id uuid primary key default gen_random_uuid(),
