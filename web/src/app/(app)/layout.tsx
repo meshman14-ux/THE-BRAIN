@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { supabaseConfigured } from "@/lib/supabase/env";
 import ThemeToggle from "@/components/ThemeToggle";
 import ModeSwitch from "@/components/ModeSwitch";
-import { NAV } from "@/lib/nav";
+import { NAV, navBoxes, topbarNav } from "@/lib/nav";
 import { ALL_PARENTS } from "@/lib/parents";
 import CommandK from "@/components/CommandK";
 
@@ -16,6 +16,12 @@ import CommandK from "@/components/CommandK";
  * is deliberate — the alternative, filtering in a client component off
  * localStorage, would rearrange the top bar on every hydration. This way the
  * bar is correct on the first frame with no JavaScript at all.
+ *
+ * REBUILT 2026-08-18 from Jay's sheet. The sidebar is now FOUR BOXES with
+ * prominent titles — Workspace, Money, Life Plan, Information Library —
+ * instead of one flat column of fifteen. Inbox and Advisor moved out of it
+ * and into the header. The registry (`lib/nav.ts`) decides membership; this
+ * file only draws it.
  */
 export default async function AppLayout({
   children,
@@ -51,11 +57,14 @@ export default async function AppLayout({
   const badge = (key: string) =>
     key === "inbox"
       ? inboxCount
-      : key === "planner"
+      : key === "tasks"
         ? openCount
         : key === "capture"
           ? captureCount
           : null;
+
+  const boxes = navBoxes();
+  const headerLinks = topbarNav();
 
   return (
     <div className="min-h-dvh flex flex-col">
@@ -122,6 +131,38 @@ export default async function AppLayout({
             ))}
           </nav>
 
+          {/* INBOX AND ADVISOR — moved here from the sidebar on 2026-08-18,
+              off Jay's sheet. Neither is a place you go; both are things you
+              glance at from wherever you already are, and both read across
+              all four boxes, so neither could sit honestly inside one.
+
+              `xl` like everything else in this file, which is why both also
+              hold a phone-bar slot — a control promoted to the top bar must
+              not disappear at the width the top bar is smallest. */}
+          <nav className="hidden xl:flex items-center gap-0.5 shrink-0">
+            {headerLinks.map((n) => {
+              const c = badge(n.key);
+              return (
+                <Link
+                  key={n.key}
+                  href={n.href}
+                  data-nav-modes={n.modes.join(" ")}
+                  className="tap px-2.5 py-2 rounded-[9px] text-[0.78rem] font-semibold text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--bg-2)] no-underline transition-colors whitespace-nowrap flex items-center gap-1.5"
+                >
+                  <span className="text-[0.9rem] leading-none" aria-hidden>
+                    {n.icon}
+                  </span>
+                  <span>{n.label}</span>
+                  {!!c && (
+                    <span className="mono text-[0.66rem] px-1.5 py-0.5 rounded-full bg-[var(--border)] text-[var(--muted)]">
+                      {c}
+                    </span>
+                  )}
+                </Link>
+              );
+            })}
+          </nav>
+
           {/* The two buttons from Jay's sheet. In the bar at every width —
               on a phone this is the only way to change system. */}
           <span className="ml-auto xl:ml-1.5 shrink-0">
@@ -170,32 +211,47 @@ export default async function AppLayout({
             horizontal row of thirteen items needed 1173px inside a 1200px
             box, remeasured twice, with the honest next step being a shorter
             label or fewer items. A vertical list has no such budget: a
-            fourteenth item costs 36px of height, of which there is plenty. */}
+            fourteenth item costs 36px of height, of which there is plenty.
+
+            BOXED, 2026-08-18. Fifteen items in one undifferentiated column
+            is a list you scan; four titled boxes of three to six is a list
+            you read. The title is drawn as a tab sitting ON the box's top
+            edge — `.nav-box-title` in globals.css — so the group reads as a
+            named container rather than as a heavier line of text. */}
         <nav
           data-appshell
-          className="hidden xl:flex flex-col gap-0.5 w-[196px] shrink-0 py-7 pr-4 border-r border-[var(--border)]"
+          className="hidden xl:flex flex-col gap-0.5 w-[212px] shrink-0 py-7 pr-4 border-r border-[var(--border)]"
         >
-          {NAV.map((n) => {
-            const c = badge(n.key);
-            return (
-              <Link
-                key={n.key}
-                href={n.href}
-                data-nav-modes={n.modes.join(" ")}
-                className="px-3 py-2 rounded-[9px] text-[0.84rem] font-semibold text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--bg-2)] no-underline transition-colors flex items-center gap-2"
-              >
-                <span className="text-[0.95rem] leading-none w-4 shrink-0">{n.icon}</span>
-                <span className="min-w-0 flex-1 truncate">{n.label}</span>
-                {!!c && (
-                  <span className="mono shrink-0 text-[0.66rem] px-1.5 py-0.5 rounded-full bg-[var(--border)] text-[var(--muted)]">
-                    {c}
-                  </span>
-                )}
-              </Link>
-            );
-          })}
+          {boxes.map((box) => (
+            <section key={box.group.key} className="nav-box">
+              <h2 className="nav-box-title">{box.group.title}</h2>
+              <div className="nav-box-items">
+                {box.items.map((n) => {
+                  const c = badge(n.key);
+                  return (
+                    <Link
+                      key={n.key}
+                      href={n.href}
+                      data-nav-modes={n.modes.join(" ")}
+                      className="px-3 py-2 rounded-[9px] text-[0.84rem] font-semibold text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--bg-2)] no-underline transition-colors flex items-center gap-2"
+                    >
+                      <span className="text-[0.95rem] leading-none w-4 shrink-0">
+                        {n.icon}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">{n.label}</span>
+                      {!!c && (
+                        <span className="mono shrink-0 text-[0.66rem] px-1.5 py-0.5 rounded-full bg-[var(--border)] text-[var(--muted)]">
+                          {c}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            </section>
+          ))}
 
-          <p className="mt-auto px-3 text-[0.66rem] text-[var(--faint)] leading-relaxed">
+          <p className="mt-auto px-3 pt-6 text-[0.66rem] text-[var(--faint)] leading-relaxed">
             ⌘K to find anything
           </p>
         </nav>
@@ -225,7 +281,7 @@ export default async function AppLayout({
             >
               <span className="text-base leading-none">{n.icon}</span>
               <span className="text-[0.6rem] font-semibold uppercase tracking-wide max-w-full truncate">
-                {n.label}
+                {n.short ?? n.label}
               </span>
             </Link>
           ))}

@@ -38,7 +38,7 @@ import {
   // dates
   addMonths,
 } from "../src/lib/logic";
-import { NAV, PHONE_SLOTS } from "../src/lib/nav";
+import { NAV, PHONE_SLOTS, NAV_GROUPS, navBoxes, topbarNav } from "../src/lib/nav";
 import { PLAN_VIEWS } from "../src/components/PlanTabs";
 import { MODES, MODE_HOME, type Goal, type Mode, type Pillar } from "../src/lib/types";
 
@@ -149,116 +149,199 @@ describe("one front door for planning", () => {
     expect(PLAN_VIEWS.some((v) => v.href.includes("print"))).toBe(false);
   });
 
-  // Calendar left the nav and became the fourth chip. It must not be both,
-  // and it must not be neither.
-  it("keeps Calendar reachable exactly once", () => {
-    expect(NAV.some((n) => n.href === "/calendar")).toBe(false);
+  // Calendar CAME BACK to the nav on 2026-08-18 and is deliberately in
+  // both places. It left on 14 Aug because it was a fourth surface
+  // answering "what am I doing" sitting outside the strip the other
+  // three shared — a peer of Inbox and Advisor, which it is not. The
+  // boxes dissolve that: inside WORKSPACE it is plainly one of six
+  // things you do this week, so the strip and the box agree rather
+  // than competing.
+  it("keeps Calendar in the Workspace box AND in the Plan strip", () => {
+    const cal = NAV.find((n) => n.href === "/calendar")!;
+    expect(cal.group).toBe("workspace");
     expect(PLAN_VIEWS.some((v) => v.href === "/calendar")).toBe(true);
   });
 
-  it("keeps the Plan door itself in the nav for both modes that plan", () => {
-    const plan = NAV.find((n) => n.key === "plan")!;
-    expect(plan.href).toBe("/day");
-    expect(plan.modes).toContain("brain");
-    expect(plan.modes).toContain("life");
+  it("keeps the planning door itself at the head of the first box", () => {
+    // "Today" is the sheet's word for /day, and it leads WORKSPACE for
+    // the same reason /day is the front door: a morning starts with
+    // "what am I doing next?".
+    const today = NAV.find((n) => n.key === "today")!;
+    expect(today.href).toBe("/day");
+    expect(today.group).toBe("workspace");
+    expect(navBoxes()[0].items[0].key).toBe("today");
   });
 });
+
+/* ==================================================================== *
+ * THE FOUR BOXES — 2026-08-18, from Jay's sheet
+ *
+ * The nav stopped being a flat list filtered by mode and became four
+ * named groups with boxed titles. These hold the shape he drew, because
+ * the shape IS the design: the value of naming a group is entirely in
+ * the name not moving.
+ * ==================================================================== */
+
+describe("the four boxes", () => {
+  it("keeps the four groups, in the order they were drawn", () => {
+    expect(NAV_GROUPS.map((g) => g.title)).toEqual([
+      "Workspace",
+      "Money",
+      "Life Plan",
+      "Information Library",
+    ]);
+  });
+
+  it("fills Workspace with the day and the week", () => {
+    expect(labelsIn("workspace")).toEqual([
+      "Today",
+      "Calendar",
+      "Work Diary",
+      "Feed the System",
+      "Tasks",
+      "Weekly Review",
+    ]);
+  });
+
+  it("leaves Money as three lines after the crossings-out", () => {
+    // Health, Food and Property were struck off this box on the sheet.
+    // The first two reappear under LIFE PLAN; Property is a venture,
+    // which is what Ventures already says.
+    expect(labelsIn("money")).toEqual(["Finances", "Ventures", "Vehicles"]);
+    expect(labelsIn("money")).not.toContain("Health");
+    expect(labelsIn("money")).not.toContain("Food");
+  });
+
+  it("gives Life Plan the three that have pages, and NOT Motivation", () => {
+    // Motivation is on the sheet and has no route — it was one of the
+    // ten ghosts deleted on 17 Aug. A nav entry pointing at a 404 is
+    // worse than no entry: it teaches you the nav lies. This assertion
+    // is the reminder, and it flips the day the page exists.
+    expect(labelsIn("life")).toEqual(["Health", "Food", "Family"]);
+    expect(NAV.some((n) => n.href === "/motivation")).toBe(false);
+  });
+
+  it("fills the Information Library with what is written down", () => {
+    expect(labelsIn("library")).toEqual([
+      "Library",
+      "Life Principles",
+      "Documents",
+      "Debt Pay Off Plan",
+    ]);
+  });
+
+  it("puts Inbox and Advisor in the top bar and in no box", () => {
+    expect(topbarNav().map((n) => n.label)).toEqual(["Inbox", "Advisor"]);
+    for (const n of topbarNav()) expect(n.group).toBeNull();
+    for (const box of navBoxes()) {
+      expect(box.items.map((i) => i.key)).not.toContain("inbox");
+      expect(box.items.map((i) => i.key)).not.toContain("advisor");
+    }
+  });
+
+  it("renders no empty box", () => {
+    // A title promising nothing is the same lie as a nav item pointing
+    // at a 404, so `navBoxes` drops a group rather than drawing it bare.
+    for (const box of navBoxes()) expect(box.items.length).toBeGreaterThan(0);
+    expect(navBoxes([])).toEqual([]);
+  });
+
+  it("keeps every registry-only address out of the boxes but in ⌘K", () => {
+    // These have real links pointing at them from inside pages and are
+    // findable by name. An address you can only reach by typing it is a
+    // page nobody opens, which is why they stay in the registry at all.
+    const hidden = NAV.filter((n) => n.hidden).map((n) => n.href);
+    for (const href of [
+      "/dashboard",
+      "/estate",
+      "/holdings",
+      "/opportunities",
+      "/goals",
+      "/checkin",
+      "/reflect",
+      "/diagnose",
+      "/account",
+    ]) {
+      expect(hidden, `${href} must stay reachable`).toContain(href);
+    }
+    const boxed = navBoxes().flatMap((b) => b.items.map((i) => i.href));
+    for (const href of hidden) expect(boxed).not.toContain(href);
+  });
+
+  it("never gives a boxed item a topbar flag, or the reverse", () => {
+    for (const n of NAV) {
+      if (n.group) {
+        expect(n.topbar, `${n.label}`).toBeFalsy();
+        expect(n.hidden, `${n.label}`).toBeFalsy();
+      }
+    }
+  });
+
+  it("keeps every href in the registry unique", () => {
+    // Two entries onto one address under two names is how a nav starts
+    // feeling arbitrary — you learn the address twice and trust neither.
+    const hrefs = NAV.map((n) => n.href);
+    expect(new Set(hrefs).size).toBe(hrefs.length);
+  });
+
+  it("gives a short label to anything too long for a fifth of a phone", () => {
+    // The bar is `grid-cols-5`, so a phone item's label has ~78px. Any
+    // phone item over twelve characters needs the short form or it
+    // truncates to nonsense.
+    for (const n of NAV) {
+      if (n.phoneModes.length && n.label.length > 12) {
+        expect(n.short, `${n.label} on the phone bar`).toBeTruthy();
+      }
+    }
+  });
+});
+
+const labelsIn = (g: string) =>
+  navBoxes()
+    .filter((b) => b.group.key === g)
+    .flatMap((b) => b.items.map((i) => i.label));
 
 describe("nav by mode", () => {
   const labels = (m: Mode) => navForMode(NAV, m).map((n) => n.label);
 
-  it("gives LIFE_OS five parent areas, not eleven flat items", () => {
-    // "Plan" replaced "Week" here on 2026-08-12: one planning door instead
-    // of two, pointing at /day. Week is one tap away inside it.
-    //
-    // Then on 13 Aug the six LIFE items became five parents. Vehicles,
-    // Health and Habits no longer earn a nav entry of their own: they are
-    // SUB-MODULES of Money, Body and Standing. A nav that lists sub-modules
-    // alongside their parents has no hierarchy, which is a nav you scan
-    // rather than read. Standing leads because it summarises the rest.
-    expect(labels("life")).toEqual([
-      "Plan",
-      "Standing",
-      "Body",
-      "Money",
-      "People",
-      "Horizon",
-      "Close",
-      // Calendar left on 2026-08-14 — a filing change, not a removal. It
-      // was the fourth surface answering "what am I doing" and the only
-      // one outside the Plan strip, so it became the fourth chip in it.
-      // The route is untouched; the OAuth callback still returns there.
-      "Reflect",
-      "Capture",
-      "Account",
-      "Inbox",
-    ]);
-  });
-
-  it("gives EMPIRE_OS its own operating system", () => {
-    expect(labels("empire")).toEqual([
-      "Divisions",
-      "Opportunities",
-      // Phase 5, 2026-08-14. Desk job, so no phone slot — `empire` already
-      // fills the five-column bar exactly and a sixth would wrap.
-      "Holdings",
-      // /goals became the HORIZON parent and carries that name everywhere.
-      // Two nav entries pointing at one route under two names is how a nav
-      // starts feeling arbitrary.
-      "Horizon",
-      "Diagnose",
-      // The estate, 2026-08-17. Divisions by what they are DOING — earning,
-      // being built, or parked — which is the question /empire's stage list
-      // does not answer. Desk job, so no phone slot, same as Holdings.
-      // Reflection, 2026-08-17. In every mode for the same reason Capture is:
-      // the ritual he historically does not open must not also be one he has
-      // to be in the right mode to reach.
-      "Reflect",
-      "Estate",
-      "Capture",
-      "Account",
-      "Inbox",
-    ]);
-  });
-
-  it("keeps the command centre as it was", () => {
-    expect(labels("brain")).toEqual([
-      "Brain",
-      "Life",
-      "Empire",
-      // One planning door. "Planner" and "Week" were two entries onto the
-      // same surface, and /day — the best of the three views — had no
-      // entry at all.
-      "Plan",
-      "Review",
-      "Horizon",
-      "Close",
-      // Calendar left for the Plan strip on 2026-08-14, and Diagnose left
-      // for the ASK strip beside Advisor the same day (step 5). Eleven
-      // items, down from thirteen — the header room §A7 said was nearly
-      // spent, bought back twice by filing rather than cutting.
-      "Advisor",
-      // Reflection, 2026-08-17. Every mode, for the same reason Capture is in
-      // every mode: the ritual he historically does not open must not also be
-      // one he has to be in the right mode to reach. The COLUMN is what makes
-      // a twelfth item cost nothing — 36px of height rather than a remeasure.
-      "Reflect",
-      "Capture",
-      "Account",
-      "Inbox",
-    ]);
+  /* THE THREE PER-MODE LISTS WERE DELETED ON 2026-08-18, and their
+   * deletion is the change rather than a casualty of it.
+   *
+   * They asserted that `life` saw eleven items, `empire` ten and
+   * `brain` twelve — three different navs, one per system. The sheet
+   * replaces that with four named boxes, and a box whose membership
+   * changed under you defeats the point of naming it: you learn "Money
+   * is the second box" once, not once per system.
+   *
+   * So every item now carries all three modes, and the property worth
+   * testing is that this is TRUE OF ALL OF THEM rather than true by
+   * accident of fifteen separate lists. The fail-closed CSS is
+   * unchanged and still tested below — a dropped `data-mode` still has
+   * a defined meaning, it is simply no longer the difference between
+   * two navs.
+   */
+  it("shows the same nav in every mode, which is what a named box means", () => {
+    const brain = labels("brain");
+    expect(labels("life")).toEqual(brain);
+    expect(labels("empire")).toEqual(brain);
+    expect(brain.length).toBe(NAV.length);
   });
 
   it("KEEPS CAPTURE AND INBOX IN EVERY MODE", () => {
     // Locked decision 4 is phone-first capture. Hiding the entry points
     // behind a mode would mean a thought you had in the wrong mode is a
     // thought you lose. This is the one nav rule that is not negotiable.
+    //
+    // Keyed on the ADDRESS, not the label: capture is called "Feed the
+    // System" since 2026-08-18 and could be renamed again. The rule is
+    // about the door, not what is written on it.
+    const hrefs = (m: Mode) => navForMode(NAV, m).map((n) => n.href);
     for (const m of MODES) {
-      expect(labels(m), `top bar in ${m}`).toContain("Capture");
-      expect(labels(m), `top bar in ${m}`).toContain("Inbox");
-      const phone = phoneNavForMode(NAV, m).map((n) => n.label);
-      expect(phone, `phone bar in ${m}`).toContain("Capture");
-      expect(phone, `phone bar in ${m}`).toContain("Inbox");
+      expect(hrefs(m), `top bar in ${m}`).toContain("/capture");
+      expect(hrefs(m), `top bar in ${m}`).toContain("/inbox");
+      const phone = phoneNavForMode(NAV, m).map((n) => n.href);
+      expect(phone, `phone bar in ${m}`).toContain("/capture");
+      expect(phone, `phone bar in ${m}`).toContain("/inbox");
     }
   });
 

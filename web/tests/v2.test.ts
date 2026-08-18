@@ -1638,10 +1638,37 @@ describe("app shell breakpoints", () => {
     // The ban is on the THING, not the class combination: NAV must not be
     // rendered as a horizontal row in the header again. A small mode-scoped
     // module row up there is fine and is asserted separately below — what
-    // cannot come back is the full twelve-item list fighting for width.
+    // cannot come back is the full fifteen-item list fighting for width.
     expect(shell).not.toMatch(/items-center[^>]*>\s*\{NAV\.map/);
-    // NAV renders exactly once, in the column and in the phone bar.
-    expect(shell.match(/\{NAV\.map/g) ?? []).toHaveLength(1);
+    expect(shell).not.toMatch(/items-center[^>]*>\s*\{boxes\.map/);
+    // The whole registry is rendered EXACTLY ONCE, in the phone bar. The
+    // sidebar draws `boxes` and the header draws `headerLinks`, both of
+    // which are derived views over it — so a fourth place rendering NAV
+    // raw is the thing this catches.
+    expect(shell.match(/\{NAV\.map/g) ?? []).toHaveLength(0);
+    expect(shell.match(/NAV\.filter\(/g) ?? []).toHaveLength(1);
+    expect(shell.match(/\{boxes\.map/g) ?? []).toHaveLength(1);
+  });
+
+  /* -- the four boxes, 2026-08-18 ---------------------------------- */
+
+  it("draws the sidebar as titled boxes, not one flat column", () => {
+    // Jay's sheet: "make the titles more prominent and add boxes around
+    // them like a tab so they stand out a bit more." The tab is CSS, so
+    // what a test can hold is that the shell asks for it by name and
+    // that the group title is a heading rather than a styled div — the
+    // boxes are a document outline, not decoration.
+    expect(shell).toMatch(/className="nav-box"/);
+    expect(shell).toMatch(/<h2 className="nav-box-title">/);
+    expect(shell).toMatch(/className="nav-box-items"/);
+  });
+
+  it("puts Inbox and Advisor in the header, behind the same breakpoint", () => {
+    // Promoted out of the sidebar. `xl` like every other decision in this
+    // file — which is exactly why both also hold a phone-bar slot, and
+    // `stage4.test.ts` is where that half is asserted.
+    expect(shell).toMatch(/\{headerLinks\.map/);
+    expect(shell).toMatch(/hidden xl:flex items-center gap-0\.5 shrink-0/);
   });
 
   it("keeps the sidebar's labels shrinkable", () => {
