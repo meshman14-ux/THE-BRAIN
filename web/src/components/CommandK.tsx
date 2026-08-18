@@ -67,7 +67,7 @@ export default function CommandK() {
         kind: "person" as const,
         id: `person:${p.id}`,
         label: p.name,
-        href: "/life/people",
+        href: "/life/family",
       })),
       // MAINFRAME is a pointer row and has no page of its own (§A1).
       ...(ventures.data ?? [])

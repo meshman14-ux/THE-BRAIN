@@ -1101,7 +1101,9 @@ const REAL_ROUTES = [
   "/life/health/train",
   "/life/health/skills",
   "/life/bucket",
+  // /life/people redirects to /life/family (moved 2026-08-18).
   "/life/people",
+  "/life/family",
   "/checkin",
   "/empire",
   "/goals",

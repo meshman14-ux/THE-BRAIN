@@ -203,7 +203,7 @@ export const NAV: NavItem[] = [
   /* ══ LIFE PLAN ═════════════════════════════════════════════════════
    * Health and Food arrive here from MONEY, where they never belonged.
    * "Family" is the sheet's word for the people module and is the better
-   * word: /life/people is a list of the people you owe time to.
+   * word: /life/family is a list of the people you owe time to.
    *
    * MOTIVATION is on the sheet and is NOT here, because there is no
    * /motivation route — it is one of the ten ghosts deleted on 17 Aug. A
@@ -238,7 +238,9 @@ export const NAV: NavItem[] = [
   },
   {
     key: "family",
-    href: "/life/people",
+    // Was `/life/people`. People became Family on 2026-08-18, and the
+    // route moved with it — `/life/people` redirects here.
+    href: "/life/family",
     label: "Family",
     icon: "◎",
     group: "life",
