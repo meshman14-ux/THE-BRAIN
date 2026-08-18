@@ -32,7 +32,8 @@ import {
   type WorkoutRow,
 } from "@/lib/training";
 import SessionLogger from "@/components/SessionLogger";
-import { Panel, Empty } from "@/components/ui";
+import { Empty } from "@/components/ui";
+import HudPanel from "@/components/hud/HudPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -178,7 +179,7 @@ export default async function TrainPage() {
       </header>
 
       {/* -- readiness ------------------------------------------------ */}
-      <Panel
+      <HudPanel
         title="◈ Readiness"
         hint={
           readiness.score != null
@@ -239,7 +240,7 @@ export default async function TrainPage() {
             Food →
           </Link>
         </p>
-      </Panel>
+      </HudPanel>
 
       {/* -- the session ---------------------------------------------- */}
       {plan.blocks.length === 0 ? (
@@ -259,7 +260,7 @@ export default async function TrainPage() {
 
       {/* -- what the advisor has to say ------------------------------ */}
       {Object.values(advice).flat().length > 0 && (
-        <Panel title="◇ Advice" hint="four channels, none allowed to drown the others">
+        <HudPanel title="◇ Advice" hint="four channels, none allowed to drown the others">
           <div className="grid gap-3">
             {Object.entries(advice).map(([channel, items]) =>
               items.length === 0 ? null : (
@@ -297,11 +298,11 @@ export default async function TrainPage() {
               )
             )}
           </div>
-        </Panel>
+        </HudPanel>
       )}
 
       {/* -- load ------------------------------------------------------ */}
-      <Panel title="◷ Load" hint="a conversation, never a gate">
+      <HudPanel title="◷ Load" hint="a conversation, never a gate">
         <p className="text-[0.8rem] text-[var(--muted)] leading-relaxed">
           {ratio.line}
           {ratio.ratio != null && (
@@ -311,7 +312,7 @@ export default async function TrainPage() {
             </span>
           )}
         </p>
-      </Panel>
+      </HudPanel>
 
       <p className="text-[0.74rem] text-[var(--faint)]">
         <Link

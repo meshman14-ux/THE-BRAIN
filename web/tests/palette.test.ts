@@ -358,6 +358,50 @@ describe("palette · two machines, one attribute", () => {
   });
 });
 
+/**
+ * A THIRD ground, `.sys-cockpit`, scoped to `/life/body/**` (the MARK-VII
+ * health cockpit). It is a full surface override in the same shape as
+ * `:root[data-mode="empire"]`, so it is measured the same way — resolved
+ * once, checked for the same channel-collision class of bug the v1
+ * incident taught. It does not vary by theme (no paper/dark cross), so
+ * there is exactly one ground to check rather than four.
+ */
+const COCKPIT = ground(tokens(".sys-cockpit"));
+
+describe("palette · .sys-cockpit — a third ground, not a fourth theme", () => {
+  it("overrides the surface completely, the same shape as EMPIRE", () => {
+    for (const surface of ["--bg", "--card", "--text", "--border", "--lift"]) {
+      expect(COCKPIT[surface], `cockpit must override ${surface}`).toBeDefined();
+    }
+    expect(COCKPIT["--headfont"]).toContain("Rajdhani");
+  });
+
+  it("separates cyan (accent), orange (warn) and red (bad) — the module's own status trio", () => {
+    const pairs: [string, string][] = [
+      ["--accent", "--warn"],
+      ["--warn", "--bad"],
+      ["--accent", "--bad"],
+      ["--good", "--warn"],
+      ["--good", "--bad"],
+      ["--good", "--accent"],
+    ];
+    for (const [a, b] of pairs) {
+      const d = deltaE(COCKPIT[a], COCKPIT[b]);
+      expect(d, `cockpit: ${a} vs ${b} was ΔE ${d.toFixed(1)}`).toBeGreaterThan(SAME_COLOUR);
+      const cvd = cvdDeltaE(COCKPIT[a], COCKPIT[b]);
+      expect(cvd, `cockpit: ${a} vs ${b} under CVD was ${cvd.toFixed(1)}`).toBeGreaterThan(
+        CVD_FLOOR
+      );
+    }
+  });
+
+  it("keeps priority hue-free and status trio reserved, same as everywhere else", () => {
+    expect(COCKPIT["--todo"]).toBe(COCKPIT["--faint"]);
+    expect(COCKPIT["--doing"]).toBe(COCKPIT["--text"]);
+    expect(COCKPIT["--done"]).toBe(COCKPIT["--muted"]);
+  });
+});
+
 describe("palette · legibility on every ground", () => {
   it("holds 4.5:1 for body text and 3:1 for muted text and accents", () => {
     for (const [name, t] of Object.entries(GROUNDS)) {

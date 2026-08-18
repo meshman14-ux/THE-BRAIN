@@ -661,6 +661,503 @@ h2.serif,
   --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.4), 0 14px 40px rgba(0, 0, 0, 0.55);
 }
 
+/* ------------------------------------------------------------------ *
+ * .sys-cockpit — the MARK-VII health cockpit, scoped to /life/body/**
+ *
+ * A THIRD ground, alongside `.sys-life` / `.sys-empire` — but unlike those
+ * two (which only set `--sys`/`--sys-dim` for a badge to colour itself
+ * by), this one is a full surface override in the same shape as
+ * `:root[data-mode="empire"]`: every semantic token a page already reads
+ * — `--bg`, `--card`, `--text`, `--accent`, `--good/warn/bad`, `--lift`,
+ * `--radius`, `--headfont` — gets a HUD value, so `.panel`, `.card`,
+ * `.chip`, `.btn` and every existing Body-module component (SessionLogger,
+ * SkillTrees, HealthToday, Panel/Empty/Bar from ui.tsx) re-skin themselves
+ * with ZERO changes to their own markup. That is the whole point of a
+ * scoped class over a global retheme: `tests/palette.test.ts` still holds
+ * everything outside this block to the four-channel rule, and a screenshot
+ * of `/day` before and after this file changed is pixel-identical.
+ *
+ * It does NOT vary by theme or by paper/dark — a tactical HUD has no
+ * daylight mode, the same way EMPIRE's graphite has no reason to lighten
+ * for "paper". One look, applied by the `sys-cockpit` class on the Body
+ * module's layout wrapper, regardless of `data-theme`.
+ *
+ * `--hud-*` are the raw MARK-VII palette (for the bespoke SVG chrome —
+ * ring gauge, hex week, corner-bracket panels — that read the raw values
+ * directly rather than through the semantic layer). The semantic remap
+ * below is what lets everything ELSE just work.
+ */
+.sys-cockpit {
+  --hud-bg: #050a12;
+  --hud-panel: rgba(10, 20, 32, 0.72);
+  --hud-panel-solid: #0a1420;
+  --hud-cyan: #4fc3f7;
+  --hud-core: #9be8ff;
+  --hud-dim: #1e4a66;
+  --hud-orange: #ff9f43;
+  /* The mockup's literal #FF4D4D reads within ΔE 8 of orange under
+     deuteranopia — the same collision class as the v1 incident, just
+     found by the test this time instead of by Jay. Shifted toward
+     magenta, echoing how the base palette's own --bad separates from
+     --warn under dark/EMPIRE (#e04f6e / #ee6b86) rather than sitting in
+     the same red-orange band. */
+  --hud-red: #ff4d7a;
+  --hud-good: #7ce8c4;
+  --hud-text: #d6efff;
+  --hud-hair: rgba(79, 195, 247, 0.28);
+  --hud-hair2: rgba(79, 195, 247, 0.14);
+
+  /* -- the semantic remap, so existing components need no changes -- */
+  --bg: var(--hud-bg);
+  --bg-2: #0a1420;
+  --card: var(--hud-panel-solid);
+  --card-hover: #0f1c2c;
+  --text: var(--hud-text);
+  --muted: rgba(214, 239, 255, 0.62);
+  --faint: rgba(79, 195, 247, 0.5);
+  --border: var(--hud-hair);
+  --border-bright: rgba(79, 195, 247, 0.45);
+
+  --accent: var(--hud-cyan);
+  --accent-soft: rgba(79, 195, 247, 0.12);
+  --on-accent: #06121c;
+
+  --life: var(--hud-cyan);
+  --life-dim: var(--hud-dim);
+  --life-soft: rgba(79, 195, 247, 0.12);
+  --empire: var(--hud-cyan);
+  --empire-dim: var(--hud-dim);
+  --empire-soft: rgba(79, 195, 247, 0.12);
+
+  /* Status. `--good` borrows the mockup's own mint (`.sig.pos`) rather
+     than the cyan accent, so a positive reading and "the system you are
+     wearing" stay two different signals even inside one HUD. */
+  --good: var(--hud-good);
+  --warn: var(--hud-orange);
+  --bad: var(--hud-red);
+
+  --todo: var(--faint);
+  --doing: var(--text);
+  --done: var(--muted);
+
+  --radius: 0px;
+  --pad: 14px;
+  --headfont: "Rajdhani", ui-sans-serif, sans-serif;
+  --headtrack: 0.02em;
+  font-family: "Rajdhani", ui-sans-serif, sans-serif;
+
+  --shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+
+  --lift: var(--hud-panel);
+  --lift-hover: rgba(15, 28, 44, 0.8);
+  --hero: radial-gradient( 120% 140% at 0% 0%, rgba(79, 195, 247, 0.1) 0%, rgba(79, 195, 247, 0) 55% ), var(--hud-bg);
+  --fill-accent: linear-gradient(90deg, var(--hud-dim) 0%, var(--hud-cyan) 100%);
+  --fill-good: linear-gradient(90deg, #4fd9ab 0%, var(--hud-good) 100%);
+  --fill-warn: linear-gradient(90deg, #ffb066 0%, var(--hud-orange) 100%);
+  --glow-accent: 0 0 0 1px rgba(79, 195, 247, 0.3), 0 0 20px rgba(79, 195, 247, 0.25);
+  --glow-good: 0 0 0 1px rgba(124, 232, 196, 0.28), 0 0 20px rgba(124, 232, 196, 0.2);
+  --sheen: rgba(155, 232, 255, 0.08);
+  --shadow-lift: 0 2px 6px rgba(0, 0, 0, 0.5), 0 0 24px rgba(79, 195, 247, 0.12);
+
+  background: var(--hud-bg);
+  color: var(--hud-text);
+}
+
+/* `.mono` everywhere else is IBM Plex Mono; inside the cockpit every
+   numeral reads as telemetry. A descendant override, not a redefinition —
+   `.mono` itself is untouched, so nothing outside this module moves. */
+.sys-cockpit .mono {
+  font-family: "Share Tech Mono", ui-monospace, monospace;
+}
+
+/* Hero numerals only (§3.4 of the brief) — Orbitron is illegible below
+   ~20px, so it is opt-in per element rather than inherited by `.mono`. */
+.hud-num {
+  font-family: "Orbitron", ui-sans-serif, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------------------------------------------------------------------ *
+ * HUD primitives
+ * ------------------------------------------------------------------ */
+
+/* A glass panel with corner brackets, built from four positioned spans
+   rather than pseudo-elements — a panel needs FOUR corners and an element
+   only has two (::before/::after), so `CornerPanel`/`HudPanel` render the
+   spans as real children. `.panel`/`.card` still carry the surface (the
+   semantic remap above already makes them glass); this only adds the
+   brackets and the corner-scan reference number channel-zero furniture. */
+.hud-panel {
+  position: relative;
+}
+.hud-corner {
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  pointer-events: none;
+}
+.hud-corner[data-c="tl"] {
+  top: -1px;
+  left: -1px;
+  border-top: 1px solid var(--hud-cyan);
+  border-left: 1px solid var(--hud-cyan);
+}
+.hud-corner[data-c="tr"] {
+  top: -1px;
+  right: -1px;
+  border-top: 1px solid var(--hud-cyan);
+  border-right: 1px solid var(--hud-cyan);
+}
+.hud-corner[data-c="bl"] {
+  bottom: -1px;
+  left: -1px;
+  border-bottom: 1px solid var(--hud-cyan);
+  border-left: 1px solid var(--hud-cyan);
+}
+.hud-corner[data-c="br"] {
+  bottom: -1px;
+  right: -1px;
+  border-bottom: 1px solid var(--hud-cyan);
+  border-right: 1px solid var(--hud-cyan);
+}
+.hud-serial {
+  position: absolute;
+  top: 4px;
+  right: 8px;
+  font-family: "Share Tech Mono", monospace;
+  font-size: 8px;
+  color: rgba(79, 195, 247, 0.2);
+  letter-spacing: 0.12em;
+  pointer-events: none;
+}
+
+/* The readiness ring's centre readout and its four satellite mini-rings —
+   layout only; the arcs themselves are drawn SVG (RingGauge.tsx), which is
+   what lets the confidence sub-arc and the value arc both stay accurate to
+   the real numbers rather than a fixed illustration. */
+.hud-ring-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+.hud-ring-center .big {
+  font-family: "Orbitron", sans-serif;
+  font-weight: 900;
+  line-height: 1;
+  color: var(--hud-core);
+  text-shadow: 0 0 18px rgba(79, 195, 247, 0.75), 0 0 42px rgba(79, 195, 247, 0.35);
+}
+.hud-ring-readiness {
+  filter: drop-shadow(0 0 4px rgba(79, 195, 247, 0.9)) drop-shadow(0 0 14px rgba(79, 195, 247, 0.45));
+}
+
+/* Week hexes — one per session slot in the season's rotation. */
+.hud-hexrow {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.hud-hex {
+  width: 44px;
+  height: 50px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.hud-hex .d {
+  font-family: "Share Tech Mono", monospace;
+  font-size: 10px;
+  position: relative;
+  color: rgba(214, 239, 255, 0.8);
+}
+.hud-hex[data-s="done"] .d {
+  color: #06121c;
+  font-weight: bold;
+}
+.hud-hex[data-s="today"] polygon {
+  animation: hud-hexpulse 1.6s ease-in-out infinite;
+}
+@keyframes hud-hexpulse {
+  0%,
+  100% {
+    stroke-opacity: 1;
+    filter: drop-shadow(0 0 2px var(--hud-cyan));
+  }
+  50% {
+    stroke-opacity: 0.4;
+    filter: drop-shadow(0 0 8px var(--hud-cyan));
+  }
+}
+
+/* Bottom telemetry ticker. */
+.hud-ticker {
+  padding: 8px 0;
+  border-top: 1px solid var(--hud-hair2);
+  border-bottom: 1px solid var(--hud-hair2);
+  font-family: "Share Tech Mono", monospace;
+  font-size: 13px;
+  color: rgba(214, 239, 255, 0.85);
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+.hud-ticker span {
+  padding: 0 18px;
+  border-right: 1px solid rgba(79, 195, 247, 0.18);
+}
+.hud-ticker span:last-child {
+  border-right: none;
+}
+.hud-ticker .k {
+  color: rgba(79, 195, 247, 0.6);
+}
+
+/* Faint dot grid + scanlines — channel zero, deletable without losing a
+   fact. Applied once on the Body layout wrapper. */
+.hud-dotgrid {
+  position: relative;
+}
+.hud-dotgrid::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: radial-gradient(rgba(79, 195, 247, 0.1) 1px, transparent 1px);
+  background-size: 36px 36px;
+  opacity: 0.5;
+}
+.hud-scanlines {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 90;
+  background: repeating-linear-gradient(to bottom, rgba(155, 232, 255, 0.022) 0 1px, transparent 1px 4px);
+  mix-blend-mode: screen;
+}
+
+/* ------------------------------------------------------------------ *
+ * The skill constellation (`/life/body/skills`) — a DAG drawn as a
+ * starmap. Node colour is MASTERY, read straight off `SkillTrees.tsx`'s
+ * existing `Mastery` type (`owned | testing | working | locked`); this
+ * only supplies the five visual states the mockup calls for, mapped onto
+ * those four plus "is this node currently the working edge" (a boolean
+ * SkillTrees already computes) — no new state is invented anywhere.
+ * ------------------------------------------------------------------ */
+.hud-node {
+  cursor: pointer;
+}
+.hud-node:focus {
+  outline: none;
+}
+.hud-node:focus .hud-hitring {
+  stroke: rgba(155, 232, 255, 0.6);
+}
+.hud-node text {
+  font-family: "Rajdhani", sans-serif;
+  font-weight: 600;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  fill: rgba(214, 239, 255, 0.85);
+  text-anchor: middle;
+  text-transform: uppercase;
+}
+.hud-node[data-locked="true"] text {
+  fill: rgba(214, 239, 255, 0.3);
+}
+.hud-node .sub {
+  font-family: "Share Tech Mono", monospace;
+  font-size: 8.5px;
+  fill: rgba(79, 195, 247, 0.6);
+}
+.hud-node[data-m="owned"] circle.c {
+  fill: rgba(79, 195, 247, 0.22);
+  stroke: var(--hud-core);
+  filter: drop-shadow(0 0 5px rgba(79, 195, 247, 0.9)) drop-shadow(0 0 12px rgba(79, 195, 247, 0.4));
+}
+.hud-node[data-m="testing"] circle.c {
+  fill: rgba(79, 195, 247, 0.1);
+  stroke: var(--hud-cyan);
+  filter: drop-shadow(0 0 4px rgba(79, 195, 247, 0.5));
+}
+.hud-node[data-m="working"][data-edge="true"] circle.c {
+  fill: transparent;
+  stroke: var(--hud-cyan);
+  animation: hud-nodepulse 2s ease-in-out infinite;
+}
+.hud-node[data-m="working"][data-edge="false"] circle.c {
+  fill: rgba(79, 195, 247, 0.06);
+  stroke: var(--hud-dim);
+}
+.hud-node[data-m="locked"] circle.c {
+  fill: transparent;
+  stroke: rgba(30, 74, 102, 0.7);
+}
+@keyframes hud-nodepulse {
+  0%,
+  100% {
+    stroke-opacity: 1;
+  }
+  50% {
+    stroke-opacity: 0.35;
+  }
+}
+.hud-edge {
+  stroke: rgba(79, 195, 247, 0.3);
+  stroke-width: 1;
+  fill: none;
+}
+.hud-edge[data-lit="true"] {
+  stroke: rgba(79, 195, 247, 0.65);
+}
+.hud-progring {
+  fill: none;
+  stroke: var(--hud-core);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 4px rgba(79, 195, 247, 0.8));
+}
+.hud-treelabel {
+  font-family: "Rajdhani", sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  letter-spacing: 0.3em;
+  fill: rgba(79, 195, 247, 0.5);
+  text-anchor: middle;
+}
+.hud-drawer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 320px;
+  max-width: 88vw;
+  background: rgba(8, 16, 26, 0.96);
+  border-left: 1px solid var(--hud-cyan);
+  transform: translateX(105%);
+  transition: transform 0.28s ease;
+  z-index: 20;
+  padding: 20px;
+  overflow-y: auto;
+  box-shadow: -8px 0 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(79, 195, 247, 0.15);
+}
+.hud-drawer[data-open="true"] {
+  transform: translateX(0);
+}
+
+/* ------------------------------------------------------------------ *
+ * The ring gauge box — fluid, never a fixed pixel size
+ *
+ * RingGauge's SVG viewBox stays a fixed 0..440 (the arc geometry is
+ * computed against those coordinates); this is what makes the DRAWN box
+ * fluid without touching that maths. `min(var(--ring-max), 92vw)` is the
+ * whole trick: on a wide screen it renders at its intended size, and on
+ * any screen narrower than that it shrinks to 92% of the viewport rather
+ * than overflowing — the exact class of phone bug §A7 rule 2 is about.
+ * ------------------------------------------------------------------ */
+.hud-ringbox {
+  width: min(var(--ring-max, 440px), 92vw);
+  aspect-ratio: 1;
+  position: relative;
+  margin: 0 auto;
+}
+.hud-ringbox .big {
+  font-size: clamp(2.5rem, 11vw, 5.5rem);
+}
+.hud-ringbox.compact .big {
+  font-size: clamp(1.75rem, 9vw, 2.75rem);
+}
+
+/* The callsign bar. `gap` and `padding` shrink under 480px so the rank
+   badge, the XP fill and the trailing date/streak block have room to
+   wrap onto two clean rows instead of three cramped ones. */
+.hud-cockpit-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+@media (max-width: 480px) {
+  .hud-cockpit-header {
+    gap: 12px;
+    padding: 10px 12px;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * The tab strip — six real routes, not a JS view-switch (CockpitTabs)
+ *
+ * `flex: 1 1 30%` gives three-per-row at any width under `sm`, so a
+ * phone gets two tidy rows of three rather than six squeezed slivers —
+ * the same reasoning that keeps the phone bar a five-column GRID rather
+ * than six flex items fighting for space.
+ * ------------------------------------------------------------------ */
+.hud-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.hud-tab {
+  flex: 1 1 30%;
+  min-width: 88px;
+  text-align: center;
+  background: var(--hud-panel);
+  border: 1px solid var(--hud-hair2);
+  color: rgba(214, 239, 255, 0.6);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 10px 4px;
+  text-decoration: none;
+  display: block;
+}
+.hud-tab[data-active="true"] {
+  border-color: var(--hud-cyan);
+  color: var(--hud-core);
+  box-shadow: 0 0 10px rgba(79, 195, 247, 0.25), inset 0 0 12px rgba(79, 195, 247, 0.08);
+  text-shadow: 0 0 8px rgba(79, 195, 247, 0.8);
+}
+@media (min-width: 640px) {
+  .hud-tab {
+    flex: 1 1 0;
+    font-size: 14px;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * The Home cockpit's three-column grid — telemetry / ring / mission.
+ *
+ * Below 860px there is no honest way to keep three columns readable
+ * (the ring alone wants ~300px), so it collapses to one and the RING
+ * MOVES FIRST — `order` rather than reflowing the markup, so the ring
+ * stays the hero on a phone exactly as it is on desktop, with the
+ * telemetry and mission panels underneath it rather than either side.
+ * ------------------------------------------------------------------ */
+.hud-home-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr 320px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .hud-home-grid {
+    grid-template-columns: 1fr;
+  }
+  .hud-home-grid > *:nth-child(2) {
+    order: -1;
+  }
+}
+
 /* Nav items declare the modes they belong to; the rest are hidden. Written
    as a negation so each item keeps its own display type (flex, block …)
    rather than being forced to one.
