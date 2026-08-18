@@ -711,7 +711,7 @@ list you *read*.
 |---|---|
 | **Workspace** | Today `/day` · Calendar · Work Diary `/week` · Feed the System `/capture` · Tasks `/planner` · Weekly Review |
 | **Money** | Finances `/life/money` · Ventures `/empire` · Vehicles |
-| **Life Plan** | Health `/life/body` · Food `/life/body/food` · Family `/life/people` |
+| **Life Plan** | Health `/life/body` · Food `/life/body/food` · Family `/life/people` · Motivation `/life/motivation` |
 | **Information Library** | Library · Life Principles · Documents `/library/notes` · Debt Pay Off Plan `/life/money/accounts` |
 
 - **The four groups are the SAME in every mode, and that is the design rather than an
@@ -731,9 +731,13 @@ list you *read*.
   links point at each from inside pages, and ⌘K finds them all by name. They stay in the
   registry because **an address you can only reach by typing it is a page nobody opens**; they
   stay out of the boxes because a sidebar that lists everything is the list you scan.
-- **MOTIVATION is on the sheet and is deliberately absent.** `/motivation` is one of the ten
-  ghost routes deleted on 17 Aug, and a nav entry pointing at a 404 teaches you the nav lies.
-  There is a test asserting its absence, which flips the day the page is built.
+- **MOTIVATION was on the sheet and was deliberately absent until the `/brain` HUD cockpit
+  rebuild built it.** `/motivation` was one of the ten ghost routes deleted on 17 Aug, and a
+  nav entry pointing at a 404 teaches you the nav lies — so it stayed out of Life Plan until
+  a real page existed. It landed 2026-08-18 at `/life/motivation`: one box, one tap, no
+  title, no score (`src/lib/cockpit/motivation.ts`, `motivation` table). The test that used
+  to assert its absence now asserts the opposite — all four nav items present — per the
+  comment inside it that named this exact flip in advance.
 - **Capture was renamed "Feed the System"**, the sheet's own words. The old label named the
   mechanism; this one names the job, and the job is the habit. `short: "Feed"` keeps it
   inside a fifth of a 390px screen.
@@ -781,11 +785,37 @@ Two consequences worth knowing, because neither was a free substitution:
 disk and fails on any whose body calls `redirect(`, naming the item and where it bounces to.
 It reads the files rather than trusting a list, so it also catches a page that becomes a
 redirect *later* — which is the direction this repo actually moves in — and it fails the same
-way for a nav item whose page does not exist at all, which is the `/motivation` case.
+way for a nav item whose page does not exist at all, which is what caught `/motivation`
+pointing nowhere until the cockpit rebuild gave it a real page at `/life/motivation`.
 
-Verified in this repo on 2026-08-18: **1697/1697 tests pass** across 46 files (vitest),
-`npm run lint` is clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 67 entries
-— 54 pages, `/_not-found`, and 12 API routes.** Every one of these figures is counted from
+**The `/brain` HUD cockpit rebuild landed 2026-08-18** — `/dashboard`'s "now" tab wears the
+same MARK-VII ground the health cockpit already validated (`(app)/dashboard/layout.tsx`
+wraps every tab in `.sys-cockpit hud-dotgrid`; no second palette-test ground needed, since
+"the same ground, app-wide" is not a new ground). The old left-hand `<aside>` sidebar — a
+second, drifting copy of the nav registry the four boxes at `(app)/layout.tsx` already
+render — is gone entirely; the top bar keeps search's job to ⌘K, the one Capture action, and
+the new three-way `<MotionToggle/>` (sweep · pulse · drift, each a `data-motion-*` attribute
+on `<html>`, defaulting on, per-toggle in localStorage — the fifth file on the
+`set-state-in-effect` exception list, §A8 item 6). The "now" tab's body is `.hud-split`:
+`NowTab` unchanged on the left, a new system column on the right built entirely from figures
+the page already computed — `ModuleGrid` (LIFE + EMPIRE parent reports, colour carrying
+STATE never module identity, per channel 4 in decision 11), the permanent `PeopleStrip`
+(overdue people ringed, never badged), `MonthsHex` (honest to what `finishes.ts` tracks —
+calendar months, not the mockup's "weeks"), `AdvisorStrip` (`oneLine()`, the exact contract
+the rest of the page reads), `CloudFilesWidget` (an honest "not connected" — no Drive OAuth
+exists here, only Calendar's, and building one was out of scope), and the new
+`MotivationWidget`. **Motivation is the only genuinely new read**: `src/lib/cockpit/`
+(`types.ts`, `motivation.ts`, `queries.ts` — the sole file that touches the DB for it) plus
+the `motivation` table (migration `20260818212452_motivation.sql`, the uniform owner-scoped
+RLS policy) and `/life/motivation` for the full log and the write box. Attention/Systems/Trend
+keep their existing single-column bodies — the split is a "now"-tab thing, not a ground-wide
+one. `tests/cockpit-motivation.test.ts` covers the pure half; the widening of `REAL_ROUTES`
+and the flipped nav-presence assertion are in `tests/logic.test.ts` / `tests/stage4.test.ts`.
+
+Verified in this repo on 2026-08-18 (recounted after the `/brain` HUD cockpit rebuild added
+`motivation` and `/life/motivation`): **1726/1726 tests pass** across 49 files (vitest),
+`npm run lint` is clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 77 entries
+— 64 pages, `/_not-found`, and 12 API routes.** Every one of these figures is counted from
 the tool that produces it rather than remembered. That discipline exists because this file
 has drifted twice: §A5 once said 48 routes while §A9 said 39, and on 2026-08-18 §A5 said 1643
 tests while §A9 said 1510 — both wrong, in the same file, at the same time. **When you change
@@ -2002,9 +2032,9 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1697 tests — must be green before build
+npm test                       # 1726 tests — must be green before build
 npm run lint                   # ESLint — clean before you push
-npm run build                  # 67 entries — green before you push
+npm run build                  # 77 entries — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from

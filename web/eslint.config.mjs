@@ -58,6 +58,9 @@ const config = [
       "src/components/ModeSwitch.tsx",
       "src/components/Capture.tsx",
       "src/components/Meals.tsx",
+      // Fifth file, added deliberately (2026-08-18): MotionToggle reads
+      // localStorage on mount, same reasoning as the four above.
+      "src/components/cockpit/MotionToggle.tsx",
     ],
     rules: { "react-hooks/set-state-in-effect": "off" },
   },

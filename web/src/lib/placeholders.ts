@@ -45,7 +45,8 @@ export const PLACEHOLDERS: Placeholder[] = [
   //   diary               → /week       hour-by-hour, printable
   //   feed                → /life/health  where the Samsung importer lives
   //   personal, me        → /life       Standing holds the areas and standards
-  //   motivation          → /library/principles   the Gita layer, ported
+  //   motivation          → /life/motivation   built 2026-08-18 (the cockpit
+  //     rebuild) — was /library/principles before it had a real page of its own
   //   documents           → /inbox      captures and their attachments
   //
   // Two had no home and stay deleted rather than kept as a wish:
@@ -141,7 +142,7 @@ export const BUILT_BRANCHES: Record<string, { name: string; href: string }> = {
   feed: { name: "Feed the System", href: "/life/health" },
   personal: { name: "Personal", href: "/life" },
   me: { name: "Me", href: "/life" },
-  motivation: { name: "Motivation", href: "/library/principles" },
+  motivation: { name: "Motivation", href: "/life/motivation" },
   documents: { name: "Documents", href: "/inbox" },
   calendar: { name: "Calendar", href: "/calendar" },
   advisor: { name: "Advisor", href: "/advisor" },

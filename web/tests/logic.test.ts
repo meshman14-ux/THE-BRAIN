@@ -1113,6 +1113,8 @@ const REAL_ROUTES = [
   "/inbox",
   "/library",
   "/library/principles",
+  "/library/notes",
+  "/life/motivation",
   "/reviews",
   "/calendar",
   "/advisor",
