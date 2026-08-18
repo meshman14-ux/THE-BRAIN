@@ -1,5 +1,5 @@
 -- capture_attachments — the private bucket behind the capture page's photo and
--- document doors. Applied to the live project 2026-08-17.
+-- document doors.
 --
 -- One private bucket, owner-scoped by path prefix: every object key starts
 -- with the uploader's user id, and every policy checks that prefix against
