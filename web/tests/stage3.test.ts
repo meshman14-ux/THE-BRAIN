@@ -715,8 +715,9 @@ describe("a branch that graduated to a real route", () => {
 
   it("graduated the last placeholder there was", () => {
     // "finance" graduated 2026-08-10 (/life/money), "food" on 2026-08-11,
-    // and "feed" was forwarded to /life/body on 2026-08-13 when the ghosts
-    // were cleared. "opportunities" was the last genuinely unbuilt one and
+    // and "feed" was forwarded to /life/body (then /life/health, 18 Aug)
+    // on 2026-08-13 when the ghosts were cleared. "opportunities" was the
+    // last genuinely unbuilt one and
     // it was built on 2026-08-14, so PLACEHOLDERS is now EMPTY — the queue
     // drained, which is what it was always for.
     expect(PLACEHOLDERS).toHaveLength(0);
@@ -738,7 +739,7 @@ describe("a branch that graduated to a real route", () => {
       today: "/day",
       "daily-wall": "/day",
       diary: "/week",
-      feed: "/life/body",
+      feed: "/life/health",
       personal: "/life",
       me: "/life",
       motivation: "/library/principles",
@@ -766,6 +767,6 @@ describe("a branch that graduated to a real route", () => {
     // page rather than pointing at the redirect, so an old /food link
     // takes one hop rather than two.
     expect(branchName("food")).toBe("Food");
-    expect(BUILT_BRANCHES["food"].href).toBe("/life/body/food");
+    expect(BUILT_BRANCHES["food"].href).toBe("/life/health/food");
   });
 });

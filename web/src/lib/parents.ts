@@ -146,8 +146,8 @@ export const LIFE_PARENTS: ParentArea[] = [
   {
     id: "body",
     layer: "life",
-    name: "Body",
-    href: "/life/body",
+    name: "Health",
+    href: "/life/health",
     icon: "◍",
     question: "Can I work?",
     views: [
@@ -159,19 +159,21 @@ export const LIFE_PARENTS: ParentArea[] = [
       // score it cannot compute is a page nobody opens twice.
       { id: "training", label: "Training", hint: "one session is the whole target", kind: "filter" },
       // Readiness and Food moved from FILTER to PAGE on 2026-08-18, when
-      // the MARK-VII cockpit gave `/life/body` its own six-tab shell
+      // the MARK-VII cockpit gave the module its own six-tab shell
       // (Home/Train/Skills/Planner/Stats/Body) and the home page stopped
       // composing them inline via `?tab=`. Both were already real,
       // standalone routes before that — this only stops the registry
       // claiming a `?tab=readiness` section the home page no longer
-      // renders.
-      { id: "readiness", label: "Readiness", hint: "against your own baseline, not a chart", kind: "page", path: "/life/body/readiness" },
-      { id: "food", label: "Food", hint: "fifty meals, protein first", kind: "page", path: "/life/body/food" },
-      { id: "train", label: "Train", hint: "today's session, set by set", kind: "page", path: "/life/body/train" },
-      { id: "skills", label: "Skills", hint: "the four trees, mastery derived", kind: "page", path: "/life/body/skills" },
-      { id: "planner", label: "Planner", hint: "season and rotation", kind: "page", path: "/life/body/planner" },
-      { id: "stats", label: "Stats", hint: "six trends, all real", kind: "page", path: "/life/body/stats" },
-      { id: "measurements", label: "Body", hint: "the tape, and the mass trend", kind: "page", path: "/life/body/measurements" },
+      // renders. The cockpit itself moved from `/life/body` to
+      // `/life/health` later the same day — `id: "body"` is the registry
+      // key (unchanged, so nothing else has to move), the route is not.
+      { id: "readiness", label: "Readiness", hint: "against your own baseline, not a chart", kind: "page", path: "/life/health/readiness" },
+      { id: "food", label: "Food", hint: "fifty meals, protein first", kind: "page", path: "/life/health/food" },
+      { id: "train", label: "Train", hint: "today's session, set by set", kind: "page", path: "/life/health/train" },
+      { id: "skills", label: "Skills", hint: "the four trees, mastery derived", kind: "page", path: "/life/health/skills" },
+      { id: "planner", label: "Planner", hint: "season and rotation", kind: "page", path: "/life/health/planner" },
+      { id: "stats", label: "Stats", hint: "six trends, all real", kind: "page", path: "/life/health/stats" },
+      { id: "measurements", label: "Body", hint: "the tape, and the mass trend", kind: "page", path: "/life/health/measurements" },
     ],
     // No longer "none": logging a session is one tap, and it is the one
     // thing on this page that cannot fill itself.

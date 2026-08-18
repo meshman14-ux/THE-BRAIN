@@ -46,7 +46,7 @@ export default function CommandK() {
       // "Body" was a registry entry until 2026-08-18, when Health took
       // over its address. The name has to outlive the entry: he named
       // that module Body for months and will type it.
-      { kind: "page", id: "page:body", label: "Body", href: "/life/body", hint: "health readiness" },
+      { kind: "page", id: "page:body", label: "Body", href: "/life/health", hint: "health readiness" },
       { kind: "page", id: "page:estate", label: "Estate", href: "/estate", hint: "divisions ventures" },
       { kind: "page", id: "page:holdings", label: "What you own", href: "/holdings", hint: "assets investments" },
       { kind: "page", id: "page:metrics", label: "Metrics", href: "/life/metrics" },
