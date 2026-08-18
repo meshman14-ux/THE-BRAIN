@@ -1081,7 +1081,6 @@ const REAL_ROUTES = [
   "/dashboard",
   "/day",
   "/life",
-  "/life/body",
   // Still real routes: both now REDIRECT into the Money parent rather than
   // rendering, so an old bookmark lands on the tab that holds the thing.
   // Both now REDIRECT into the pages that own them (2026-08-14): a
@@ -1092,13 +1091,15 @@ const REAL_ROUTES = [
   "/life/money",
   "/life/money/accounts",
   "/life/money/vehicles",
-  // /life/health redirects to /life/body — readiness is looking, so it
-  // is a filter on Body rather than a module of its own.
+  // /life/body redirects to /life/health (moved 2026-08-18, when the
+  // cockpit's route caught up with its own name); /life/food redirects
+  // to /life/health/food.
+  "/life/body",
   "/life/health",
   "/life/food",
-  "/life/body/food",
-  "/life/body/train",
-  "/life/body/skills",
+  "/life/health/food",
+  "/life/health/train",
+  "/life/health/skills",
   "/life/bucket",
   "/life/people",
   "/checkin",

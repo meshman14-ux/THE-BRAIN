@@ -9,7 +9,7 @@ import CockpitTabs from "@/components/hud/CockpitTabs";
 export const dynamic = "force-dynamic";
 
 /* ------------------------------------------------------------------ *
- * The MARK-VII cockpit shell — scoped to /life/body/** ONLY.
+ * The MARK-VII cockpit shell — scoped to /life/health/** ONLY.
  *
  * `.sys-cockpit` on this one wrapper is what re-skins every existing
  * component underneath (SessionLogger, SkillTrees, HealthToday, Panel /

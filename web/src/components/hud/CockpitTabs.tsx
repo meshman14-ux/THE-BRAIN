@@ -4,12 +4,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/life/body", label: "Home" },
-  { href: "/life/body/train", label: "Train" },
-  { href: "/life/body/skills", label: "Skills" },
-  { href: "/life/body/planner", label: "Planner" },
-  { href: "/life/body/stats", label: "Stats" },
-  { href: "/life/body/measurements", label: "Body" },
+  { href: "/life/health", label: "Home" },
+  { href: "/life/health/train", label: "Train" },
+  { href: "/life/health/skills", label: "Skills" },
+  { href: "/life/health/planner", label: "Planner" },
+  { href: "/life/health/stats", label: "Stats" },
+  { href: "/life/health/measurements", label: "Body" },
 ] as const;
 
 /**

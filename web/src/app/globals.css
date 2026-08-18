@@ -662,7 +662,7 @@ h2.serif,
 }
 
 /* ------------------------------------------------------------------ *
- * .sys-cockpit — the MARK-VII health cockpit, scoped to /life/body/**
+ * .sys-cockpit — the MARK-VII health cockpit, scoped to /life/health/**
  *
  * A THIRD ground, alongside `.sys-life` / `.sys-empire` — but unlike those
  * two (which only set `--sys`/`--sys-dim` for a badge to colour itself
@@ -943,7 +943,7 @@ h2.serif,
 }
 
 /* ------------------------------------------------------------------ *
- * The skill constellation (`/life/body/skills`) — a DAG drawn as a
+ * The skill constellation (`/life/health/skills`) — a DAG drawn as a
  * starmap. Node colour is MASTERY, read straight off `SkillTrees.tsx`'s
  * existing `Mastery` type (`owned | testing | working | locked`); this
  * only supplies the five visual states the mockup calls for, mapped onto

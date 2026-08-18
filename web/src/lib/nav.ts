@@ -212,20 +212,14 @@ export const NAV: NavItem[] = [
    */
   {
     key: "health",
-    // CANONICAL ADDRESS, corrected 2026-08-18. This pointed at
-    // `/life/health`, which has been a redirect to `/life/body` since
-    // Health became Body on 14 Aug. The redirect stays (house rule 12 is
-    // redirect, never delete) — what changes is that the NAV no longer
-    // relies on it. A nav is the one place the canonical address has to be
-    // written down: every other link in the app is allowed to be an old
-    // one that still works, but the nav is where you learn where things
-    // live, and teaching a bounce costs a round trip on every click.
-    //
-    // It absorbs the registry-only `body` entry that used to hold this
-    // address, because two entries onto one href is what the uniqueness
-    // test forbids. "Body" survives as a ⌘K alias in `CommandK.tsx` —
-    // searching a name is exactly where two names for one place is right.
-    href: "/life/body",
+    // CANONICAL ADDRESS. Corrected 2026-08-18 to `/life/body` (the address
+    // absorbing the registry-only `body` entry); corrected again the same
+    // day when the cockpit itself moved from `/life/body` to `/life/health`
+    // — the module's name and its route now finally agree. `/life/body`
+    // redirects here (house rule 12 is redirect, never delete). "Body"
+    // survives as a ⌘K alias in `CommandK.tsx` — searching a name is
+    // exactly where two names for one place is right.
+    href: "/life/health",
     label: "Health",
     icon: "◍",
     group: "life",
@@ -234,8 +228,8 @@ export const NAV: NavItem[] = [
   },
   {
     key: "food",
-    // Was `/life/food`, a redirect to this. Same correction as Health.
-    href: "/life/body/food",
+    // Was `/life/food`, then `/life/body/food`. Same correction as Health.
+    href: "/life/health/food",
     label: "Food",
     icon: "◑",
     group: "life",
@@ -364,11 +358,11 @@ export const NAV: NavItem[] = [
     modes: ALL,
     phoneModes: [],
   },
-  /* `body` (/life/body) LEFT this registry on 2026-08-18. It is not gone —
-   * the Health item in LIFE PLAN now carries that address directly, and
-   * two entries onto one href is exactly what the uniqueness test exists
-   * to stop. The NAME survives where a name belongs: ⌘K lists "Body" as an
-   * alias for the same page. */
+  /* `body` (/life/health, formerly /life/body) LEFT this registry on
+   * 2026-08-18. It is not gone — the Health item in LIFE PLAN now carries
+   * that address directly, and two entries onto one href is exactly what
+   * the uniqueness test exists to stop. The NAME survives where a name
+   * belongs: ⌘K lists "Body" as an alias for the same page. */
   {
     key: "estate",
     href: "/estate",

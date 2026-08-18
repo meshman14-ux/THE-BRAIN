@@ -43,7 +43,7 @@ export const PLACEHOLDERS: Placeholder[] = [
   // Eight had a real home already and go to it (see BUILT_BRANCHES):
   //   today, daily-wall → /day        the day planner IS the daily sheet
   //   diary               → /week       hour-by-hour, printable
-  //   feed                → /life/body  where the Samsung importer lives
+  //   feed                → /life/health  where the Samsung importer lives
   //   personal, me        → /life       Standing holds the areas and standards
   //   motivation          → /library/principles   the Gita layer, ported
   //   documents           → /inbox      captures and their attachments
@@ -138,16 +138,16 @@ export const BUILT_BRANCHES: Record<string, { name: string; href: string }> = {
   today: { name: "Today", href: "/day" },
   "daily-wall": { name: "Daily Wall", href: "/day" },
   diary: { name: "Work Diary", href: "/week" },
-  feed: { name: "Feed the System", href: "/life/body" },
+  feed: { name: "Feed the System", href: "/life/health" },
   personal: { name: "Personal", href: "/life" },
   me: { name: "Me", href: "/life" },
   motivation: { name: "Motivation", href: "/library/principles" },
   documents: { name: "Documents", href: "/inbox" },
   calendar: { name: "Calendar", href: "/calendar" },
   advisor: { name: "Advisor", href: "/advisor" },
-  health: { name: "Health", href: "/life/body" },
+  health: { name: "Health", href: "/life/health" },
   finance: { name: "Finance", href: "/life/money" },
-  food: { name: "Food", href: "/life/body/food" },
+  food: { name: "Food", href: "/life/health/food" },
   "debt-payoff": { name: "Debt payoff plan", href: "/life/money" },
   family: { name: "Family", href: "/life/people" },
   ...Object.fromEntries(

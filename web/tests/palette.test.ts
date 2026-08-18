@@ -359,7 +359,7 @@ describe("palette · two machines, one attribute", () => {
 });
 
 /**
- * A THIRD ground, `.sys-cockpit`, scoped to `/life/body/**` (the MARK-VII
+ * A THIRD ground, `.sys-cockpit`, scoped to `/life/health/**` (the MARK-VII
  * health cockpit). It is a full surface override in the same shape as
  * `:root[data-mode="empire"]`, so it is measured the same way — resolved
  * once, checked for the same channel-collision class of bug the v1
