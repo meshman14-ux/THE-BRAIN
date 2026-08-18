@@ -552,7 +552,6 @@ export default async function TheBrain({
     { label: "Ventures", href: "/empire" },
     { label: "Health", href: "/health" },
     { label: "Food", href: "/food" },
-    { label: "Kathleen St", href: "/kathleen-st" },
     { label: "Vehicles", href: "/life/money/vehicles" },
     { label: "Family", href: "/family" },
   ];
