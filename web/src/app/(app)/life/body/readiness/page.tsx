@@ -2,52 +2,52 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import {
   toIso,
-  readinessBand,
   loadState,
   bigFourBests,
   nutritionState,
-  READINESS_LABEL,
   MOVEMENT_LABEL,
   NUTRITION_RUNG_LABEL,
   LOAD_SPIKE_RATIO,
-  BASELINE_DAYS,
   currentStreak,
   type HealthDay,
   type Workout,
   type Lift,
 } from "@/lib/logic";
+import { BAND_LABEL, readinessFor } from "@/lib/hybrid";
+import {
+  allReadings,
+  type CookedMealRow,
+  type HealthDayRow,
+  type JournalRow,
+} from "@/lib/training";
 import HealthToday from "@/components/HealthToday";
 import ImportHealth from "@/components/ImportHealth";
-import { Panel, Empty, Bar } from "@/components/ui";
+import RingGauge from "@/components/hud/RingGauge";
+import HudPanel from "@/components/hud/HudPanel";
 
 export const dynamic = "force-dynamic";
 
-/* ------------------------------------------------------------------ *
- * The health hub.
+/**
+ * The readiness detail.
  *
- * A zero-obligation floor with three ceilings, and the honesty rules that
- * make each one worth trusting:
+ * §2 of the brief: the HYBRID score (0–100 + confidence) is now the ONE
+ * display model, here and on `/life/body` and `/life/body/train` — the
+ * hero this page opens on switched from `logic.ts`'s three-band
+ * `readinessBand()` to `readinessFor()`, so the number and its colour can
+ * never come from two disagreeing models. `readinessBand()` itself is
+ * untouched and still used by its own tests; nothing here deletes it.
  *
- *   Readiness is a BAND around his own rolling baseline, never a 0-100
- *   score. Absolute HRV is meaningless across people; only deviation from
- *   your own normal carries information, and three bands is what the
- *   measurement can support. With too little history it says so rather
- *   than colouring today green.
- *
- *   Load is a SPIKE DETECTOR and says nothing about injury risk. The
- *   acute:chronic ratio's predictive validity does not survive scrutiny,
- *   but "this week is a lot more than you have been doing" is still true
- *   and still useful.
- *
- *   The Big 4 and the nutrition rungs are ceilings. The page works with
- *   both of them empty forever.
- * ------------------------------------------------------------------ */
-
-export default async function HealthPage() {
+ * Everything BELOW the hero — the daily floor, the load spike detector,
+ * the Big 4 and the nutrition rungs, the Samsung import — is the same
+ * real functionality the page already had, restyled rather than
+ * replaced. A restyle that quietly drops the one-tap daily input would
+ * be the empty-state failure §7 warns about, just moved one level down.
+ */
+export default async function ReadinessPage() {
   const supabase = await createClient();
   const today = toIso(new Date());
 
-  const [{ data: dayRows }, { data: workoutRows }, { data: liftRows }] =
+  const [{ data: dayRows }, { data: workoutRows }, { data: liftRows }, { data: journal }, { data: cooked }] =
     await Promise.all([
       supabase
         .from("health_days")
@@ -56,183 +56,121 @@ export default async function HealthPage() {
         )
         .order("on_date", { ascending: false })
         .limit(180),
-      supabase
-        .from("workouts")
-        .select("on_date, kind, minutes, rpe")
-        .order("on_date", { ascending: false })
-        .limit(200),
-      supabase
-        .from("lifts")
-        .select("on_date, movement, weight_kg, reps")
-        .order("on_date", { ascending: false })
-        .limit(400),
+      supabase.from("workouts").select("on_date, kind, minutes, rpe").order("on_date", { ascending: false }).limit(200),
+      supabase.from("lifts").select("on_date, movement, weight_kg, reps").order("on_date", { ascending: false }).limit(400),
+      supabase.from("journal").select("entry_date, mood, energy").order("entry_date", { ascending: false }).limit(90),
+      supabase.from("meals").select("last_cooked_on, protein_g, estimates").not("last_cooked_on", "is", null),
     ]);
 
   const days = (dayRows ?? []) as HealthDay[];
   const workouts = (workoutRows ?? []) as Workout[];
   const lifts = (liftRows ?? []) as Lift[];
 
-  const readiness = readinessBand(days, today);
+  const meals = (cooked ?? []) as CookedMealRow[];
+  const readings = allReadings(days as unknown as HealthDayRow[], (journal ?? []) as JournalRow[], meals);
+  const readiness = readinessFor(readings, today);
+
   const load = loadState(workouts, today);
   const bests = bigFourBests(lifts, today);
   const nutrition = nutritionState(days, today);
   const todayRow = days.find((d) => d.on_date === today) ?? null;
-  const trainedDays = workouts.map((w) => w.on_date);
-  const streak = currentStreak(trainedDays, today);
+  const streak = currentStreak(
+    workouts.map((w) => w.on_date),
+    today
+  );
 
-  const bandColour =
+  const sysLine =
     readiness.band === "green"
-      ? "var(--good)"
+      ? "SYS.OK"
       : readiness.band === "amber"
-        ? "var(--warn)"
+        ? "SYS.CAUTION"
         : readiness.band === "red"
-          ? "var(--bad)"
-          : "var(--faint)";
+          ? "SYS.STAND-DOWN"
+          : undefined;
 
   return (
-    <div className="sys-life grid gap-5 max-w-[820px]">
-      <header>
-        <p className="label">LIFE_OS · Training &amp; Fitness</p>
-        <h1 className="text-[1.6rem] font-semibold mt-1.5 leading-tight">Health</h1>
-        <p className="text-[0.84rem] text-[var(--muted)] mt-1.5 max-w-[62ch] leading-relaxed">
-          The floor fills itself from a sync or a single tap. Everything below
-          it is there when you want it and silent when you do not.
-        </p>
-        {/* The two HYBRID pages. This hub stays the measurement surface;
-            those two are where the training itself happens. */}
-        <div className="flex gap-1.5 flex-wrap mt-3">
-          <Link href="/life/body/train" className="chip no-underline">
-            ⌁ Today&apos;s session
-          </Link>
-          <Link href="/life/body/skills" className="chip no-underline">
-            ◈ Skills
-          </Link>
-        </div>
-      </header>
-
-      {/* -- HERO · readiness, with its inputs shown ----------------- *
-       *
-       * The inputs are printed beside the band deliberately. A single
-       * number invites precision the measurement cannot support, and a
-       * band you cannot check is a band you either over-trust or ignore.
-       */}
-      <section className="panel grid gap-2.5" style={{ borderColor: bandColour }}>
-        <div className="flex items-baseline gap-2 flex-wrap">
-          <h2 className="label">Readiness</h2>
-          <span className="text-[0.7rem] text-[var(--faint)]">
-            against your own {BASELINE_DAYS}-day baseline
-          </span>
-        </div>
-
-        {readiness.band == null ? (
-          <>
-            <p className="mono text-[1.6rem] font-semibold leading-none text-[var(--faint)]">
-              —
-            </p>
-            <p className="text-[0.82rem] text-[var(--muted)] leading-relaxed">
-              {readiness.reason}
-            </p>
-          </>
+    <div className="grid gap-5 max-w-[820px]">
+      {/* -- hero · the ring --------------------------------------------- */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+        <RingGauge score={readiness.score} confidence={readiness.confidence} band={readiness.band} size={280} sysLine={sysLine} />
+        {readiness.score == null ? (
+          <p style={{ fontSize: 13, color: "rgba(214,239,255,.6)", maxWidth: 420, textAlign: "center" }}>{readiness.reason}</p>
         ) : (
-          <>
-            {/* Status is never colour alone — the word carries it. */}
-            <p
-              className="text-[1.5rem] font-semibold leading-none"
-              style={{ color: bandColour }}
-            >
-              {READINESS_LABEL[readiness.band]}
-            </p>
-            <p className="text-[0.8rem] text-[var(--muted)] leading-relaxed">
-              rMSSD <b className="mono">{readiness.today}</b> against a baseline of{" "}
-              <b className="mono">{readiness.baseline}</b> ±
-              <b className="mono">{readiness.spread}</b>, over{" "}
-              <b className="mono">{readiness.readings}</b> days.
-            </p>
-          </>
+          <p style={{ fontSize: "1.1rem", fontWeight: 600 }}>{BAND_LABEL[readiness.band!]}</p>
         )}
-        <p className="text-[0.72rem] text-[var(--faint)] leading-relaxed">
-          Three bands rather than a score out of a hundred. Absolute HRV means
-          nothing across people — two equally recovered men can differ
-          threefold — so only the distance from your own normal says anything,
-          and a band is as fine as that distance can honestly be cut.
-        </p>
-      </section>
+      </div>
+
+      {readiness.contributions.length > 0 && (
+        <HudPanel serial="CTB.014" title="CONTRIBUTOR BREAKDOWN">
+          <ContributorList contributions={readiness.contributions} />
+          {readiness.missing.length > 0 && (
+            <p className="mono" style={{ fontSize: 11, color: "rgba(79,195,247,.5)", marginTop: 10 }}>
+              NOT HEARD FROM TODAY: {readiness.missing.join(", ").replace(/_/g, " ").toUpperCase()}
+            </p>
+          )}
+        </HudPanel>
+      )}
 
       {/* -- today's floor ------------------------------------------ */}
-      <Panel title="◍ Today" hint="one tap is a complete entry">
+      <HudPanel serial="LOG.TDY" title="TODAY" hint="one tap is a complete entry">
         <HealthToday date={today} initial={todayRow} />
-      </Panel>
+      </HudPanel>
 
       {/* -- load --------------------------------------------------- */}
-      <Panel
-        title="◈ Load"
-        hint={`spike detector only · ${LOAD_SPIKE_RATIO}× the four-week average`}
-      >
+      <HudPanel serial="CHT.LOD" title="LOAD" hint={`spike detector only · ${LOAD_SPIKE_RATIO}× the four-week average`}>
         {load.reason ? (
-          <p className="text-[0.82rem] text-[var(--muted)] leading-relaxed">
-            {load.reason}
-          </p>
+          <p style={{ fontSize: 13, color: "rgba(214,239,255,.6)", lineHeight: 1.6 }}>{load.reason}</p>
         ) : (
           <>
-            <div className="flex flex-wrap gap-x-6 gap-y-1 text-[0.84rem]">
-              <span>
-                This week <b className="mono">{load.thisWeek}</b>
-              </span>
-              <span>
-                Usual <b className="mono">{load.average}</b>
-              </span>
-              <span style={{ color: load.spike ? "var(--warn)" : "var(--muted)" }}>
+            <div className="mono" style={{ display: "flex", flexWrap: "wrap", gap: 20, fontSize: 13 }}>
+              <span>THIS WEEK {load.thisWeek}</span>
+              <span>USUAL {load.average}</span>
+              <span style={{ color: load.spike ? "var(--hud-orange)" : "rgba(214,239,255,.7)" }}>
                 {load.spike ? "SPIKE · " : ""}
-                <b className="mono">{load.ratio}×</b>
+                {load.ratio}×
               </span>
             </div>
-            <Bar
-              percent={Math.min(100, Math.round(((load.ratio ?? 0) / 2) * 100))}
-              colour={load.spike ? "var(--warn)" : "var(--accent)"}
-            />
+            <div style={{ height: 6, background: "rgba(30,74,102,.5)", border: "1px solid var(--hud-hair2)", marginTop: 8 }}>
+              <div
+                style={{
+                  height: "100%",
+                  width: `${Math.min(100, Math.round(((load.ratio ?? 0) / 2) * 100))}%`,
+                  background: load.spike ? "var(--hud-orange)" : "var(--hud-cyan)",
+                }}
+              />
+            </div>
           </>
         )}
-        <p className="text-[0.72rem] text-[var(--faint)] leading-relaxed">
-          This is a spike detector and nothing more. The acute:chronic ratio is
-          widely quoted as an injury predictor and does not survive scrutiny as
-          one, so no claim about injury is made here — only that this week is
-          or is not a lot more than you have been doing. Training streak:{" "}
-          <b className="mono">{streak}</b> day{streak === 1 ? "" : "s"}.
+        <p className="mono" style={{ fontSize: 11, color: "rgba(79,195,247,.5)", lineHeight: 1.6, marginTop: 8 }}>
+          SPIKE DETECTOR, NOT AN INJURY PREDICTOR. STREAK {streak} DAY{streak === 1 ? "" : "S"}.
         </p>
-      </Panel>
+      </HudPanel>
 
       {/* -- the Big 4 ---------------------------------------------- */}
-      <Panel title="◼ The big four" hint="a ceiling — the hub works without it">
+      <HudPanel serial="LFT.B4" title="THE BIG FOUR" hint="a ceiling — this page works without it">
         {bests.every((b) => b.e1rm == null) ? (
-          <Empty>
-            Nothing logged. Four lifts, and the page is complete whether you
-            ever fill them in or not — the estimate uses one formula
-            consistently so a set of five and a set of three can be compared
-            at all.
-          </Empty>
+          <p style={{ fontSize: 13, color: "rgba(214,239,255,.5)", lineHeight: 1.6 }}>
+            Nothing logged. Four lifts, and the page is complete whether you ever fill them in or not.
+          </p>
         ) : (
-          <ul className="grid gap-2.5 list-none p-0 m-0">
+          <ul style={{ listStyle: "none", padding: 0, margin: 0, display: "grid", gap: 10 }}>
             {bests.map((b) => (
-              <li key={b.movement} className="flex items-baseline gap-3 flex-wrap">
-                <span className="text-[0.86rem] font-medium min-w-[8rem]">
-                  {MOVEMENT_LABEL[b.movement]}
-                </span>
+              <li key={b.movement} style={{ display: "flex", alignItems: "baseline", gap: 12, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 14, fontWeight: 600, minWidth: "8rem" }}>{MOVEMENT_LABEL[b.movement]}</span>
                 {b.e1rm == null ? (
-                  <span className="text-[0.8rem] text-[var(--faint)] italic">
-                    not logged
-                  </span>
+                  <span style={{ fontSize: 13, color: "rgba(214,239,255,.4)", fontStyle: "italic" }}>not logged</span>
                 ) : (
                   <>
-                    <span className="mono text-[0.95rem] font-semibold">
+                    <span className="mono" style={{ fontSize: 15, fontWeight: 700, color: "var(--hud-core)" }}>
                       {b.e1rm} kg
                     </span>
-                    <span className="text-[0.72rem] text-[var(--faint)]">
+                    <span className="mono" style={{ fontSize: 11, color: "rgba(79,195,247,.5)" }}>
                       est. from {b.weight}kg × {b.reps} on {b.on}
                     </span>
                     {b.change != null && (
                       <span
-                        className="mono text-[0.72rem] ml-auto"
-                        style={{ color: b.change >= 0 ? "var(--good)" : "var(--warn)" }}
+                        className="mono"
+                        style={{ fontSize: 11, marginLeft: "auto", color: b.change >= 0 ? "#7ce8c4" : "var(--hud-orange)" }}
                       >
                         {b.change >= 0 ? "+" : ""}
                         {b.change} kg / 90d
@@ -244,57 +182,72 @@ export default async function HealthPage() {
             ))}
           </ul>
         )}
-      </Panel>
+      </HudPanel>
 
       {/* -- nutrition ---------------------------------------------- */}
-      <Panel title="◒ Nutrition" hint={NUTRITION_RUNG_LABEL[nutrition.rung]}>
-        <div className="flex flex-wrap gap-x-6 gap-y-1 text-[0.84rem]">
+      <HudPanel serial="NUT.RNG" title="NUTRITION" hint={NUTRITION_RUNG_LABEL[nutrition.rung]}>
+        <div className="mono" style={{ display: "flex", flexWrap: "wrap", gap: 20, fontSize: 13 }}>
+          <span>LOGGED {nutrition.logged} / {nutrition.of} DAYS</span>
           <span>
-            Logged <b className="mono">{nutrition.logged}</b> of{" "}
-            <b className="mono">{nutrition.of}</b> days
+            WEIGHT{" "}
+            {nutrition.weightChange == null ? "—" : `${nutrition.weightChange >= 0 ? "+" : ""}${nutrition.weightChange} KG`}
           </span>
-          <span>
-            Weight{" "}
-            <b className="mono">
-              {nutrition.weightChange == null
-                ? "—"
-                : `${nutrition.weightChange >= 0 ? "+" : ""}${nutrition.weightChange} kg`}
-            </b>
-          </span>
-          {nutrition.protein != null && (
-            <span>
-              Protein <b className="mono">{nutrition.protein} g</b>
-            </span>
-          )}
+          {nutrition.protein != null && <span>PROTEIN {nutrition.protein} G</span>}
         </div>
-        <p className="text-[0.72rem] text-[var(--faint)] leading-relaxed">
-          Three rungs, and the first is the default: a weight and one tap is
-          enough to see a trend, which is the only thing that actually decides
-          anything. Protein and calories are there for the weeks you care.
-          Macros are the top rung and arrive by sync rather than by typing —
-          typing macros is data entry, and data entry is what kills the habit
-          that was meant to produce the data. Which rung you are on is read
-          off what you log rather than chosen in a setting.
-        </p>
-      </Panel>
+      </HudPanel>
 
       {/* -- the ingest path -------------------------------------- */}
-      <Panel
-        title="Import from Samsung Health"
-        hint="the export, parsed — you confirm before anything writes"
-      >
+      <HudPanel serial="IMP.SHL" title="IMPORT FROM SAMSUNG HEALTH" hint="the export, parsed — you confirm before anything writes">
         <ImportHealth />
-      </Panel>
+      </HudPanel>
 
-      <p className="text-[0.76rem] text-[var(--faint)] leading-relaxed">
-        <Link
-          href="/life"
-          className="font-semibold no-underline"
-          style={{ color: "var(--accent)" }}
-        >
-          Back to LIFE_OS
+      <p style={{ textAlign: "center", fontSize: "0.74rem" }}>
+        <Link href="/life/body/train" style={{ color: "var(--hud-cyan)", textDecoration: "none", fontWeight: 700 }}>
+          ← Today&apos;s session
+        </Link>
+        {"  ·  "}
+        <Link href="/life/body" style={{ color: "var(--hud-cyan)", textDecoration: "none", fontWeight: 700 }}>
+          Home
         </Link>
       </p>
     </div>
+  );
+}
+
+function ContributorList({
+  contributions,
+}: {
+  contributions: { key: string; normalised: number; line: string }[];
+}) {
+  return (
+    <ul style={{ listStyle: "none", padding: 0, margin: 0, borderTop: "1px solid var(--hud-hair2)" }}>
+      {contributions.map((c) => {
+        const sig = c.normalised > 0.55 ? "+" : c.normalised < 0.45 ? "−" : "■";
+        const colour = c.normalised > 0.55 ? "#7ce8c4" : c.normalised < 0.45 ? "var(--hud-orange)" : "var(--hud-cyan)";
+        return (
+          <li
+            key={c.key}
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              padding: "6px 8px",
+              borderBottom: "1px dashed rgba(79,195,247,.1)",
+              fontSize: 13,
+            }}
+          >
+            <span className="mono" style={{ width: 20, textAlign: "center", color: colour }}>
+              {sig}
+            </span>
+            <span className="lbl" style={{ flex: 1, marginLeft: 6 }}>
+              {c.key.replace(/_/g, " ")}
+            </span>
+            <span className="mono" style={{ fontSize: 12 }}>
+              {c.line}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
   );
 }

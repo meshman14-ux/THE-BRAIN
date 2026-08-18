@@ -18,7 +18,7 @@ import {
   type SkillAttemptRow,
 } from "@/lib/training";
 import SkillTrees, { type TreeView } from "@/components/SkillTrees";
-import { Panel } from "@/components/ui";
+import HudPanel from "@/components/hud/HudPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -96,7 +96,7 @@ export default async function SkillsPage() {
 
       {/* -- test-in ---------------------------------------------------- */}
       {attemptedIds.size === 0 && untested.length > 0 && (
-        <Panel title="◈ Test in" hint="so an owned skill is not re-climbed">
+        <HudPanel title="◈ Test in" hint="so an owned skill is not re-climbed">
           <p className="text-[0.82rem] text-[var(--muted)] leading-relaxed">
             You already own some of this. Rather than starting every tree at
             the bottom, log an attempt at the hardest rung you can actually
@@ -118,7 +118,7 @@ export default async function SkillsPage() {
               </p>
             ))}
           </div>
-        </Panel>
+        </HudPanel>
       )}
 
       {focusCount > 2 && (
