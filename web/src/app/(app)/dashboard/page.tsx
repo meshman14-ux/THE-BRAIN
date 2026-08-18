@@ -44,7 +44,6 @@ import {
   currentStreak,
   dueWithin,
   focusList,
-  openCount,
   splitDormant,
   todayProgress,
   todayReason,
@@ -83,6 +82,18 @@ import AttentionTab from "@/components/dashboard/AttentionTab";
 import NowTab from "@/components/dashboard/NowTab";
 import SystemsTab from "@/components/dashboard/SystemsTab";
 import TrendTab from "@/components/dashboard/TrendTab";
+import MotionToggle from "@/components/cockpit/MotionToggle";
+import { loadMotivation } from "@/lib/cockpit/queries";
+import { latestMotivation } from "@/lib/cockpit/motivation";
+import {
+  PeopleStrip,
+  ModuleGrid,
+  MonthsHex,
+  CloudFilesWidget,
+  AdvisorStrip,
+  MotivationWidget,
+  HudPanel,
+} from "@/components/cockpit/Widgets";
 
 export const dynamic = "force-dynamic";
 
@@ -92,8 +103,6 @@ const REASON_TEXT: Record<TodayReason, string> = {
   high: "high priority",
   next: "next up",
 };
-
-type NavItem = { label: string; href: string; badge?: number; note?: string };
 
 /* ------------------------------------------------------------------ *
  * THE BRAIN — the command centre, built to Jay's own design.
@@ -126,7 +135,6 @@ export default async function TheBrain({
     { data: habitLogs },
     { data: people },
     { data: assets },
-    { count: inboxCount },
     { data: tonight },
     { data: creed },
     { data: vehicles },
@@ -155,7 +163,6 @@ export default async function TheBrain({
     supabase.from("habit_logs").select("habit_id, done_on"),
     supabase.from("people").select("id, name, last_contact, cadence_days, birthday"),
     supabase.from("assets").select("id, name, kind, income_monthly, cost_monthly, status"),
-    supabase.from("inbox").select("id", { count: "exact", head: true }).eq("status", "open"),
     supabase.from("journal").select("mood, energy").eq("entry_date", toIso(new Date())).maybeSingle(),
     // The creed only. The principle notes are deliberately NOT read here:
     // they are a place he goes, never something that arrives (§A3, and
@@ -238,7 +245,6 @@ export default async function TheBrain({
     allTasks,
     today
   );
-  const open = openCount(liveTasks);
   const split = taskSplit(liveTasks, allPillars);
   const dueSoon = dueWithin(
     [
@@ -266,10 +272,6 @@ export default async function TheBrain({
       durationMin: t.duration_min ?? null,
     };
   };
-  const todayCount = liveTasks.filter(
-    (t) => isOpenWork(t) && t.do_date != null && t.do_date <= today
-  ).length;
-
   const bySystem = (sys: "life" | "empire") => {
     const ids = new Set(areasFor(allPillars, sys).map((p) => p.id));
     return liveTasks
@@ -538,49 +540,56 @@ export default async function TheBrain({
   const empireAvg = averageScore(empireAreas);
   const lifeWorst = rankAreasByNeed(lifeAreas).filter((a) => a.score != null)[0] ?? null;
 
-  const workspace: NavItem[] = [
-    { label: "Today", href: "/today", badge: todayCount },
-    { label: "Calendar", href: "/calendar" },
-    { label: "Work Diary", href: "/diary" },
-    { label: "Inbox", href: "/inbox", badge: inboxCount ?? 0 },
-    { label: "Feed the System", href: "/feed" },
-    { label: "Advisor", href: "/advisor", note: "AI" },
-    { label: "Tasks", href: "/planner", badge: open },
-  ];
-  const arms: NavItem[] = [
-    { label: "Finance", href: "/finance" },
-    { label: "Ventures", href: "/empire" },
-    { label: "Health", href: "/health" },
-    { label: "Food", href: "/food" },
-    { label: "Vehicles", href: "/life/money/vehicles" },
-    { label: "Family", href: "/family" },
-  ];
-  // Personal, Daily Wall, Mind Map and Me left this sidebar on 2026-08-12.
-  // Each was an honest placeholder, but a sidebar entry that never delivers
-  // is a promise being broken every time the page loads, and the cost is
-  // paid by the entries that DO work — they get read with the same doubt.
-  const plan: NavItem[] = [
-    { label: "Motivation", href: "/motivation" },
-    { label: "Library", href: "/library" },
-    { label: "Principles", href: "/library/principles" },
-    { label: "Documents", href: "/documents" },
-    { label: "Reviews", href: "/reviews" },
-  ];
+  /* -- motivation ----------------------------------------------------- *
+   *
+   * The only genuinely new read the cockpit rebuild adds — everything
+   * else on this page was already being fetched. Wrapped for the same
+   * reason THE COG and setup are: a failure in the newest thing must
+   * cost one widget, never the dashboard.
+   */
+  let latestMotive: ReturnType<typeof latestMotivation> = null;
+  try {
+    latestMotive = latestMotivation(await loadMotivation(supabase, 1));
+  } catch {
+    latestMotive = null;
+  }
+
+  const peopleForStrip = ((people ?? []) as {
+    id: string;
+    name: string;
+    last_contact: string | null;
+    cadence_days: number | null;
+  }[]).map((p) => ({
+    id: p.id,
+    name: p.name,
+    last_contact: p.last_contact,
+    cadence_days: p.cadence_days,
+  }));
 
   return (
     <div className="grid gap-5">
-      {/* -- top bar ---------------------------------------------- */}
-      <div className="card px-4 py-3 flex items-center gap-3 flex-wrap">
+      {/* -- top bar ---------------------------------------------- *
+       *
+       * Sidebar is gone — the real nav lives in the four boxes at
+       * (app)/layout.tsx now, and a second copy here was the dead-list
+       * duplication an earlier pass on this file flagged. What is left is
+       * search, the motion controls (spec: three independently-switchable
+       * levels) and the one action that always belongs one tap away.
+       */}
+      <div className="hud-panel px-4 py-3 flex items-center gap-3 flex-wrap">
         <div className="min-w-0">
-          <p className="mono text-[0.8rem] font-semibold leading-none tracking-[0.14em]">
+          <p className="mono text-[0.8rem] font-semibold leading-none tracking-[0.14em]" style={{ color: "var(--hud-core)" }}>
             THE BRAIN
           </p>
-          <p className="label mt-1">One OS · Life + Empire</p>
+          <p className="mono text-[0.62rem] mt-1" style={{ color: "var(--hud-dim)" }}>
+            ONE OS · LIFE + EMPIRE
+          </p>
         </div>
-        <p className="mono text-[0.66rem] text-[var(--faint)] mx-auto hidden sm:block">
-          THE BRAIN / COMMAND CENTRE
+        <p className="mono text-[0.66rem] mx-auto hidden sm:block" style={{ color: "var(--hud-dim)" }}>
+          COMMAND CENTRE
         </p>
         <div className="flex items-center gap-2 ml-auto shrink-0">
+          <MotionToggle />
           <Link href="/feed" className="chip no-underline">
             ⬆ Import
           </Link>
@@ -590,63 +599,27 @@ export default async function TheBrain({
         </div>
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[210px_1fr] items-start">
-        {/* -- sidebar ---------------------------------------------- */}
-        <aside className="hidden lg:grid gap-5 sticky top-[72px]">
-          <Link
-            href="/search"
-            className="card card-hover px-3.5 py-2.5 no-underline text-[var(--muted)] text-[0.8rem] flex items-center gap-2"
-          >
-            <span>Search everything</span>
-            <span className="mono text-[0.62rem] ml-auto border border-[var(--border)] rounded-[5px] px-1.5 py-0.5">
-              ⌘K
-            </span>
-          </Link>
-          <NavGroup
-            title="Systems"
-            items={[
-              { label: "LIFE_OS", href: "/life" },
-              { label: "EMPIRE_OS", href: "/empire" },
-            ]}
-          />
-          <NavGroup title="Workspace" items={workspace} />
-          {/* The "MAP ↗" foot went with /map — a link to a page that only
-              ever said it did not exist yet. The group keeps its name. */}
-          <NavGroup title="My Arms" items={arms} />
-          <NavGroup title="Plan" items={plan} />
-          <NavGroup
-            title="Pinned"
-            items={[{ label: "Debt payoff plan", href: "/debt-payoff" }]}
-          />
-          <div className="border-t border-[var(--border)] pt-3.5">
-            <p className="label">The mission</p>
-            <p className="text-[0.76rem] text-[var(--muted)] mt-1.5 leading-relaxed">
-              Make the most of the time left alive. Momentum daily · nothing
-              slips · empire in sight.
-            </p>
-          </div>
-        </aside>
+      {/* -- main column ------------------------------------------ *
+       *
+       * Four tabs, and the rule that keeps them honest: a tab exists only
+       * if it answers a question the other three cannot. The v1 dashboard
+       * put all four answers in one column, so "what am I doing next" had
+       * to be read past a streak chart to reach.
+       *
+       * The tab is a URL parameter rather than React state. That keeps
+       * this a Server Component, makes every tab a real address the
+       * watchtower can link into, and means the back button does what a
+       * back button does.
+       */}
+      <div className="grid gap-5 min-w-0">
+        {/* The season governs what every tab below expects of him, so
+            it sits above them rather than inside one. */}
+        <SeasonSwitch current={season} daysIn={seasonDays} />
 
-        {/* -- main column ------------------------------------------ *
-         *
-         * Four tabs, and the rule that keeps them honest: a tab exists only
-         * if it answers a question the other three cannot. The v1 dashboard
-         * put all four answers in one column, so "what am I doing next" had
-         * to be read past a streak chart to reach.
-         *
-         * The tab is a URL parameter rather than React state. That keeps
-         * this a Server Component, makes every tab a real address the
-         * watchtower can link into, and means the back button does what a
-         * back button does.
-         */}
-        <div className="grid gap-5 min-w-0">
-          {/* The season governs what every tab below expects of him, so
-              it sits above them rather than inside one. */}
-          <SeasonSwitch current={season} daysIn={seasonDays} />
+        <TabBar tab={tab} attention={alerts.length} />
 
-          <TabBar tab={tab} attention={alerts.length} />
-
-          {tab === "now" && (
+        {tab === "now" && (
+          <div className="hud-split">
             <NowTab
               closed={closed}
               cogAdvice={cogAdvice}
@@ -671,8 +644,39 @@ export default async function TheBrain({
               board={board}
               toFocusItem={toFocusItem}
             />
-          )}
-          {/* ================= ATTENTION ============================ *
+            {/* -- the system column ------------------------------- *
+             *
+             * Everything the spec asked for that NowTab does not already
+             * answer: the module grid (colour is state, never identity —
+             * channel 4 stays glyph + label, per §A3 decision 11), the
+             * permanent people strip, months that counted, the cloud-files
+             * door, the advisor's one line, and the newest module. Every
+             * widget reads a value already computed above — nothing here
+             * re-derives a figure the page itself already owns.
+             */}
+            <div className="grid gap-4 content-start">
+              <HudPanel title="MODULES">
+                <ModuleGrid life={board} empire={empireBoard} />
+              </HudPanel>
+              <HudPanel title="PEOPLE">
+                <PeopleStrip people={peopleForStrip} today={today} />
+              </HudPanel>
+              <HudPanel title="MONTHS THAT COUNTED">
+                <MonthsHex tallies={tallies} />
+              </HudPanel>
+              <HudPanel title="ADVISOR">
+                <AdvisorStrip line={line} />
+              </HudPanel>
+              <HudPanel title="MOTIVATION">
+                <MotivationWidget latest={latestMotive} />
+              </HudPanel>
+              <HudPanel title="CLOUD OS · FILES">
+                <CloudFilesWidget />
+              </HudPanel>
+            </div>
+          </div>
+        )}
+        {/* ================= ATTENTION ============================ *
            *
            * Everything that is going wrong, and nothing that is not. The
            * watchtower is NOT truncated here the way it was on the old
@@ -735,10 +739,9 @@ export default async function TheBrain({
             />
           )}
 
-          <p className="mono text-[0.62rem] tracking-[0.12em] text-[var(--faint)] text-center uppercase">
-            The brain reads both · tasks are shared · each system owns its own data
-          </p>
-        </div>
+        <p className="mono text-[0.62rem] tracking-[0.12em] text-[var(--faint)] text-center uppercase">
+          The brain reads both · tasks are shared · each system owns its own data
+        </p>
       </div>
     </div>
   );
@@ -788,44 +791,6 @@ function TabBar({ tab, attention }: { tab: BrainTab; attention: number }) {
       </nav>
       <p className="text-[0.72rem] text-[var(--faint)]">{BRAIN_TAB_QUESTION[tab]}</p>
     </div>
-  );
-}
-
-function NavGroup({
-  title,
-  items,
-  foot,
-}: {
-  title: string;
-  items: NavItem[];
-  foot?: React.ReactNode;
-}) {
-  return (
-    <nav className="grid gap-0.5">
-      <div className="flex items-baseline gap-2 mb-1.5">
-        <p className="label">{title}</p>
-        {foot && <span className="ml-auto">{foot}</span>}
-      </div>
-      {items.map((n) => (
-        <Link
-          key={n.href + n.label}
-          href={n.href}
-          className="flex items-center gap-2 px-2.5 py-[7px] rounded-[8px] no-underline text-[0.82rem] text-[var(--muted)] hover:text-[var(--text)] hover:bg-[var(--bg-2)] transition-colors"
-        >
-          <span className="min-w-0 truncate">{n.label}</span>
-          {n.note && (
-            <span className="mono text-[0.6rem] text-[var(--faint)] border border-[var(--border)] rounded-[4px] px-1 py-[1px]">
-              {n.note}
-            </span>
-          )}
-          {n.badge != null && n.badge > 0 && (
-            <span className="mono ml-auto text-[0.64rem] px-1.5 py-0.5 rounded-full bg-[var(--border)] text-[var(--muted)]">
-              {n.badge}
-            </span>
-          )}
-        </Link>
-      ))}
-    </nav>
   );
 }
 

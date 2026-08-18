@@ -212,13 +212,14 @@ describe("the four boxes", () => {
     expect(labelsIn("money")).not.toContain("Food");
   });
 
-  it("gives Life Plan the three that have pages, and NOT Motivation", () => {
-    // Motivation is on the sheet and has no route — it was one of the
-    // ten ghosts deleted on 17 Aug. A nav entry pointing at a 404 is
-    // worse than no entry: it teaches you the nav lies. This assertion
-    // is the reminder, and it flips the day the page exists.
-    expect(labelsIn("life")).toEqual(["Health", "Food", "Family"]);
-    expect(NAV.some((n) => n.href === "/motivation")).toBe(false);
+  it("gives Life Plan all four now that Motivation has a real page", () => {
+    // This is the flip the old comment here promised: Motivation was
+    // absent because /motivation was a ghost route with no page behind
+    // it, and a nav entry pointing at a 404 teaches you the nav lies.
+    // /life/motivation was built 2026-08-18 (the cockpit rebuild), so
+    // the box now carries all four.
+    expect(labelsIn("life")).toEqual(["Health", "Food", "Family", "Motivation"]);
+    expect(NAV.some((n) => n.href === "/life/motivation")).toBe(true);
   });
 
   it("fills the Information Library with what is written down", () => {

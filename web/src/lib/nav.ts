@@ -205,10 +205,11 @@ export const NAV: NavItem[] = [
    * "Family" is the sheet's word for the people module and is the better
    * word: /life/family is a list of the people you owe time to.
    *
-   * MOTIVATION is on the sheet and is NOT here, because there is no
-   * /motivation route — it is one of the ten ghosts deleted on 17 Aug. A
-   * nav entry pointing at a 404 is worse than no entry: it teaches you
-   * the nav lies. Build the page and this is a four-line diff.
+   * MOTIVATION was on the sheet and absent for exactly this reason —
+   * "a nav entry pointing at a 404 teaches you the nav lies" — until
+   * /life/motivation was built 2026-08-18 as part of the cockpit rebuild.
+   * `tests/stage4.test.ts`'s absence assertion was written to flip the
+   * day this landed; see the commit that updates it alongside this entry.
    */
   {
     key: "health",
@@ -243,6 +244,15 @@ export const NAV: NavItem[] = [
     href: "/life/family",
     label: "Family",
     icon: "◎",
+    group: "life",
+    modes: ALL,
+    phoneModes: [],
+  },
+  {
+    key: "motivation",
+    href: "/life/motivation",
+    label: "Motivation",
+    icon: "✦",
     group: "life",
     modes: ALL,
     phoneModes: [],

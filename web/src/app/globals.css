@@ -1158,6 +1158,168 @@ h2.serif,
   }
 }
 
+/* ------------------------------------------------------------------ *
+ * THE BRAIN cockpit — /dashboard's own split, 50/50 as the spec holds it.
+ * Reuses the `.sys-cockpit` ground and the `hud-*` component vocabulary
+ * wholesale rather than inventing a second HUD language — "Variant A,
+ * MARK-VII app-wide" means the SAME ground, not a sibling one, and it is
+ * why this needed no new entry in tests/palette.test.ts: the ground it
+ * sits on was already validated when the health cockpit shipped.
+ *
+ * Left = today, right = system, and it holds at 50/50 down to the
+ * breakpoint. Below it the columns stack TODAY-FIRST (`order`, not a
+ * markup reflow — the same technique `.hud-home-grid` already uses two
+ * blocks up) because a phone asking "what's next" should not have to
+ * scroll past the system half to find out.
+ * ------------------------------------------------------------------ */
+.hud-split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .hud-split {
+    grid-template-columns: 1fr;
+  }
+  .hud-split > *:nth-child(2) {
+    order: 1;
+  }
+  .hud-split > *:first-child {
+    order: 0;
+  }
+}
+
+/* The module grid inside the system column — one tile per LIFE/EMPIRE
+   parent area. Colour is deliberately NOT per-module here: channel 1
+   (system) already owns hue, and the four-channel rule (§A3 decision 11)
+   reserves colour for system/status/priority — a fifth "module identity"
+   hue would collide with status the moment a tile is both a module AND
+   showing a warn/bad line. Identity is glyph + label instead, exactly as
+   the existing channel-4 rule already specifies. */
+.hud-module-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+@media (max-width: 420px) {
+  .hud-module-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* The honest empty face. Never dimmed — per the spec, dim reads as
+   disabled on a dark HUD, and a widget with nothing to show is not
+   broken, it is just not fed yet. Full opacity, a plain sentence saying
+   what is missing. */
+.hud-no-signal {
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--hud-core);
+  opacity: 1;
+}
+.hud-no-signal .hud-no-signal-tag {
+  display: block;
+  font-family: "Share Tech Mono", monospace;
+  font-size: 0.62rem;
+  letter-spacing: 0.14em;
+  color: var(--hud-orange);
+  margin-bottom: 4px;
+}
+
+/* The permanent people strip — overdue contacts RINGED, not badged, per
+   the spec. A badge is a count you learn to stop reading; a ring around
+   the initial is a shape you notice even when you have stopped reading
+   the number beside it. */
+.hud-people-strip {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.hud-person-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  font-family: "Share Tech Mono", monospace;
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--hud-cyan);
+  background: rgba(79, 195, 247, 0.08);
+  border: 1px solid var(--hud-hair);
+}
+.hud-person-chip[data-overdue="true"] {
+  border: 2px solid var(--hud-orange);
+  color: var(--hud-orange);
+}
+
+/* ------------------------------------------------------------------ *
+ * MOTION LEVELS — three independently-switchable levels (spec decision
+ * 10): an opening sweep (each panel eases in once), a live countdown/
+ * pulse (the ticking pieces — the streak flame, the day-status ring's
+ * glow), and ambient drift (the slow float on the ring's core dot). Each
+ * is a data attribute on <html>, defaulted ON, toggled by
+ * <MotionToggle/> and persisted to localStorage. `prefers-reduced-motion`
+ * still overrides all three — that blanket rule (bottom of this file)
+ * already kills every animation/transition in the app, this is a finer
+ * dial ABOVE it, not a replacement for it.
+ * ------------------------------------------------------------------ */
+@keyframes hud-sweep-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hud-sweep {
+  animation: hud-sweep-in 0.5s ease-out both;
+}
+[data-motion-sweep="off"] .hud-sweep {
+  animation: none;
+  opacity: 1;
+  transform: none;
+}
+
+@keyframes hud-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+.hud-countdown-live {
+  animation: hud-pulse 2.4s ease-in-out infinite;
+}
+[data-motion-countdown="off"] .hud-countdown-live {
+  animation: none;
+  opacity: 1;
+}
+
+@keyframes hud-drift {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+.hud-drift {
+  animation: hud-drift 6s ease-in-out infinite;
+}
+[data-motion-drift="off"] .hud-drift {
+  animation: none;
+  transform: none;
+}
+
 /* Nav items declare the modes they belong to; the rest are hidden. Written
    as a negation so each item keeps its own display type (flex, block …)
    rather than being forced to one.

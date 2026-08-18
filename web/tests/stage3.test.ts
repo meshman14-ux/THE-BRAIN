@@ -742,7 +742,7 @@ describe("a branch that graduated to a real route", () => {
       feed: "/life/health",
       personal: "/life",
       me: "/life",
-      motivation: "/library/principles",
+      motivation: "/life/motivation",
       documents: "/inbox",
     };
     for (const [slug, href] of Object.entries(forwarded)) {
