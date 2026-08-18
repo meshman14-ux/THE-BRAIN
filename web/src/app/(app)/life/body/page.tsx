@@ -91,7 +91,7 @@ export default async function BodyHome() {
 
   if (leadWithLogger(state)) {
     return (
-      <div className="grid gap-4 max-w-[820px]">
+      <div className="grid gap-5 max-w-[820px]">
         <HudPanel serial="TLM.000" title="AWAITING TELEMETRY">
           <p style={{ fontSize: 14, lineHeight: 1.6 }}>{restartLine(state)}</p>
           <div style={{ marginTop: 4 }}>
@@ -142,16 +142,8 @@ export default async function BodyHome() {
   const sysLine = readiness.band === "green" ? "SYS.OK" : readiness.band === "amber" ? "SYS.CAUTION" : readiness.band === "red" ? "SYS.STAND-DOWN" : undefined;
 
   return (
-    <div className="grid gap-4" style={{ maxWidth: 1400, margin: "0 auto" }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "280px 1fr 320px",
-          gap: 16,
-          alignItems: "start",
-        }}
-        className="hud-home-grid"
-      >
+    <div className="grid gap-5" style={{ maxWidth: 1400, margin: "0 auto" }}>
+      <div className="hud-home-grid" style={{ alignItems: "start" }}>
         {/* -- left telemetry ------------------------------------------ */}
         <div className="grid gap-4">
           <HudPanel serial="TLM.001" title="TELEMETRY">

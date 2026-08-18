@@ -4,7 +4,7 @@ import type { LevelState, Rank } from "@/lib/cockpit";
 export function XPFill({ level }: { level: LevelState }) {
   const pct = level.span === 0 ? 100 : Math.min(100, Math.round((level.into / level.span) * 100));
   return (
-    <div className="xpwrap" style={{ flex: 1, maxWidth: 340 }}>
+    <div className="xpwrap" style={{ flex: "1 1 160px", minWidth: 0, maxWidth: 340 }}>
       <div className="row" style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
         <span className="lbl">LVL {level.level}</span>
         <span className="mono" style={{ fontSize: 11, color: "rgba(79,195,247,.8)" }}>

@@ -55,7 +55,10 @@ export default function RingGauge({
     band === "green" ? "var(--hud-good)" : band === "amber" ? "var(--hud-orange)" : band === "red" ? "var(--hud-red)" : "var(--hud-dim)";
 
   return (
-    <div style={{ position: "relative", width: size, height: size, maxWidth: "100%" }}>
+    <div
+      className={`hud-ringbox ${size >= 320 ? "" : "compact"}`}
+      style={{ "--ring-max": `${size}px` } as React.CSSProperties}
+    >
       <svg
         viewBox={`0 0 ${VB} ${VB}`}
         style={{ position: "absolute", inset: 0, overflow: "visible" }}
@@ -136,7 +139,7 @@ export default function RingGauge({
         <div className="lbl" style={{ fontSize: 12, letterSpacing: "0.3em", color: "rgba(79,195,247,.45)" }}>
           {label}
         </div>
-        <div className="big hud-num" style={{ fontSize: size >= 320 ? 88 : 44 }}>
+        <div className="big hud-num">
           {score ?? "—"}
         </div>
         {sysLine && (

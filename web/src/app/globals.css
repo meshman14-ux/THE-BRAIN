@@ -1050,6 +1050,114 @@ h2.serif,
 .hud-drawer[data-open="true"] {
   transform: translateX(0);
 }
+
+/* ------------------------------------------------------------------ *
+ * The ring gauge box — fluid, never a fixed pixel size
+ *
+ * RingGauge's SVG viewBox stays a fixed 0..440 (the arc geometry is
+ * computed against those coordinates); this is what makes the DRAWN box
+ * fluid without touching that maths. `min(var(--ring-max), 92vw)` is the
+ * whole trick: on a wide screen it renders at its intended size, and on
+ * any screen narrower than that it shrinks to 92% of the viewport rather
+ * than overflowing — the exact class of phone bug §A7 rule 2 is about.
+ * ------------------------------------------------------------------ */
+.hud-ringbox {
+  width: min(var(--ring-max, 440px), 92vw);
+  aspect-ratio: 1;
+  position: relative;
+  margin: 0 auto;
+}
+.hud-ringbox .big {
+  font-size: clamp(2.5rem, 11vw, 5.5rem);
+}
+.hud-ringbox.compact .big {
+  font-size: clamp(1.75rem, 9vw, 2.75rem);
+}
+
+/* The callsign bar. `gap` and `padding` shrink under 480px so the rank
+   badge, the XP fill and the trailing date/streak block have room to
+   wrap onto two clean rows instead of three cramped ones. */
+.hud-cockpit-header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  padding: 12px 16px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+@media (max-width: 480px) {
+  .hud-cockpit-header {
+    gap: 12px;
+    padding: 10px 12px;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * The tab strip — six real routes, not a JS view-switch (CockpitTabs)
+ *
+ * `flex: 1 1 30%` gives three-per-row at any width under `sm`, so a
+ * phone gets two tidy rows of three rather than six squeezed slivers —
+ * the same reasoning that keeps the phone bar a five-column GRID rather
+ * than six flex items fighting for space.
+ * ------------------------------------------------------------------ */
+.hud-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.hud-tab {
+  flex: 1 1 30%;
+  min-width: 88px;
+  text-align: center;
+  background: var(--hud-panel);
+  border: 1px solid var(--hud-hair2);
+  color: rgba(214, 239, 255, 0.6);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 10px 4px;
+  text-decoration: none;
+  display: block;
+}
+.hud-tab[data-active="true"] {
+  border-color: var(--hud-cyan);
+  color: var(--hud-core);
+  box-shadow: 0 0 10px rgba(79, 195, 247, 0.25), inset 0 0 12px rgba(79, 195, 247, 0.08);
+  text-shadow: 0 0 8px rgba(79, 195, 247, 0.8);
+}
+@media (min-width: 640px) {
+  .hud-tab {
+    flex: 1 1 0;
+    font-size: 14px;
+  }
+}
+
+/* ------------------------------------------------------------------ *
+ * The Home cockpit's three-column grid — telemetry / ring / mission.
+ *
+ * Below 860px there is no honest way to keep three columns readable
+ * (the ring alone wants ~300px), so it collapses to one and the RING
+ * MOVES FIRST — `order` rather than reflowing the markup, so the ring
+ * stays the hero on a phone exactly as it is on desktop, with the
+ * telemetry and mission panels underneath it rather than either side.
+ * ------------------------------------------------------------------ */
+.hud-home-grid {
+  display: grid;
+  grid-template-columns: 280px 1fr 320px;
+  gap: 16px;
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .hud-home-grid {
+    grid-template-columns: 1fr;
+  }
+  .hud-home-grid > *:nth-child(2) {
+    order: -1;
+  }
+}
+
 /* Nav items declare the modes they belong to; the rest are hidden. Written
    as a negation so each item keeps its own display type (flex, block …)
    rather than being forced to one.

@@ -81,7 +81,7 @@ export default async function StatsPage() {
   }, []);
 
   return (
-    <div className="grid gap-4" style={{ maxWidth: 1100, margin: "0 auto" }}>
+    <div className="grid gap-5" style={{ maxWidth: 1100, margin: "0 auto" }}>
       <header>
         <p className="label">Body · stats</p>
         <h1 style={{ fontSize: "1.5rem", fontWeight: 700, marginTop: 6 }}>Trends</h1>

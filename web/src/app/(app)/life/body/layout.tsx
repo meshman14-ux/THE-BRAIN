@@ -55,17 +55,7 @@ export default async function BodyLayout({ children }: { children: React.ReactNo
   return (
     <div className="sys-cockpit hud-dotgrid">
       <div className="hud-scanlines" aria-hidden="true" />
-      <header
-        className="panel hud-panel"
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 24,
-          padding: "12px 16px",
-          marginBottom: 8,
-          flexWrap: "wrap",
-        }}
-      >
+      <header className="panel hud-panel hud-cockpit-header">
         <span className="hud-corner" data-c="tl" />
         <span className="hud-corner" data-c="tr" />
         <span className="hud-corner" data-c="bl" />

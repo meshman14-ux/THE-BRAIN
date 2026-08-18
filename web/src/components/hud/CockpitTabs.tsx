@@ -17,37 +17,20 @@ const TABS = [
  * panels with JS; this is six actual pages, so a link is bookmarkable,
  * back-button-able and works with JS disabled. `usePathname` only decides
  * which one glows.
+ *
+ * `.hud-tabs`/`.hud-tab` (globals.css) rather than inline styles, because
+ * a phone-width breakpoint can only live in a stylesheet — six tabs at
+ * `flex:1` each squeeze unreadable below ~500px, so under `sm` they wrap
+ * to two rows of three instead.
  */
 export default function CockpitTabs() {
   const pathname = usePathname();
   return (
-    <nav className="tabs" role="tablist" aria-label="Body module sections" style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+    <nav className="hud-tabs" role="tablist" aria-label="Body module sections">
       {TABS.map((t) => {
         const active = pathname === t.href;
         return (
-          <Link
-            key={t.href}
-            href={t.href}
-            role="tab"
-            aria-selected={active}
-            className="tab"
-            data-active={active}
-            style={{
-              flex: 1,
-              textAlign: "center",
-              background: "var(--hud-panel)",
-              border: `1px solid ${active ? "var(--hud-cyan)" : "var(--hud-hair2)"}`,
-              color: active ? "var(--hud-core)" : "rgba(214,239,255,.6)",
-              fontWeight: 700,
-              fontSize: 13,
-              letterSpacing: "0.14em",
-              textTransform: "uppercase",
-              padding: "10px 0",
-              textDecoration: "none",
-              boxShadow: active ? "0 0 10px rgba(79,195,247,.25), inset 0 0 12px rgba(79,195,247,.08)" : "none",
-              textShadow: active ? "0 0 8px rgba(79,195,247,.8)" : "none",
-            }}
-          >
+          <Link key={t.href} href={t.href} role="tab" aria-selected={active} className="hud-tab" data-active={active}>
             {t.label}
           </Link>
         );
