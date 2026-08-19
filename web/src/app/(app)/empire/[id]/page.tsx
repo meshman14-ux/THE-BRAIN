@@ -43,6 +43,7 @@ import { Panel, Empty, Kpi, Bar, Tag, DriftNote } from "@/components/ui";
 import { parentById } from "@/lib/parents";
 import EmpireParent from "@/components/EmpireParent";
 import DivisionMonth from "@/components/DivisionMonth";
+import VentureAreas from "@/components/VentureAreas";
 
 export const dynamic = "force-dynamic";
 
@@ -94,7 +95,7 @@ export default async function DivisionPage({
     supabase
       .from("ventures")
       .select(
-        "id, name, pillar_id, stage, progress, one_liner, status, sort_order, external_system, external_url, plan, budget, monthly_cost, funding_route, profile, meta"
+        "id, name, pillar_id, stage, progress, one_liner, status, sort_order, external_system, external_url, plan, budget, monthly_cost, funding_route, profile, meta, tier, legal_structure, venture_group, last_touched_at, created_at"
       )
       .order("sort_order"),
     supabase
@@ -110,11 +111,35 @@ export default async function DivisionPage({
     supabase.from("pillars").select("id, name, emoji, system"),
   ]);
 
-  const allVentures = (ventures ?? []) as Venture[];
-  const v = resolveVenture(allVentures, id);
+  type VentureRow = Venture & {
+    tier: string | null;
+    legal_structure: string | null;
+    venture_group: string | null;
+    last_touched_at: string | null;
+    created_at: string | null;
+  };
+  const allVentures = (ventures ?? []) as VentureRow[];
+  const v = resolveVenture(allVentures, id) as VentureRow | undefined;
   // A pointer row and an unknown id are the same answer: there is no
   // cockpit here. MAINFRAME's data lives in MAINFRAME (locked decision A1).
   if (!v) notFound();
+
+  /* -- the venture module: the five areas' rows --------------------- */
+  const [{ data: vDocs }, { data: vPlan }, { data: vCheck }] = await Promise.all([
+    supabase
+      .from("venture_documents")
+      .select("id, title, url, note, created_at")
+      .eq("venture_id", v.id)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("venture_plan_sections")
+      .select("id, section, body")
+      .eq("venture_id", v.id),
+    supabase
+      .from("venture_checklist_items")
+      .select("id, rule_key, title, due_on, done_at, guidance_url")
+      .eq("venture_id", v.id),
+  ]);
 
   const allProjects = (projects ?? []) as (Project & {
     venture_id: string | null;
@@ -142,6 +167,56 @@ export default async function DivisionPage({
   const refs = refsForBranch(slug);
   const shelved = isShelved(v);
   const onboardHref = `${divisionHref(v.name)}/onboard`;
+
+  /* -- the venture module: five areas, gated by tier ----------------- *
+   *
+   * Rendered on BOTH branches deliberately. The on-ramp is where the
+   * backlog ideas live, and an Idea's one card — the Checklist — is
+   * exactly the thing that must not wait for a questionnaire: statutory
+   * obligations do not care whether onboarding happened.
+   */
+  const ventureModule = (
+    <VentureAreas
+      ventureId={v.id}
+      ventureName={v.name}
+      stage={v.stage}
+      status={v.status}
+      tier={v.tier}
+      legalStructure={v.legal_structure}
+      ventureGroup={v.venture_group}
+      lastTouchedAt={v.last_touched_at}
+      createdAt={v.created_at}
+      oneLiner={v.one_liner}
+      budget={v.budget ?? null}
+      monthlyCost={v.monthly_cost ?? null}
+      fundingRoute={v.funding_route ?? null}
+      documents={(vDocs ?? []) as {
+        id: string;
+        title: string;
+        url: string | null;
+        note: string | null;
+        created_at: string;
+      }[]}
+      planSections={(vPlan ?? []) as { id: string; section: string; body: string | null }[]}
+      checklist={(vCheck ?? []) as {
+        id: string;
+        rule_key: string | null;
+        title: string;
+        due_on: string | null;
+        done_at: string | null;
+        guidance_url: string | null;
+      }[]}
+      tasks={myTasks.map((t) => ({
+        id: t.id,
+        title: t.title,
+        status: t.status,
+        priority: t.priority,
+        due_date: t.due_date,
+      }))}
+      projectId={mine[0]?.id ?? null}
+      today={today}
+    />
+  );
 
   /* -- the on-ramp ------------------------------------------------ */
 
@@ -173,6 +248,8 @@ export default async function DivisionPage({
             </Link>
           </div>
         </header>
+
+        {ventureModule}
 
         <Panel title="What it asks" hint={`${ONBOARD_STEPS.length} questions`}>
           <ol className="grid gap-1.5 list-none p-0 m-0">
@@ -349,6 +426,9 @@ export default async function DivisionPage({
           today={toIso(new Date())}
         />
       </Panel>
+
+      {/* -- the five areas ----------------------------------------- */}
+      {ventureModule}
 
       {/* -- graphs: the path, the money, the work ------------------ */}
       <div className="grid gap-5 lg:grid-cols-2 items-start">
