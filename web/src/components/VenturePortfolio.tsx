@@ -48,7 +48,10 @@ export default function VenturePortfolio({
   today: string;
 }) {
   const rows = ventures
-    .filter((v) => v.external_system == null)
+    // MAINFRAME is a pointer (§A1); a RETIRED venture left the portfolio by
+    // decision — it is not dormant, it is answered, and showing it would put
+    // the question back on the board every day.
+    .filter((v) => v.external_system == null && v.status !== "retired")
     .map((v) => {
       const { tier, assumed } = tierFor({
         stage: v.stage,
