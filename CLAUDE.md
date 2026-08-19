@@ -3,7 +3,7 @@
 The one canonical context file for this repo.
 
 **There is one application: THE BRAIN OS, in `web/` — Next.js + Supabase.** Its data layer is
-Supabase Postgres with RLS on 56 tables (§A4), captured at `supabase/schema.sql`. That is the
+Supabase Postgres with RLS on 59 tables (§A4), captured at `supabase/schema.sql`. That is the
 only live data layer; nothing in this
 repo stores user data in the browser.
 
@@ -343,7 +343,7 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 ## A4. Database (live project)
 
 Supabase project **`qttroyuajpyelfrbxzzt`** · https://qttroyuajpyelfrbxzzt.supabase.co
-Region eu-west-2 (London), free tier. **RLS is on for all 56 tables** — owner-scoped on 53
+Region eu-west-2 (London), free tier. **RLS is on for all 59 tables** — owner-scoped on 56
 of them, and SELECT-only for `authenticated` on the three reference tables that hold no
 user data (§A4 below). pgvector enabled.
 
@@ -356,6 +356,7 @@ LIFE_OS        : habits · habit_logs · journal · people · people_contacts
                  health_days · workouts · lifts · meals · meal_ingredients
                  training_sets · skill_attempts · athlete_profile
 EMPIRE_OS      : ventures · assets · investments · opportunities
+                 venture_documents · venture_plan_sections · venture_checklist_items
 calendar       : calendar_sync · integrations
 THE COG        : cog_checkins · cog_states · cog_pulses · cog_feedback
                  cog_config · cog_identity · cog_events · cog_telemetry
@@ -417,8 +418,10 @@ Four things now checked against the catalogue rather than assumed:
   whatever produced it (§A5). Worth watching because the sibling COG repo has repeatedly been
   bitten by `SECURITY DEFINER` functions silently re-granting `EXECUTE` to `PUBLIC`. The
   remaining asymmetry is unchanged: **`cog_prune()` does not pin `search_path`** where the
-  other two do. Being `INVOKER` that is a hardening note rather than a hole. There are still
-  no triggers.
+  other two do. Being `INVOKER` that is a hardening note rather than a hole. **Triggers
+  exist as of 2026-08-19**: the venture module's `venture_touch()` (`SECURITY INVOKER`,
+  `search_path` pinned) bumps `ventures.last_touched_at` from all three of its child
+  tables — what makes stage-aware RAG possible without a nightly job.
 - **24 of the 56 tables have no `user_id → auth.users` foreign key** (recounted live
   2026-08-18; it was 19 of 44). Every `cog_*` one, plus `debts`, `debt_payments`, `vehicles`,
   `meals`, `meal_ingredients`, `seasons`, `finishes`, `diagnostic_runs`, `skill_attempts`,
@@ -812,8 +815,33 @@ keep their existing single-column bodies — the split is a "now"-tab thing, not
 one. `tests/cockpit-motivation.test.ts` covers the pure half; the widening of `REAL_ROUTES`
 and the flipped nav-presence assertion are in `tests/logic.test.ts` / `tests/stage4.test.ts`.
 
-Verified in this repo on 2026-08-18 (recounted after the `/brain` HUD cockpit rebuild added
-`motivation` and `/life/motivation`): **1726/1726 tests pass** across 49 files (vitest),
+**The venture module landed 2026-08-19** — Jay's handwritten five areas (Document File ·
+Business Plan · One-Page Summary · Task List · Checklist) as cards on each venture's own
+page at `/empire/[id]` that **expand in place** (`VentureAreas.tsx`, pure half in
+`src/lib/venture.ts`, 31 tests). No new route: the build brief specced `/ventures` +
+`/ventures/[id]`, but a second dashboard over the same 23 rows would have been two answers
+to one question, and Jay confirmed the areas belong on each venture. Migration
+`20260819135457_venture_module` (applied live, captured byte-identical): `ventures.tier` /
+`legal_structure` / `venture_group` / `irl` / `last_touched_at` + `venture_documents`,
+`venture_plan_sections`, `venture_checklist_items` (uniform owner RLS), and the project's
+FIRST triggers — `venture_touch()` bumps `last_touched_at` from every child write. The two
+rules the module turns on: **a venture only earns the fields it can fill** (`areaUnlocked`
+— an Idea shows ONE card, the Checklist, never five disabled ones; locked areas get one
+honest line) and **RAG is scored against stage-appropriate expectation, never absolute**
+(`ragFor` — an Idea untouched 40 days is green, an Active venture at 40 is red; an overdue
+statutory obligation is red at EVERY tier). Tier is chosen or **derived from stage/status
+and flagged assumed**; `legal_structure` null generates ONLY universal checklist rules —
+never sole-trader-by-default, which would list the wrong statutes for anything
+incorporated (the brief's D6). `generateChecklist()` is deterministic, dedups on
+`rule_key` (partial unique index), and never un-ticks. Vehicle tax/MOT/insurance are
+deliberately NOT rules — `vehicles` owns those dates and the watchtower already fires.
+The rules are prompts with GOV.UK links, not advice, and the panel says so. The module
+renders on the on-ramp branch too, deliberately: statutory obligations do not wait for a
+questionnaire. Quick-added tasks go through a lazily-created project — tasks reach a
+venture through a project, the existing model, not a second path.
+
+Verified in this repo on 2026-08-19 (recounted after the venture module): **1757/1757
+tests pass** across 50 files (vitest),
 `npm run lint` is clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 77 entries
 — 64 pages, `/_not-found`, and 12 API routes.** Every one of these figures is counted from
 the tool that produces it rather than remembered. That discipline exists because this file
@@ -2032,7 +2060,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1726 tests — must be green before build
+npm test                       # 1757 tests — must be green before build
 npm run lint                   # ESLint — clean before you push
 npm run build                  # 77 entries — green before you push
 ```
