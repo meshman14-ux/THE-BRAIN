@@ -861,6 +861,12 @@ h2.serif,
   display: flex;
   gap: 10px;
   justify-content: center;
+  /* Built for the week's 7 hexes; the dashboard's MonthsHex puts 12 in it,
+     which is 638px — wider than any phone. A row of fixed-size hexes cannot
+     shrink (§A7 rule 3), so the honest small-screen answer is to WRAP: months
+     read fine as two calendar rows, and a 7-hex week only wraps when it
+     genuinely has no room. Found by the 390×844 sweep, 2026-08-19. */
+  flex-wrap: wrap;
 }
 .hud-hex {
   width: 44px;
