@@ -6,9 +6,12 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import {
   type AreaKey,
+  type ComplianceFacts,
   type LegalStructure,
   type VentureTier,
+  type VentureType,
   AREAS,
+  CADENCE_WORD,
   LEGAL_LABEL,
   PLAN_SECTIONS,
   RAG_COLOUR,
@@ -16,6 +19,7 @@ import {
   TIER_MEANING,
   TIERS,
   areaUnlocked,
+  checklistGaps,
   checklistState,
   generateChecklist,
   lockedAreas,
@@ -47,6 +51,7 @@ type CheckRow = {
   due_on: string | null;
   done_at: string | null;
   guidance_url: string | null;
+  note: string | null;
 };
 type TaskRow = { id: string; title: string; status: string; priority: string; due_date: string | null };
 
@@ -58,6 +63,8 @@ export type VentureAreasProps = {
   tier: string | null;
   legalStructure: string | null;
   ventureGroup: string | null;
+  employsPeople: boolean | null;
+  vatRegistered: boolean | null;
   lastTouchedAt: string | null;
   createdAt: string | null;
   oneLiner: string | null;
@@ -73,7 +80,18 @@ export type VentureAreasProps = {
   today: string;
 };
 
-const GROUPS = ["property", "trade", "retail", "digital", "service", "other"];
+const GROUPS: VentureType[] = ["property", "trade", "retail", "digital", "service", "charity", "other"];
+
+function factsOf(p: Pick<VentureAreasProps, "ventureGroup" | "legalStructure" | "employsPeople" | "vatRegistered">): ComplianceFacts {
+  const type = (GROUPS as string[]).includes(p.ventureGroup ?? "")
+    ? (p.ventureGroup as VentureType)
+    : null;
+  const legal =
+    p.legalStructure != null && p.legalStructure in LEGAL_LABEL
+      ? (p.legalStructure as LegalStructure)
+      : null;
+  return { type, legal, employsPeople: p.employsPeople, vatRegistered: p.vatRegistered };
+}
 
 export default function VentureAreas(props: VentureAreasProps) {
   const router = useRouter();
@@ -119,6 +137,8 @@ export default function VentureAreas(props: VentureAreasProps) {
     run(() => supabase.from("ventures").update({ legal_structure: s }).eq("id", props.ventureId));
   const setGroup = (g: string) =>
     run(() => supabase.from("ventures").update({ venture_group: g }).eq("id", props.ventureId));
+  const setFact = (col: "employs_people" | "vat_registered", value: boolean) =>
+    run(() => supabase.from("ventures").update({ [col]: value }).eq("id", props.ventureId));
 
   const cardLine: Record<AreaKey, string> = {
     checklist:
@@ -213,6 +233,36 @@ export default function VentureAreas(props: VentureAreasProps) {
               </button>
             ))}
           </div>
+          <div className="flex gap-x-4 gap-y-1.5 flex-wrap items-baseline">
+            <span className="flex gap-1.5 items-baseline">
+              <span className="label">Employs anyone</span>
+              {([true, false] as const).map((v) => (
+                <button
+                  key={String(v)}
+                  className="chip tap"
+                  data-active={props.employsPeople === v ? "true" : "false"}
+                  disabled={busy}
+                  onClick={() => void setFact("employs_people", v)}
+                >
+                  {v ? "Yes" : "No"}
+                </button>
+              ))}
+            </span>
+            <span className="flex gap-1.5 items-baseline">
+              <span className="label">VAT registered</span>
+              {([true, false] as const).map((v) => (
+                <button
+                  key={String(v)}
+                  className="chip tap"
+                  data-active={props.vatRegistered === v ? "true" : "false"}
+                  disabled={busy}
+                  onClick={() => void setFact("vat_registered", v)}
+                >
+                  {v ? "Yes" : "No"}
+                </button>
+              ))}
+            </span>
+          </div>
         </div>
       </div>
 
@@ -283,12 +333,12 @@ function ChecklistPanel(p: PanelCtx) {
   const [title, setTitle] = useState("");
   const [due, setDue] = useState("");
   const items = sortChecklist(p.checklist);
-  const structure = (p.legalStructure ?? null) as LegalStructure | null;
+  const facts = factsOf(p);
+  const gaps = checklistGaps(facts);
 
   async function generate() {
     const rules = generateChecklist({
-      structure,
-      group: p.ventureGroup,
+      facts,
       existingRuleKeys: new Set(p.checklist.map((c) => c.rule_key).filter((k): k is string => k != null)),
     });
     if (rules.length === 0) return;
@@ -299,7 +349,8 @@ function ChecklistPanel(p: PanelCtx) {
           rule_key: r.key,
           title: r.title,
           guidance_url: r.guidanceUrl,
-          note: r.note ?? null,
+          // Cadence travels in the note so the row needs no extra column.
+          note: r.note ? `${CADENCE_WORD[r.cadence]} · ${r.note}` : CADENCE_WORD[r.cadence],
         }))
       )
     );
@@ -343,9 +394,10 @@ function ChecklistPanel(p: PanelCtx) {
         <button className="btn" disabled={p.busy} onClick={() => void generate()}>
           Generate from the rules
         </button>
-        {structure == null && (
+        {gaps.length > 0 && (
           <span className="text-[0.72rem] text-[var(--muted)] self-center">
-            Only universal rules until a legal structure is set above.
+            The generator does not yet know: {gaps.join(" · ")}. Answer above and the list
+            grows — nothing is ever guessed.
           </span>
         )}
       </div>
@@ -371,27 +423,32 @@ function ChecklistPanel(p: PanelCtx) {
                 onClick={() => void tick(i)}
                 title={i.done_at ? "Mark not done" : "Mark done"}
               />
-              <span
-                className="text-[0.84rem] leading-snug min-w-0 flex-1"
-                style={{
-                  color: i.done_at ? "var(--faint)" : "var(--text)",
-                  textDecoration: i.done_at ? "line-through" : "none",
-                }}
-              >
-                {i.title}
-                {i.guidance_url && (
-                  <>
-                    {" "}
-                    <a
-                      href={i.guidance_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mono text-[0.68rem] no-underline"
-                      style={{ color: "var(--accent)" }}
-                    >
-                      guidance ↗
-                    </a>
-                  </>
+              <span className="min-w-0 flex-1 grid gap-0.5">
+                <span
+                  className="text-[0.84rem] leading-snug"
+                  style={{
+                    color: i.done_at ? "var(--faint)" : "var(--text)",
+                    textDecoration: i.done_at ? "line-through" : "none",
+                  }}
+                >
+                  {i.title}
+                  {i.guidance_url && (
+                    <>
+                      {" "}
+                      <a
+                        href={i.guidance_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mono text-[0.68rem] no-underline"
+                        style={{ color: "var(--accent)" }}
+                      >
+                        guidance ↗
+                      </a>
+                    </>
+                  )}
+                </span>
+                {i.note && !i.done_at && (
+                  <span className="text-[0.7rem] text-[var(--muted)] leading-snug">{i.note}</span>
                 )}
               </span>
               {i.due_on && !i.done_at && (

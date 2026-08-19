@@ -54,6 +54,7 @@ import {
 } from "@/lib/season";
 import { Panel, Empty, Kpi, Bar, Tag } from "@/components/ui";
 import AreaBars from "@/components/AreaBars";
+import VenturePortfolio from "@/components/VenturePortfolio";
 
 export const dynamic = "force-dynamic";
 
@@ -75,11 +76,12 @@ export default async function EmpirePage() {
     { data: metrics },
     { data: readings },
     { data: visions },
+    { data: checkItems },
   ] = await Promise.all([
     supabase
       .from("ventures")
       .select(
-        "id, name, pillar_id, stage, progress, one_liner, status, sort_order, external_system, external_url, plan, budget, monthly_cost, funding_route, meta"
+        "id, name, pillar_id, stage, progress, one_liner, status, sort_order, external_system, external_url, plan, budget, monthly_cost, funding_route, meta, tier, venture_group, last_touched_at, created_at"
       )
       .order("sort_order"),
     supabase.from("projects").select("id, venture_id, pillar_id, status"),
@@ -101,6 +103,9 @@ export default async function EmpirePage() {
       .select("id, title, statement, horizon_years, system, meta")
       .eq("active", true)
       .order("horizon_years", { ascending: false }),
+    supabase
+      .from("venture_checklist_items")
+      .select("venture_id, due_on, done_at"),
   ]);
 
   const allVentures = (ventures ?? []) as Venture[];
@@ -323,6 +328,15 @@ export default async function EmpirePage() {
             ` — ${running.knownCount} of ${running.knownCount + running.unknownCount} answered, so the real figure is higher.`}
         </p>
       </section>
+
+      {/* -- the portfolio lens: which of these needs me, and why --- */}
+      <VenturePortfolio
+        ventures={allVentures as unknown as Parameters<typeof VenturePortfolio>[0]["ventures"]}
+        checklistItems={
+          (checkItems ?? []) as { venture_id: string; due_on: string | null; done_at: string | null }[]
+        }
+        today={today}
+      />
 
       {/* -- divisions + priorities -------------------------------- */}
       <div className="grid gap-5 lg:grid-cols-2 items-start">

@@ -95,7 +95,7 @@ export default async function DivisionPage({
     supabase
       .from("ventures")
       .select(
-        "id, name, pillar_id, stage, progress, one_liner, status, sort_order, external_system, external_url, plan, budget, monthly_cost, funding_route, profile, meta, tier, legal_structure, venture_group, last_touched_at, created_at"
+        "id, name, pillar_id, stage, progress, one_liner, status, sort_order, external_system, external_url, plan, budget, monthly_cost, funding_route, profile, meta, tier, legal_structure, venture_group, employs_people, vat_registered, last_touched_at, created_at"
       )
       .order("sort_order"),
     supabase
@@ -115,6 +115,8 @@ export default async function DivisionPage({
     tier: string | null;
     legal_structure: string | null;
     venture_group: string | null;
+    employs_people: boolean | null;
+    vat_registered: boolean | null;
     last_touched_at: string | null;
     created_at: string | null;
   };
@@ -137,7 +139,7 @@ export default async function DivisionPage({
       .eq("venture_id", v.id),
     supabase
       .from("venture_checklist_items")
-      .select("id, rule_key, title, due_on, done_at, guidance_url")
+      .select("id, rule_key, title, due_on, done_at, guidance_url, note")
       .eq("venture_id", v.id),
   ]);
 
@@ -184,6 +186,8 @@ export default async function DivisionPage({
       tier={v.tier}
       legalStructure={v.legal_structure}
       ventureGroup={v.venture_group}
+      employsPeople={v.employs_people}
+      vatRegistered={v.vat_registered}
       lastTouchedAt={v.last_touched_at}
       createdAt={v.created_at}
       oneLiner={v.one_liner}
@@ -205,6 +209,7 @@ export default async function DivisionPage({
         due_on: string | null;
         done_at: string | null;
         guidance_url: string | null;
+        note: string | null;
       }[]}
       tasks={myTasks.map((t) => ({
         id: t.id,

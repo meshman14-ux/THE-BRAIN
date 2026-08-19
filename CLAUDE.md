@@ -840,8 +840,27 @@ renders on the on-ramp branch too, deliberately: statutory obligations do not wa
 questionnaire. Quick-added tasks go through a lazily-created project — tasks reach a
 venture through a project, the existing model, not a second path.
 
-Verified in this repo on 2026-08-19 (recounted after the venture module): **1757/1757
-tests pass** across 50 files (vitest),
+**The venture module was then MERGED with a second one, same day — and the merge is the
+story again**, the capture engine's history repeating almost exactly. A parallel session
+built the same brief on branch `claude/new-session-lw4dmk` (unmerged; its schema was never
+applied to the live project — verified via `schema_migrations` and `information_schema`
+before deciding anything). Jay chose harvest-the-good-parts over adopt-wholesale. Taken:
+its **fact-predicate rulebook** (34 rules over `ComplianceFacts` — structure, type,
+employment, VAT, `wales` — covering PAYE/RTI/pensions/employers' liability, VAT returns,
+Renting Homes (Wales) occupation contracts, EPC, alarms, and the council-tax/water-account
+rule the £185→£681 escalation taught), its **question-style plan sections** (swapped in
+while `venture_plan_sections` held zero rows, so no data migration), `checklistGaps()`
+(the generator names what it does not know instead of guessing), and its **portfolio
+lens** — landed as a `VenturePortfolio` panel on `/empire`, not a `/ventures` route,
+grouped by `venture_group` with per-tier RAG dots, unsorted last, MAINFRAME excluded.
+Migration `20260819152738_venture_compliance_facts` added `ventures.employs_people` /
+`vat_registered` and widened `legal_structure` to include `llp`/`cic`/`charity`. NOT
+taken: the 8-dimension scoring, KPI tables, and proposals queue — different domain model,
+and the brief's own step 2 (Jay sorting all 23) has not happened yet. The other branch
+stays on GitHub, unmerged, as the record.
+
+Verified in this repo on 2026-08-19 (recounted after the venture module + harvest):
+**1761/1761 tests pass** across 50 files (vitest),
 `npm run lint` is clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 77 entries
 — 64 pages, `/_not-found`, and 12 API routes.** Every one of these figures is counted from
 the tool that produces it rather than remembered. That discipline exists because this file
@@ -2060,7 +2079,7 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1757 tests — must be green before build
+npm test                       # 1761 tests — must be green before build
 npm run lint                   # ESLint — clean before you push
 npm run build                  # 77 entries — green before you push
 ```
