@@ -1571,6 +1571,92 @@ h2.serif,
   line-height: 1.5;
 }
 
+/* ------------------------------------------------------------------ *
+ * The daily sheet — /day/print
+ *
+ * Portrait sibling of the week. The floor rides at the top as three real
+ * tick boxes: it is the one row that never flexes, so it earns the heavy
+ * rule beneath it. Ink discipline is the week's: lines and weight, no
+ * fills that a mono laser would lose.
+ * ------------------------------------------------------------------ */
+.daysheet {
+  max-width: 720px;
+}
+.daysheet .floorrow {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+  flex-wrap: wrap;
+  border-bottom: 2px solid var(--text);
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+}
+.daysheet .floorcell {
+  flex: 1;
+  min-width: 150px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.daysheet .floorbox {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  border: 1.5px solid var(--text);
+  border-radius: 4px;
+  display: grid;
+  place-items: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+.daysheet .floorname {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+.daysheet .floorwhat {
+  display: block;
+  font-size: 0.6rem;
+  color: var(--muted);
+  line-height: 1.25;
+}
+.daysheet .floortally {
+  align-self: center;
+  font-size: 0.7rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.daysheet .sheetblock {
+  margin-bottom: 10px;
+}
+.daysheet .sheethead {
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-bottom: 1.5px solid var(--text);
+  padding-bottom: 2px;
+  margin-bottom: 5px;
+}
+.daysheet .untimedrow {
+  border-bottom: 1px dotted var(--border);
+  padding-bottom: 2px;
+}
+.daysheet .box {
+  width: 11px;
+  height: 11px;
+}
+.daysheet .untimedtitle {
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+.daysheet .daygrid {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 4px;
+}
+
 @media print {
   @page {
     size: A4 landscape;

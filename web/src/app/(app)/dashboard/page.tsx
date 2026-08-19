@@ -92,8 +92,11 @@ import {
   CloudFilesWidget,
   AdvisorStrip,
   MotivationWidget,
+  FloorStrip,
   HudPanel,
 } from "@/components/cockpit/Widgets";
+import { floorLine, floorWeek, type FloorWeek } from "@/lib/floor";
+import { loadFloorSignals } from "@/lib/floorserver";
 
 export const dynamic = "force-dynamic";
 
@@ -554,6 +557,19 @@ export default async function TheBrain({
     latestMotive = null;
   }
 
+  /* -- the floor ------------------------------------------------------ *
+   *
+   * The onboarding profile's headline metric — consistency, floor hit
+   * n/7 — derived from rows the page mostly already reads. Wrapped like
+   * every newest thing: a failure here costs one widget, never the page.
+   */
+  let floor: FloorWeek | null = null;
+  try {
+    floor = floorWeek(today, await loadFloorSignals(today));
+  } catch {
+    floor = null;
+  }
+
   const peopleForStrip = ((people ?? []) as {
     id: string;
     name: string;
@@ -655,6 +671,11 @@ export default async function TheBrain({
              * re-derives a figure the page itself already owns.
              */}
             <div className="grid gap-4 content-start">
+              {floor && (
+                <HudPanel title="THE FLOOR" hint="body · empire · mind — never flexes">
+                  <FloorStrip week={floor} line={floorLine(floor)} />
+                </HudPanel>
+              )}
               <HudPanel title="MODULES">
                 <ModuleGrid life={board} empire={empireBoard} />
               </HudPanel>

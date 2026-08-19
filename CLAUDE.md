@@ -859,10 +859,42 @@ taken: the 8-dimension scoring, KPI tables, and proposals queue — different do
 and the brief's own step 2 (Jay sorting all 23) has not happened yet. The other branch
 stays on GitHub, unmerged, as the record.
 
-Verified in this repo on 2026-08-19 (recounted after the venture module + harvest):
-**1761/1761 tests pass** across 50 files (vitest),
-`npm run lint` is clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 77 entries
-— 64 pages, `/_not-found`, and 12 API routes.** Every one of these figures is counted from
+**The readiness plan's core chain landed 2026-08-19** — the onboarding profile's steps
+2/3/6, built from the report itself (its steps 9 and 10 had already happened: ghost routes
+deleted 17 Aug, the two readiness models unified when the health cockpit landed).
+
+- **THE FLOOR is derived, not stored** (`src/lib/floor.ts`, 8 tests; loader in
+  `floorserver.ts` shared by the sheet and the dashboard so they cannot disagree). The
+  report said "define the floor in data: three rows"; its own R2 says the response to
+  thirty never-written tables is to remove input as an act — so the floor derives from
+  rows the system already collects: BODY = Training tick or a workout row, EMPIRE = a
+  venture-attached task completed, MIND = Read a page / Nightly reflection / a journal
+  entry. A day counts only when ALL THREE land. People deliberately outside the floor —
+  Jay's own onboarding answer. An empty week reads "unmeasured", never a row of zeros.
+- **The daily sheet — the proof condition — is `/day/print`** (portrait; a route-local
+  `@page` overrides the week's landscape). Floor at the top as three real tick boxes with
+  the n/7 tally, today's three, obligations inside 14 days (dated tasks + vehicle dates +
+  venture checklist items, overdue in bold), the 06:00–22:00 hour spine with placed
+  blocks, untimed work listed rather than dropped, verse + creed footer. **Assembled at
+  print time, not drafted by a scheduled job** — a 22:00 cron would need a service-role
+  key, the trade this repo has always refused (§A8 item 12); every line is arithmetic
+  over live rows, so opening the page at 07:00 IS the morning refresh. Reached by a
+  "⎙ Daily sheet" chip on `/day`.
+- **The consistency headline** — "Floor hit n/7 · Body x · Empire y · Mind z", the metric
+  Jay chose over scores — is a FLOOR panel at the top of the cockpit's system column
+  (`FloorStrip`), with seven day-pips and today's three ticks.
+
+Still Jay's, from the same plan: `ANTHROPIC_API_KEY` in Vercel (step 1 — blocks the
+model-drafted narrative, not the sheet), and photographing the ticked sheet back through
+Capture (step 5's habit half — the engine is live; `apply_capture_proposal`'s whitelist
+would need the floor's target tables only if capture ever writes ticks directly, and the
+floor deliberately has none: the ticks land as the habit_logs/tasks/journal rows that
+already exist).
+
+Verified in this repo on 2026-08-19 (recounted after the readiness-plan chain):
+**1769/1769 tests pass** across 51 files (vitest),
+`npm run lint` is clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 78 entries
+— 65 pages, `/_not-found`, and 12 API routes.** Every one of these figures is counted from
 the tool that produces it rather than remembered. That discipline exists because this file
 has drifted twice: §A5 once said 48 routes while §A9 said 39, and on 2026-08-18 §A5 said 1643
 tests while §A9 said 1510 — both wrong, in the same file, at the same time. **When you change
@@ -2079,9 +2111,9 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1761 tests — must be green before build
+npm test                       # 1769 tests — must be green before build
 npm run lint                   # ESLint — clean before you push
-npm run build                  # 77 entries — green before you push
+npm run build                  # 78 entries — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from

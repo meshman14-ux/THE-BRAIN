@@ -86,6 +86,9 @@ export default async function DayPage({
             Plan strip at the top of this page now, and a second route to
             the same place two inches below the first is how a page starts
             feeling arbitrary. The date controls keep this row. */}
+        <Link href="/day/print" className="chip no-underline ml-auto">
+          ⎙ Daily sheet
+        </Link>
       </div>
 
       <DayPlanner
