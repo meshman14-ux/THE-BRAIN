@@ -43,6 +43,10 @@ import { Panel, Empty, Kpi, Bar, Tag, DriftNote } from "@/components/ui";
 import { parentById } from "@/lib/parents";
 import EmpireParent from "@/components/EmpireParent";
 import DivisionMonth from "@/components/DivisionMonth";
+import VentureAreaCards from "@/components/venture/VentureAreaCards";
+import VentureSort from "@/components/venture/VentureSort";
+import { loadVentureModule } from "@/lib/venture/server";
+import { UNSORTED, groupOf, type VentureModuleRow } from "@/lib/venture/types";
 
 export const dynamic = "force-dynamic";
 
@@ -143,6 +147,37 @@ export default async function DivisionPage({
   const shelved = isShelved(v);
   const onboardHref = `${divisionHref(v.name)}/onboard`;
 
+  /* -- the venture module: the five areas from Jay's sheet -------- *
+   *
+   * Loaded BEFORE the on-ramp branch on purpose. A division nobody has
+   * answered anything about still has statutory obligations, and the
+   * checklist is the one area unlocked at every tier — an obligation does
+   * not wait for you to be ready to be asked seven questions. */
+  const mod = await loadVentureModule(v.id, today);
+  const groupNames = [
+    ...new Set(
+      (allVentures as unknown as VentureModuleRow[]).map((x) => groupOf(x))
+    ),
+  ].filter((g) => g !== UNSORTED);
+  const moduleBlock = mod ? (
+    <>
+      <Panel title="How this is filed" hint="tier, evidence, group, kind, structure">
+        <VentureSort venture={mod.venture} groups={groupNames} />
+      </Panel>
+      <VentureAreaCards
+        venture={mod.venture}
+        checklist={mod.checklist}
+        tasks={mod.tasks}
+        plan={mod.plan}
+        documents={mod.documents}
+        kpis={mod.kpis}
+        score={mod.score}
+        rag={mod.rag}
+        today={today}
+      />
+    </>
+  ) : null;
+
   /* -- the on-ramp ------------------------------------------------ */
 
   if (!onboarding.hasDashboardData) {
@@ -210,6 +245,9 @@ export default async function DivisionPage({
             </p>
           </Panel>
         )}
+
+        {/* The obligations do not wait for the questionnaire. */}
+        {moduleBlock}
       </div>
     );
   }
@@ -349,6 +387,9 @@ export default async function DivisionPage({
           today={toIso(new Date())}
         />
       </Panel>
+
+      {/* -- the five areas ---------------------------------------- */}
+      {moduleBlock}
 
       {/* -- graphs: the path, the money, the work ------------------ */}
       <div className="grid gap-5 lg:grid-cols-2 items-start">

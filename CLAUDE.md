@@ -812,14 +812,90 @@ keep their existing single-column bodies — the split is a "now"-tab thing, not
 one. `tests/cockpit-motivation.test.ts` covers the pure half; the widening of `REAL_ROUTES`
 and the flipped nav-presence assertion are in `tests/logic.test.ts` / `tests/stage4.test.ts`.
 
-Verified in this repo on 2026-08-18 (recounted after the `/brain` HUD cockpit rebuild added
-`motivation` and `/life/motivation`): **1726/1726 tests pass** across 49 files (vitest),
-`npm run lint` is clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 77 entries
-— 64 pages, `/_not-found`, and 12 API routes.** Every one of these figures is counted from
+Verified in this repo on 2026-08-19 (recounted after the venture module added `/ventures`):
+**1783/1783 tests pass** across 50 files (vitest),
+`npm run lint` is clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 78 entries
+— 65 pages, `/_not-found`, and 12 API routes.** Every one of these figures is counted from
 the tool that produces it rather than remembered. That discipline exists because this file
 has drifted twice: §A5 once said 48 routes while §A9 said 39, and on 2026-08-18 §A5 said 1643
 tests while §A9 said 1510 — both wrong, in the same file, at the same time. **When you change
 this number, change it in §A5 and §A9 together.**
+
+**THE VENTURE MODULE landed 2026-08-19** — Jay's handwritten note of that morning, built:
+five areas per venture (Checklist · Task List · One-Page Summary · Business Plan · Document
+File) that **expand in place** on the division cockpit, plus `/ventures`, the portfolio lens.
+`src/lib/venture/` is the pure half (`types.ts`, `scoring.ts`, `templates.ts`, `checklist.ts`,
+`summary.ts`, `proposals.ts` — 57 tests in `tests/venture.test.ts`); `server.ts` is the only
+file in it that knows the database exists.
+
+**Two rules carry the whole module, and both are about not being ignored.**
+
+1. **A venture only earns the fields it can fill.** An idea shows ONE card — the checklist —
+   not five disabled ones, and the areas it has not earned get a single honest line rather
+   than a greyed-out promise (`areaUnlocked` in `types.ts`). This repo already has thirty
+   tables nothing ever wrote to; the failure was never the schema, it was uniform depth
+   applied to unequal things, which produces screens that are ninety percent empty and
+   teaches you to stop opening them. **Dormant is deliberately as deep as active** for the
+   checklist, the plan and the paperwork, and drops only the next move: a company that
+   stopped trading did not stop having a filing deadline.
+2. **RAG is scored against stage-appropriate expectation, never absolute.** An idea at £0
+   revenue is green if it was touched inside 45 days and red only at 90; an active venture
+   is judged on its last KPI reading at 10 and 21 days. Judged absolutely, `/ventures` opens
+   as sixteen red rows, which says exactly as much as a page with none. **The one absolute is
+   an overdue statutory obligation, which is red at every tier** — it cannot be absorbed by
+   tomorrow's plan, and every penalty captured on 18 Aug was a known, dated, foreseeable
+   obligation that nothing was watching.
+
+**The checklist is the highest-value component and is deterministic.** `COMPLIANCE_RULES` in
+`templates.ts` holds 34 UK rules keyed off venture type, legal structure, whether it employs
+anyone and whether it is VAT registered; `generateChecklist()` is a pure function of those
+facts, so the same answers always produce the same list and **regenerating never un-ticks
+anything** (the upsert is on `(venture_id, rule_key)` and `done` is not in the payload).
+Wales-specific rules are in — Rent Smart Wales **registration and licence are separate steps**
+and both are mandatory — and the vehicle rules **defer to the `vehicles` table** rather than
+copying dates, because a second copy of an MOT date is a second thing to keep in step.
+⚠️ **Verify every threshold before relying on it**: VAT registration, the trading allowance
+and filing deadlines move at each Budget, every rule carries a `guidance_url` at GOV.UK for
+exactly that reason, and anything with a penalty attached should be confirmed against GOV.UK
+or an accountant. `checklistGaps()` names what the generator is missing, legal structure
+first — **a checklist built on the wrong structure quietly lists the wrong statutes, which is
+worse than no checklist because it looks like coverage.**
+
+**Six deliberate departures from the incoming build brief, each checked rather than followed:**
+
+- **No `/ventures/[id]`.** The brief asks for one; `/empire/[id]` already IS the venture page
+  and every record has exactly one home (§A2). The five cards render there — inside the
+  on-ramp branch as well as the dashboard, because an obligation does not wait for a division
+  to answer seven questions. `/ventures` is the portfolio only.
+- **No API routes.** The brief lists eight. This app's house pattern is server components
+  fetch, client components mutate directly under RLS (§A7), and every one of those endpoints
+  was a plain insert or update. A route handler would have added a hop and a second place for
+  the rule to live.
+- **Twelve child tables plus `venture_proposals`, and no views.** The one-page summary is
+  DERIVED (`summary.ts`) rather than stored — it is assembled from the plan, the KPIs and the
+  checklist, the same bargain the morning brief makes. The brief's two RAG views were not
+  built: RAG lives in `scoring.ts` with tests, and a SQL view computing it would be a second
+  implementation of one rule.
+- **Proposals are derived at read time; only the DECISION is stored.** A cron writing proposal
+  rows would need to act as him with no session, which means a service-role key — the same
+  trade §A8 item 12 refuses for calendar sync. Accepting writes the one field the proposal is
+  about; dismissing writes a `rejected` row so the same sentence is not put to him twice.
+  Rationales are **descriptive and comparative, never directive**, and there is a test
+  asserting the peer-gap sentence contains no instruction.
+- **An active venture with no KPI reading is AMBER, not red** as the brief's table has it.
+  Never measured is not the same as measured and bad — the discipline that puts an unscored
+  area below every scored one without calling it a failure. The reason line says exactly
+  which it is.
+- **`ventures.stage` is untouched.** Depth rides on the new `tier` column, because `stage`
+  drives `/empire`, `/estate` and every cockpit's progress baseline, and repurposing it would
+  have broken those silently.
+
+**`VentureSort` is the unblocker.** With `tier` and `irl` null on all 23 ventures the
+portfolio is one giant "Not yet sorted" group and every RAG is the kindest honest guess, so
+sorting had to be four taps rather than a form: tier, IRL rung, group, kind, structure — each
+writing on its own, each skippable, a skip writing NULL. **Stated and derived stay separate**:
+where the IRL implies a different tier from the one filed, the page says so and corrects
+neither.
 
 **THE COG harvest — 2026-08-12.** A second cloud drop arrived as a standalone Dockerised
 service with its own Postgres. It was NOT merged as a service — two engines to keep in
@@ -1654,6 +1730,15 @@ confirming a debt balance is, which is already why Money and People have no phon
                        One Accept and one Reject PER FIELD — a statement whose
                        balance reads right and whose APR is misread costs you
                        the APR alone. Nothing reaches a real table without a tap
+/(app)/ventures        THE PORTFOLIO — every venture grouped by what it
+                       belongs with and coloured by whether it is doing what
+                       a venture at ITS tier should be. /empire asks how the
+                       business is doing and /estate asks what is earning;
+                       this asks which of them needs you today, and why.
+                       Carries the observations queue: derived at read time,
+                       nothing applied without a tap. No nav line of its own
+                       — MONEY already says "Ventures" and points at /empire
+                       — so it is reached from there and from /estate
 /(app)/estate          divisions by what they are DOING rather than by stage:
                        earning · being built · parked. Empty groups still
                        render, because "nothing is earning" is the most useful
@@ -2016,7 +2101,23 @@ Open items:
    guard is the part worth keeping**: `stage4.test.ts` reads each nav item's `page.tsx` off
    disk and fails on any that only redirects — so this cannot come back, including by a page
    turning into a redirect after the nav item was written. See §A5.
-23. **The four nav boxes have not been seen on a real phone or by a signed-in user.** They
+23. **`supabase/migrations/20260819_venture_module.sql` HAS NOT BEEN APPLIED to the live
+   project.** It is written, strictly additive and safe to re-run (every statement is
+   `if not exists` or guarded), and it is what the whole venture module reads: eleven nullable
+   columns on `ventures`, twelve child tables plus `venture_proposals`, the KPI cap of five as
+   a trigger, and the `last_touched_at` touch trigger on all twelve. **Until it is applied,
+   `/ventures` and the five cards render empty** — the `ventures` select names columns that do
+   not exist yet, so the portfolio comes back with no rows rather than with wrong ones.
+   Applying it is one call; it was deliberately left for Jay to authorise, because the schema
+   capture of 18 Aug had just recorded that this database has more than one writer.
+   `supabase/schema.sql` still describes 56 tables and will need re-capturing afterwards.
+24. **Legal structure is null on every venture, and it is what the checklist is built from.**
+   `generateChecklist()` falls back to sole trader, which is wrong for anything incorporated
+   and will list the wrong statutes. `VentureSort` on each division page is where it is set,
+   and `checklistGaps()` names it first. This is the one gap worth closing before trusting a
+   generated list — it is the difference between a checklist that catches the next £681 and
+   one that quietly lists the wrong law.
+25. **The four nav boxes have not been seen on a real phone or by a signed-in user.** They
    were rendered headless at 260px in both themes and the whole suite is green, but the
    session that built them could not reach Supabase, and the session that applied the patch
    verified the build rather than the browser. The specific things worth a look: whether
@@ -2032,9 +2133,9 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1726 tests — must be green before build
+npm test                       # 1783 tests — must be green before build
 npm run lint                   # ESLint — clean before you push
-npm run build                  # 77 entries — green before you push
+npm run build                  # 78 entries — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from

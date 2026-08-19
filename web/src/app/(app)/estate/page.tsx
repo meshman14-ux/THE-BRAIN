@@ -35,6 +35,13 @@ export default async function EstatePage() {
         <p className="text-sm text-[var(--muted)] mt-2 leading-relaxed">
           {estateLine(ventures)}
         </p>
+        <p className="text-[0.78rem] mt-2">
+          {/* This page asks what is earning; the portfolio asks which of
+              them needs you today. Two questions, two pages. */}
+          <Link href="/ventures" className="no-underline" style={{ color: "var(--accent)" }}>
+            The portfolio, by tier and by what is slipping →
+          </Link>
+        </p>
       </header>
 
       <div className="grid gap-5">

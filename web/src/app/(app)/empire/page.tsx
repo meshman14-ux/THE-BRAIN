@@ -210,9 +210,19 @@ export default async function EmpirePage() {
           <p className="mono text-[0.72rem] text-[var(--faint)]">
             {formatDayLong(today)}
           </p>
+          {/* The portfolio lens. It has no nav line of its own — the
+              MONEY box already says "Ventures" and points here — so this
+              is where it is learned. */}
+          <Link
+            href="/ventures"
+            className="ml-auto text-[0.74rem] font-semibold no-underline shrink-0"
+            style={{ color: "var(--sys)" }}
+          >
+            Portfolio →
+          </Link>
           <Link
             href="/dashboard"
-            className="ml-auto text-[0.74rem] font-semibold no-underline"
+            className="text-[0.74rem] font-semibold no-underline shrink-0"
             style={{ color: "var(--accent)" }}
           >
             ← THE BRAIN

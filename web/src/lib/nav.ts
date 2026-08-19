@@ -386,6 +386,20 @@ export const NAV: NavItem[] = [
     phoneModes: [],
   },
   {
+    /* The portfolio lens. Registry-only: MONEY already carries "Ventures"
+     * pointing at /empire, and two lines with the same word in one box is
+     * how a nav stops being read. Reached from /empire and /estate, and
+     * ⌘K finds it by name. */
+    key: "portfolio",
+    href: "/ventures",
+    label: "Ventures",
+    icon: "▲",
+    group: null,
+    hidden: true,
+    modes: ALL,
+    phoneModes: [],
+  },
+  {
     key: "holdings",
     href: "/holdings",
     label: "Holdings",
