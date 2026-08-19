@@ -224,4 +224,58 @@ export function MotivationWidget({ latest }: { latest: MotivationEntry | null })
   );
 }
 
+/* ------------------------------------------------------------------ *
+ * The floor — BODY · EMPIRE · MIND, the headline metric Jay chose at
+ * onboarding: consistency, not scores. Derived entirely from rows the
+ * system already collects (src/lib/floor.ts), so it starts counting the
+ * day anything lands and never asks to be fed.
+ * ------------------------------------------------------------------ */
+export function FloorStrip({
+  week,
+  line,
+}: {
+  week: {
+    hits: number;
+    of: number;
+    perSlot: { body: number; empire: number; mind: number };
+    today: { body: boolean; empire: boolean; mind: boolean };
+    days: { day: string; hit: boolean }[];
+  };
+  line: string;
+}) {
+  const empty = week.perSlot.body + week.perSlot.empire + week.perSlot.mind === 0;
+  if (empty) {
+    return (
+      <NoSignal tag="NO SIGNAL" href="/day/print" cta="Print today's sheet">
+        Nothing has landed this week. The floor counts itself the moment a
+        training tick, a venture task, or a journal line arrives.
+      </NoSignal>
+    );
+  }
+  return (
+    <div className="grid gap-2">
+      <p className="text-[0.82rem] leading-relaxed" style={{ color: "var(--hud-core)" }}>
+        {line}
+      </p>
+      <div className="flex gap-1.5" role="img" aria-label={`Floor hit ${week.hits} of ${week.of} days`}>
+        {week.days.map((d) => (
+          <span
+            key={d.day}
+            title={d.day}
+            className="h-2 flex-1 rounded-full"
+            style={{
+              background: d.hit ? "var(--hud-good)" : "transparent",
+              border: `1px solid ${d.hit ? "var(--hud-good)" : "var(--hud-dim)"}`,
+            }}
+          />
+        ))}
+      </div>
+      <p className="mono text-[0.62rem]" style={{ color: "var(--hud-dim)" }}>
+        TODAY · BODY {week.today.body ? "✓" : "—"} · EMPIRE {week.today.empire ? "✓" : "—"} ·
+        MIND {week.today.mind ? "✓" : "—"}
+      </p>
+    </div>
+  );
+}
+
 export { HudPanel };
