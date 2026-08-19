@@ -197,25 +197,31 @@ export const RAG_COLOUR: Record<Rag, string> = {
  * Business Plan — the eight sections
  * ------------------------------------------------------------------ */
 
+/**
+ * Eight sections, each a QUESTION rather than a heading — a heading invites
+ * prose, a question can be answered in a sentence, and a sentence is what
+ * actually gets written at nine in the evening. (Harvested from the parallel
+ * venture-module branch, whose prompts were better than the first draft's.)
+ */
 export type PlanSectionKey =
-  | "what"
-  | "customer"
+  | "problem"
   | "offer"
-  | "channels"
-  | "costs"
-  | "revenue"
+  | "customer"
+  | "unit"
+  | "route"
+  | "resources"
   | "risks"
-  | "next90";
+  | "next";
 
 export const PLAN_SECTIONS: { key: PlanSectionKey; name: string; prompt: string }[] = [
-  { key: "what", name: "What it is", prompt: "The business in three sentences." },
-  { key: "customer", name: "Who pays", prompt: "The customer, and the problem they pay to remove." },
-  { key: "offer", name: "The offer", prompt: "What they get, at what price." },
-  { key: "channels", name: "How they find it", prompt: "Where the customers actually come from." },
-  { key: "costs", name: "What it costs", prompt: "To start, and per month to keep alive." },
-  { key: "revenue", name: "How the money works", prompt: "Unit economics — one sale, in pounds." },
-  { key: "risks", name: "What kills it", prompt: "The two or three ways this dies." },
-  { key: "next90", name: "Next 90 days", prompt: "What done looks like a quarter from now." },
+  { key: "problem", name: "The problem", prompt: "Whose problem is this, and how do they currently live with it?" },
+  { key: "offer", name: "The offer", prompt: "What exactly is being sold, and for how much?" },
+  { key: "customer", name: "The customer", prompt: "Who pays, and where are they already looking?" },
+  { key: "unit", name: "Unit economics", prompt: "What does one job cost you, and what does it earn?" },
+  { key: "route", name: "Route to market", prompt: "How does the first stranger hear about this?" },
+  { key: "resources", name: "What it needs", prompt: "Money, tools, people, licences — what has to exist first?" },
+  { key: "risks", name: "What could kill it", prompt: "What could kill this — the honest list, not the tidy one?" },
+  { key: "next", name: "Next milestone", prompt: "What one thing would make this more real than it is today?" },
 ];
 
 export function planProgress(
@@ -233,30 +239,83 @@ export function planProgress(
  * Legal structure + the checklist rules
  * ------------------------------------------------------------------ */
 
-export type LegalStructure = "sole_trader" | "ltd" | "partnership" | "none_yet";
+export type LegalStructure =
+  | "sole_trader"
+  | "ltd"
+  | "partnership"
+  | "llp"
+  | "cic"
+  | "charity"
+  | "none_yet";
 
 export const LEGAL_LABEL: Record<LegalStructure, string> = {
   sole_trader: "Sole trader",
   ltd: "Limited company",
   partnership: "Partnership",
+  llp: "LLP",
+  cic: "CIC",
+  charity: "Charity",
   none_yet: "Not trading yet",
+};
+
+/** Matched against ventures.venture_group. */
+export type VentureType =
+  | "property"
+  | "trade"
+  | "retail"
+  | "digital"
+  | "service"
+  | "charity"
+  | "other";
+
+/**
+ * The facts the rulebook is keyed off. Every one nullable: NULL is "not
+ * answered", and an unanswered fact generates no rule that depends on it —
+ * never a guessed one. `wales` defaults true (all of Jay's property is in
+ * Wales) and exists so the model does not hard-code that.
+ */
+export type ComplianceFacts = {
+  type: VentureType | null;
+  legal: LegalStructure | null;
+  employsPeople: boolean | null;
+  vatRegistered: boolean | null;
+  wales?: boolean;
+};
+
+export type Cadence = "once" | "monthly" | "quarterly" | "annual" | "multi_year";
+
+export const CADENCE_WORD: Record<Cadence, string> = {
+  once: "One-off",
+  monthly: "Monthly",
+  quarterly: "Quarterly",
+  annual: "Every year",
+  multi_year: "Every few years",
 };
 
 export type ComplianceRule = {
   key: string;
   title: string;
-  /** null = applies to every structure. */
-  structures: LegalStructure[] | null;
-  /** null = applies to every group; matched against ventures.venture_group. */
-  groups: string[] | null;
+  /** Statutory obligations are red the moment they are overdue, at every tier. */
+  obligation: boolean;
+  cadence: Cadence;
   guidanceUrl: string;
   note?: string;
+  /** Pure predicate over the facts — what makes generation deterministic. */
+  applies: (f: ComplianceFacts) => boolean;
 };
 
+const isCompany = (l: LegalStructure | null) => l === "ltd" || l === "cic";
+const filesSelfAssessment = (l: LegalStructure | null) =>
+  l === "sole_trader" || l === "partnership" || l === "llp";
+
 /**
- * The starter rulebook — UK, Wales-aware, deliberately small.
+ * The rulebook — UK, Wales-aware. Harvested from the parallel venture-module
+ * branch (claude/new-session-lw4dmk), whose fact-predicate model covered the
+ * things the first draft's structure/group matcher could not: employment
+ * duties, VAT returns, Renting Homes (Wales) contracts, and the exact
+ * council-tax/water-account failure the 18 Aug penalties came from.
  *
- * These are prompts with a GOV.UK link each, NOT advice: thresholds and
+ * These are prompts with a guidance link each, NOT advice: thresholds and
  * deadlines move at every Budget, so anything with a penalty attached must
  * be confirmed against the linked guidance or an accountant before being
  * relied on. The UI says this in so many words.
@@ -266,140 +325,358 @@ export type ComplianceRule = {
  * fires on them; a second copy is how the £8,317 class of bug starts.
  */
 export const COMPLIANCE_RULES: ComplianceRule[] = [
+  /* ── tax ─────────────────────────────────────────────────────────── */
   {
-    key: "hmrc-register-sa",
-    title: "Register for Self Assessment with HMRC",
-    structures: ["sole_trader", "partnership"],
-    groups: null,
-    guidanceUrl: "https://www.gov.uk/register-for-self-assessment",
+    key: "hmrc-register-self-employed",
+    title: "Register with HMRC as self-employed",
+    obligation: true,
+    cadence: "once",
+    note: "Due by 5 October after the tax year you started trading in.",
+    guidanceUrl: "https://www.gov.uk/set-up-sole-trader",
+    applies: (f) => filesSelfAssessment(f.legal) && f.legal !== "llp",
   },
   {
-    key: "hmrc-file-sa",
-    title: "File the Self Assessment return by 31 January",
-    structures: ["sole_trader", "partnership"],
-    groups: null,
+    key: "self-assessment-return",
+    title: "File the Self Assessment return",
+    obligation: true,
+    cadence: "annual",
+    note: "31 January online. £100 the day it is late, then £10 a day after three months.",
+    guidanceUrl: "https://www.gov.uk/self-assessment-tax-returns/deadlines",
+    applies: (f) => filesSelfAssessment(f.legal),
+  },
+  {
+    key: "trading-allowance-check",
+    title: "Check trading income against the trading allowance",
+    obligation: false,
+    cadence: "annual",
+    note: "Below the allowance (£1,000 when written) there may be nothing to declare. Confirm the current figure.",
+    guidanceUrl: "https://www.gov.uk/guidance/tax-free-allowances-on-property-and-trading-income",
+    applies: (f) => f.legal === "sole_trader",
+  },
+  {
+    key: "vat-threshold-watch",
+    title: "Watch turnover against the VAT registration threshold",
+    obligation: true,
+    cadence: "monthly",
+    note: "Rolling 12-month turnover. Registration is compulsory once it is crossed — check the current threshold.",
+    guidanceUrl: "https://www.gov.uk/vat-registration/when-to-register",
+    applies: (f) => f.vatRegistered !== true,
+  },
+  {
+    key: "vat-return",
+    title: "File the VAT return and pay",
+    obligation: true,
+    cadence: "quarterly",
+    note: "One month and seven days after the period ends, under Making Tax Digital.",
+    guidanceUrl: "https://www.gov.uk/vat-returns/deadlines",
+    applies: (f) => f.vatRegistered === true,
+  },
+  {
+    key: "corporation-tax-return",
+    title: "File the company tax return (CT600) and pay corporation tax",
+    obligation: true,
+    cadence: "annual",
+    note: "Payment is due 9 months and a day after the period ends; the return 12 months after.",
+    guidanceUrl: "https://www.gov.uk/company-tax-returns",
+    applies: (f) => isCompany(f.legal),
+  },
+  {
+    key: "keep-records-six-years",
+    title: "Keep the records where they can be found",
+    obligation: true,
+    cadence: "annual",
+    note: "Business records must be kept — six years for a company, five after the filing deadline for Self Assessment.",
+    guidanceUrl: "https://www.gov.uk/self-employed-records",
+    applies: () => true,
+  },
+
+  /* ── company ─────────────────────────────────────────────────────── */
+  {
+    key: "confirmation-statement",
+    title: "File the confirmation statement",
+    obligation: true,
+    cadence: "annual",
+    note: "At least once every 12 months. Late filing can lead to the company being struck off.",
+    guidanceUrl: "https://www.gov.uk/guidance/confirmation-statement",
+    applies: (f) => isCompany(f.legal) || f.legal === "llp",
+  },
+  {
+    key: "annual-accounts",
+    title: "File the annual accounts at Companies House",
+    obligation: true,
+    cadence: "annual",
+    note: "Nine months after the year end. The penalty starts at £150 and multiplies if it happens twice.",
+    guidanceUrl: "https://www.gov.uk/annual-accounts",
+    applies: (f) => isCompany(f.legal) || f.legal === "llp",
+  },
+  {
+    key: "psc-register",
+    title: "Keep the register of people with significant control current",
+    obligation: true,
+    cadence: "annual",
+    note: "Changes must be recorded and notified, not just remembered.",
+    guidanceUrl: "https://www.gov.uk/guidance/people-with-significant-control-psc",
+    applies: (f) => isCompany(f.legal),
+  },
+  {
+    key: "director-self-assessment",
+    title: "Directors' own Self Assessment",
+    obligation: true,
+    cadence: "annual",
+    note: "Dividends and salary are personal income and are declared personally.",
     guidanceUrl: "https://www.gov.uk/self-assessment-tax-returns",
-    note: "Late filing starts at £100 and grows daily after three months.",
+    applies: (f) => isCompany(f.legal),
   },
   {
-    key: "ch-confirmation-statement",
-    title: "File the Companies House confirmation statement",
-    structures: ["ltd"],
-    groups: null,
-    guidanceUrl: "https://www.gov.uk/guidance/confirmation-statement-guidance",
+    key: "cic-annual-report",
+    title: "File the CIC annual community interest report (CIC34)",
+    obligation: true,
+    cadence: "annual",
+    note: "Filed with the accounts, with the fee.",
+    guidanceUrl: "https://www.gov.uk/government/publications/community-interest-companies-business-activities",
+    applies: (f) => f.legal === "cic",
   },
   {
-    key: "ch-annual-accounts",
-    title: "File annual accounts with Companies House",
-    structures: ["ltd"],
-    groups: null,
-    guidanceUrl: "https://www.gov.uk/prepare-file-annual-accounts-for-limited-company",
+    key: "charity-annual-return",
+    title: "File the charity annual return",
+    obligation: true,
+    cadence: "annual",
+    note: "Ten months after the financial year end, to the Charity Commission.",
+    guidanceUrl: "https://www.gov.uk/guidance/prepare-a-charity-annual-return",
+    applies: (f) => f.legal === "charity" || f.type === "charity",
   },
   {
-    key: "hmrc-corporation-tax",
-    title: "Register for and pay Corporation Tax",
-    structures: ["ltd"],
-    groups: null,
-    guidanceUrl: "https://www.gov.uk/corporation-tax",
-  },
-  {
-    key: "vat-threshold",
-    title: "Check turnover against the VAT registration threshold",
-    structures: ["sole_trader", "ltd", "partnership"],
-    groups: null,
-    guidanceUrl: "https://www.gov.uk/register-for-vat",
-    note: "The threshold moves at Budgets — check the current figure, do not remember it.",
-  },
-  {
-    key: "business-insurance",
-    title: "Public liability / professional insurance in place and in date",
-    structures: ["sole_trader", "ltd", "partnership"],
-    groups: null,
-    guidanceUrl: "https://www.gov.uk/browse/business/setting-up",
-  },
-  {
-    key: "ico-registration",
-    title: "Check whether ICO data-protection registration applies",
-    structures: ["sole_trader", "ltd", "partnership"],
-    groups: null,
+    key: "ico-data-protection-fee",
+    title: "Pay the ICO data protection fee",
+    obligation: true,
+    cadence: "annual",
+    note: "Required by most organisations processing personal data. Check the self-assessment tool before assuming exemption.",
     guidanceUrl: "https://ico.org.uk/for-organisations/data-protection-fee/",
+    applies: () => true,
   },
-  // -- Wales, property ---------------------------------------------------
-  // Registration and licence are SEPARATE steps and both are mandatory —
-  // conflating them is the common miss.
+
+  /* ── people ──────────────────────────────────────────────────────── */
+  {
+    key: "paye-registration",
+    title: "Register as an employer for PAYE",
+    obligation: true,
+    cadence: "once",
+    note: "Before the first payday, not after it.",
+    guidanceUrl: "https://www.gov.uk/register-employer",
+    applies: (f) => f.employsPeople === true,
+  },
+  {
+    key: "rti-submission",
+    title: "Send the RTI payroll submission",
+    obligation: true,
+    cadence: "monthly",
+    note: "On or before each payday.",
+    guidanceUrl: "https://www.gov.uk/running-payroll",
+    applies: (f) => f.employsPeople === true,
+  },
+  {
+    key: "pension-auto-enrolment",
+    title: "Meet auto-enrolment duties and re-declare",
+    obligation: true,
+    cadence: "multi_year",
+    note: "Re-enrolment and a re-declaration of compliance roughly every three years.",
+    guidanceUrl: "https://www.thepensionsregulator.gov.uk/en/employers",
+    applies: (f) => f.employsPeople === true,
+  },
+  {
+    key: "employers-liability-insurance",
+    title: "Hold employers' liability insurance",
+    obligation: true,
+    cadence: "annual",
+    note: "Legally required from the first employee. The fine is per day without it.",
+    guidanceUrl: "https://www.hse.gov.uk/pubns/hse40.htm",
+    applies: (f) => f.employsPeople === true,
+  },
+  {
+    key: "right-to-work-checks",
+    title: "Keep right-to-work checks on file",
+    obligation: true,
+    cadence: "once",
+    note: "Before the person starts, and kept for the duration plus two years.",
+    guidanceUrl: "https://www.gov.uk/check-job-applicant-right-to-work",
+    applies: (f) => f.employsPeople === true,
+  },
+
+  /* ── property (Wales) ────────────────────────────────────────────── */
   {
     key: "rsw-registration",
-    title: "Rent Smart Wales — landlord REGISTRATION",
-    structures: null,
-    groups: ["property"],
-    guidanceUrl: "https://www.gov.wales/rent-smart-wales",
+    title: "Register the landlord with Rent Smart Wales",
+    obligation: true,
+    cadence: "multi_year",
+    note: "Registration and licensing are SEPARATE steps and both are mandatory in Wales. Renews every five years.",
+    guidanceUrl: "https://www.rentsmart.gov.wales/en/register/",
+    applies: (f) => f.type === "property" && f.wales !== false,
   },
   {
     key: "rsw-licence",
-    title: "Rent Smart Wales — landlord/agent LICENCE (separate from registration)",
-    structures: null,
-    groups: ["property"],
-    guidanceUrl: "https://www.gov.wales/rent-smart-wales",
+    title: "Hold a Rent Smart Wales licence (or use a licensed agent)",
+    obligation: true,
+    cadence: "multi_year",
+    note: "Required to let or manage. Letting unlicensed is an offence and can block a possession claim.",
+    guidanceUrl: "https://www.rentsmart.gov.wales/en/licence/",
+    applies: (f) => f.type === "property" && f.wales !== false,
   },
   {
-    key: "gas-safety",
-    title: "Annual gas safety certificate (CP12) per property",
-    structures: null,
-    groups: ["property"],
-    guidanceUrl: "https://www.hse.gov.uk/gas/domestic/landlords.htm",
+    key: "written-occupation-contract",
+    title: "Issue the written occupation contract",
+    obligation: true,
+    cadence: "once",
+    note: "Renting Homes (Wales) Act 2016 — within 14 days of occupation.",
+    guidanceUrl: "https://www.gov.wales/housing-law-changing-renting-homes",
+    applies: (f) => f.type === "property" && f.wales !== false,
+  },
+  {
+    key: "gas-safety-certificate",
+    title: "Gas safety check and certificate",
+    obligation: true,
+    cadence: "annual",
+    note: "Every 12 months, by a Gas Safe engineer, copy to the occupier.",
+    guidanceUrl: "https://www.hse.gov.uk/gas/landlords/",
+    applies: (f) => f.type === "property",
   },
   {
     key: "eicr",
-    title: "Electrical safety report (EICR) — five-yearly, per property",
-    structures: null,
-    groups: ["property"],
-    guidanceUrl: "https://www.gov.uk/government/publications/electrical-safety-standards-in-the-private-rented-sector-guidance-for-landlords-tenants-and-local-authorities",
+    title: "Electrical installation condition report (EICR)",
+    obligation: true,
+    cadence: "multi_year",
+    note: "At least every five years, and at each change of occupation in Wales.",
+    guidanceUrl: "https://www.gov.wales/electrical-safety-standards-rented-properties",
+    applies: (f) => f.type === "property",
+  },
+  {
+    key: "epc",
+    title: "Valid EPC on the property",
+    obligation: true,
+    cadence: "multi_year",
+    note: "Ten years, and check the current minimum band before letting.",
+    guidanceUrl: "https://www.gov.uk/buy-sell-your-home/energy-performance-certificates",
+    applies: (f) => f.type === "property",
+  },
+  {
+    key: "smoke-and-co-alarms",
+    title: "Smoke and carbon monoxide alarms fitted and tested",
+    obligation: true,
+    cadence: "annual",
+    note: "Mains-wired interlinked smoke alarms are part of the fitness standard in Wales.",
+    guidanceUrl: "https://www.gov.wales/renting-homes-fitness-human-habitation",
+    applies: (f) => f.type === "property",
   },
   {
     key: "deposit-protection",
-    title: "Tenancy deposits protected in an approved scheme",
-    structures: null,
-    groups: ["property"],
+    title: "Protect the deposit and serve the prescribed information",
+    obligation: true,
+    cadence: "once",
+    note: "Within 30 days. Failing it can cost up to three times the deposit.",
     guidanceUrl: "https://www.gov.uk/deposit-protection-schemes-and-landlords",
+    applies: (f) => f.type === "property",
+  },
+  {
+    key: "council-tax-and-utilities",
+    title: "Council tax and utility accounts named to the right party",
+    obligation: true,
+    cadence: "annual",
+    note: "Empty periods fall to the owner, and an unnamed water account is how a £185 bill becomes £681.",
+    guidanceUrl: "https://www.gov.uk/council-tax/second-homes-and-empty-properties",
+    applies: (f) => f.type === "property",
+  },
+  {
+    key: "landlord-insurance",
+    title: "Landlord buildings and liability insurance in force",
+    obligation: false,
+    cadence: "annual",
+    note: "Not statutory, but a let property on residential cover is usually uninsured in practice.",
+    guidanceUrl: "https://www.abi.org.uk/",
+    applies: (f) => f.type === "property",
   },
   {
     key: "business-rates",
     title: "Business rates: bill known, payment plan honoured",
-    structures: null,
-    groups: ["property", "trade", "retail"],
-    guidanceUrl: "https://www.gov.uk/introduction-to-business-rates",
+    obligation: true,
+    cadence: "monthly",
     note: "A missed instalment can make the FULL balance due at once.",
+    guidanceUrl: "https://www.gov.uk/introduction-to-business-rates",
+    applies: (f) => f.type === "property" || f.type === "trade" || f.type === "retail",
+  },
+
+  /* ── trade and trading generally ─────────────────────────────────── */
+  {
+    key: "public-liability-insurance",
+    title: "Public liability insurance in force",
+    obligation: false,
+    cadence: "annual",
+    note: "Not statutory, but most commercial and domestic clients make it a condition of the job.",
+    guidanceUrl: "https://www.abi.org.uk/",
+    applies: (f) => f.type === "trade" || f.type === "service" || f.type === "retail",
+  },
+  {
+    key: "waste-carrier-licence",
+    title: "Register as a waste carrier",
+    obligation: true,
+    cadence: "multi_year",
+    note: "Required to carry your own construction or garden waste. Natural Resources Wales in Wales.",
+    guidanceUrl: "https://naturalresources.wales/permits-and-permissions/waste-carriers-brokers-and-dealers/",
+    applies: (f) => f.type === "trade",
+  },
+  {
+    key: "business-bank-account",
+    title: "Separate bank account for the venture",
+    obligation: false,
+    cadence: "once",
+    note: "Not required for a sole trader, and the thing that makes every figure above cheap to produce.",
+    guidanceUrl: "https://www.gov.uk/set-up-sole-trader",
+    applies: () => true,
+  },
+  {
+    key: "terms-and-privacy",
+    title: "Written terms and a privacy notice customers can read",
+    obligation: true,
+    cadence: "once",
+    note: "Consumer rights information is required before a contract, and UK GDPR requires the privacy notice.",
+    guidanceUrl: "https://www.gov.uk/online-and-distance-selling-for-businesses",
+    applies: (f) => f.type === "digital" || f.type === "retail" || f.type === "service",
   },
 ];
 
 /**
- * The deterministic generator: the same facts always produce the same list.
+ * The deterministic generator: the same facts always produce the same list,
+ * in the same order (sorted by key — nothing here reads a clock).
  *
- * - `structure` null = not set. Rules keyed to a structure are then NOT
- *   generated — defaulting to sole_trader would list the wrong statutes for
- *   anything incorporated (D6 in the brief), and a wrong checklist is worse
- *   than a short one that says why it is short. Universal rules still come.
+ * - `none_yet` generates nothing: a venture not trading yet owes nothing,
+ *   and prompting it to register with HMRC would be the system inventing an
+ *   obligation.
+ * - A null fact generates no rule that depends on it — never a guessed one.
+ *   Defaulting structure to sole_trader would list the wrong statutes for
+ *   anything incorporated (D6 in the brief).
  * - `existingRuleKeys` are skipped, so regenerating never duplicates and
  *   never un-ticks: a done item keeps its row and its done_at.
  */
 export function generateChecklist(args: {
-  structure: LegalStructure | null;
-  group: string | null;
+  facts: ComplianceFacts;
   existingRuleKeys: ReadonlySet<string>;
 }): ComplianceRule[] {
-  if (args.structure === "none_yet") return [];
-  return COMPLIANCE_RULES.filter((r) => {
-    if (args.existingRuleKeys.has(r.key)) return false;
-    if (r.structures != null) {
-      if (args.structure == null) return false;
-      if (!r.structures.includes(args.structure)) return false;
-    }
-    if (r.groups != null) {
-      if (args.group == null) return false;
-      if (!r.groups.includes(args.group)) return false;
-    }
-    return true;
-  });
+  if (args.facts.legal === "none_yet") return [];
+  return COMPLIANCE_RULES.filter(
+    (r) => !args.existingRuleKeys.has(r.key) && r.applies(args.facts)
+  ).sort((a, b) => a.key.localeCompare(b.key));
+}
+
+/**
+ * What the generator would ask for that it does not have. `legal` is the one
+ * that matters: a checklist built on the wrong structure quietly lists the
+ * wrong statutes — worse than no checklist, because it looks like coverage.
+ */
+export function checklistGaps(facts: ComplianceFacts): string[] {
+  const gaps: string[] = [];
+  if (!facts.legal) gaps.push("legal structure");
+  if (!facts.type) gaps.push("what kind of venture this is");
+  if (facts.employsPeople == null) gaps.push("whether it employs anyone");
+  if (facts.vatRegistered == null) gaps.push("whether it is VAT registered");
+  return gaps;
 }
 
 export type ChecklistItemRow = {

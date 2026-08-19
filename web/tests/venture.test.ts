@@ -3,6 +3,7 @@ import {
   AREAS,
   COMPLIANCE_RULES,
   areaUnlocked,
+  checklistGaps,
   checklistState,
   daysBetween,
   deriveTier,
@@ -185,7 +186,7 @@ describe("venture · plan sections", () => {
 
   it("progress counts only sections with a non-blank body", () => {
     const p = planProgress([
-      { section: "what", body: "A thing." },
+      { section: "problem", body: "A thing." },
       { section: "customer", body: "   " },
       { section: "junk", body: "not a real section" },
     ]);
@@ -194,57 +195,83 @@ describe("venture · plan sections", () => {
 });
 
 describe("venture · checklist generation", () => {
-  it("is deterministic: same facts, same list", () => {
-    const args = { structure: "sole_trader" as const, group: "property", existingRuleKeys: new Set<string>() };
-    expect(generateChecklist(args)).toEqual(generateChecklist(args));
+  const facts = (over: Partial<Parameters<typeof generateChecklist>[0]["facts"]> = {}) => ({
+    type: null,
+    legal: null,
+    employsPeople: null,
+    vatRegistered: null,
+    ...over,
+  });
+  const gen = (
+    f: Parameters<typeof generateChecklist>[0]["facts"],
+    existing: Set<string> = new Set()
+  ) => generateChecklist({ facts: f, existingRuleKeys: existing });
+
+  it("is deterministic: same facts, same list, same order", () => {
+    const f = facts({ legal: "sole_trader", type: "property" });
+    expect(gen(f)).toEqual(gen(f));
   });
 
-  it("a null structure generates ONLY universal rules — never sole_trader by default (D6)", () => {
-    const rules = generateChecklist({ structure: null, group: null, existingRuleKeys: new Set() });
-    expect(rules.every((r) => r.structures == null)).toBe(true);
-    expect(rules.some((r) => r.key === "hmrc-register-sa")).toBe(false);
+  it("a null structure generates no structure-specific rules — never sole_trader by default (D6)", () => {
+    const keys = gen(facts()).map((r) => r.key);
+    expect(keys).not.toContain("hmrc-register-self-employed");
+    expect(keys).not.toContain("self-assessment-return");
+    expect(keys).not.toContain("confirmation-statement");
+    // Universal rules still come — a short list that says why beats silence.
+    expect(keys).toContain("keep-records-six-years");
+    expect(keys).toContain("ico-data-protection-fee");
   });
 
-  it("ltd gets Companies House rules, not Self Assessment", () => {
-    const keys = generateChecklist({ structure: "ltd", group: null, existingRuleKeys: new Set() }).map(
-      (r) => r.key
-    );
-    expect(keys).toContain("ch-confirmation-statement");
-    expect(keys).toContain("ch-annual-accounts");
-    expect(keys).not.toContain("hmrc-register-sa");
+  it("ltd gets Companies House and CT rules, not Self Assessment registration", () => {
+    const keys = gen(facts({ legal: "ltd" })).map((r) => r.key);
+    expect(keys).toContain("confirmation-statement");
+    expect(keys).toContain("annual-accounts");
+    expect(keys).toContain("corporation-tax-return");
+    expect(keys).toContain("director-self-assessment");
+    expect(keys).not.toContain("hmrc-register-self-employed");
   });
 
   it("not-trading-yet generates nothing at all", () => {
-    expect(
-      generateChecklist({ structure: "none_yet", group: "property", existingRuleKeys: new Set() })
-    ).toHaveLength(0);
+    expect(gen(facts({ legal: "none_yet", type: "property" }))).toHaveLength(0);
   });
 
-  it("property group gets Rent Smart Wales registration AND licence as separate steps", () => {
-    const keys = generateChecklist({
-      structure: "sole_trader",
-      group: "property",
-      existingRuleKeys: new Set(),
-    }).map((r) => r.key);
+  it("employment rules arrive only on an explicit yes — null is not answered", () => {
+    expect(gen(facts()).map((r) => r.key)).not.toContain("paye-registration");
+    const keys = gen(facts({ employsPeople: true })).map((r) => r.key);
+    expect(keys).toContain("paye-registration");
+    expect(keys).toContain("employers-liability-insurance");
+    expect(keys).toContain("right-to-work-checks");
+  });
+
+  it("VAT: unregistered (or unanswered) watches the threshold; registered files returns", () => {
+    expect(gen(facts()).map((r) => r.key)).toContain("vat-threshold-watch");
+    const reg = gen(facts({ vatRegistered: true })).map((r) => r.key);
+    expect(reg).toContain("vat-return");
+    expect(reg).not.toContain("vat-threshold-watch");
+  });
+
+  it("property gets Rent Smart Wales registration AND licence as separate steps", () => {
+    const keys = gen(facts({ type: "property" })).map((r) => r.key);
     expect(keys).toContain("rsw-registration");
     expect(keys).toContain("rsw-licence");
+    expect(keys).toContain("council-tax-and-utilities");
+    expect(keys).toContain("written-occupation-contract");
+  });
+
+  it("wales: false drops the Wales-only rules but keeps GB-wide property ones", () => {
+    const keys = gen(facts({ type: "property", wales: false })).map((r) => r.key);
+    expect(keys).not.toContain("rsw-registration");
+    expect(keys).toContain("gas-safety-certificate");
+    expect(keys).toContain("deposit-protection");
   });
 
   it("regenerating skips existing rule keys — a done item is never re-created", () => {
-    const first = generateChecklist({
-      structure: "sole_trader",
-      group: "property",
-      existingRuleKeys: new Set(),
-    });
-    const again = generateChecklist({
-      structure: "sole_trader",
-      group: "property",
-      existingRuleKeys: new Set(first.map((r) => r.key)),
-    });
-    expect(again).toHaveLength(0);
+    const f = facts({ legal: "sole_trader", type: "property", employsPeople: true });
+    const first = gen(f);
+    expect(gen(f, new Set(first.map((r) => r.key)))).toHaveLength(0);
   });
 
-  it("every rule carries a guidance URL, https, and a unique key", () => {
+  it("every rule carries an https guidance URL and a unique key", () => {
     expect(new Set(COMPLIANCE_RULES.map((r) => r.key)).size).toBe(COMPLIANCE_RULES.length);
     for (const r of COMPLIANCE_RULES) {
       expect(r.guidanceUrl.startsWith("https://")).toBe(true);
@@ -255,6 +282,18 @@ describe("venture · checklist generation", () => {
     for (const r of COMPLIANCE_RULES) {
       expect(r.title.toLowerCase()).not.toMatch(/\bmot\b|vehicle tax/);
     }
+  });
+
+  it("checklistGaps names exactly what is unanswered, and legal first", () => {
+    expect(checklistGaps(facts())).toEqual([
+      "legal structure",
+      "what kind of venture this is",
+      "whether it employs anyone",
+      "whether it is VAT registered",
+    ]);
+    expect(
+      checklistGaps(facts({ legal: "ltd", type: "trade", employsPeople: false, vatRegistered: false }))
+    ).toEqual([]);
   });
 });
 
