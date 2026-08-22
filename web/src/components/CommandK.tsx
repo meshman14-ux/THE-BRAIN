@@ -51,7 +51,9 @@ export default function CommandK() {
       { kind: "page", id: "page:holdings", label: "What you own", href: "/holdings", hint: "assets investments" },
       { kind: "page", id: "page:metrics", label: "Metrics", href: "/life/metrics" },
       { kind: "page", id: "page:vault", label: "The vault", href: "/library/notes", hint: "notes" },
-      { kind: "page", id: "page:setup", label: "Setup", href: "/setup", hint: "questions onboarding" }
+      { kind: "page", id: "page:setup", label: "Setup", href: "/setup", hint: "questions onboarding" },
+      // The Ask strip links it, but "peaky" is what he will type.
+      { kind: "page", id: "page:table", label: "The table", href: "/advisor/table", hint: "peaky blinders council tommy alfie" }
     );
 
     const [people, ventures, notes, vehicles] = await Promise.all([

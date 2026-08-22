@@ -89,6 +89,51 @@ export async function ask(
   };
 }
 
+export type ChatTurn = { role: "user" | "assistant"; content: string };
+
+/**
+ * A conversation. Still no tools, no memory of its own, no path to a row —
+ * the transcript arrives from the caller and leaves with the caller.
+ *
+ * `ask` above is deliberately single-turn because a retrieval advisor
+ * answers the question in front of it. The council at /advisor/table is a
+ * different shape — a conversation is its whole point — and what decision 6
+ * actually rules out is autonomy, not memory: a chat that can only ever
+ * return text is as advisory on turn ten as on turn one.
+ */
+export async function converse(
+  system: string,
+  turns: ChatTurn[],
+  opts: { maxTokens?: number } = {}
+): Promise<Completion> {
+  const response = await client().messages.create({
+    model: ADVISOR_MODEL,
+    max_tokens: opts.maxTokens ?? MAX_TOKENS,
+    system,
+    messages: turns,
+  });
+
+  // Same order as `ask`: stop reason first, content second — a refusal can
+  // arrive with an empty content array.
+  const refused = response.stop_reason === "refusal";
+  const text = response.content
+    .filter((b): b is Anthropic.TextBlock => b.type === "text")
+    .map((b) => b.text)
+    .join("\n")
+    .trim();
+
+  return {
+    text,
+    refused,
+    refusalCategory: refused ? (response.stop_details?.category ?? null) : null,
+    truncated: response.stop_reason === "max_tokens",
+    usage: {
+      input: response.usage.input_tokens,
+      output: response.usage.output_tokens,
+    },
+  };
+}
+
 /** Turn an SDK error into one line he can act on. */
 export function readableError(e: unknown): string {
   if (e instanceof Anthropic.AuthenticationError) {
