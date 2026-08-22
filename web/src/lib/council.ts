@@ -303,9 +303,10 @@ export function councilSystem(
       "> attached.]",
       "",
       "Cite each quote's episode exactly as the bank gives it, like *S1E3*.",
-      "Where the bank has no episode, give the line with no tag rather than",
-      "inventing one. A short greeting or a factual follow-up question does",
-      "not need the full format — only a substantive answer does.",
+      "Where the bank has no episode, write the quoted line alone — no dash",
+      "and no tag of any kind after it — rather than inventing one. A short",
+      "greeting or a factual follow-up question does not need the full",
+      "format — only a substantive answer does.",
     ].join("\n"),
     [
       "RULES OF THE HOUSE.",
