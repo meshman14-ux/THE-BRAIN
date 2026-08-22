@@ -3,7 +3,7 @@
 The one canonical context file for this repo.
 
 **There is one application: THE BRAIN OS, in `web/` — Next.js + Supabase.** Its data layer is
-Supabase Postgres with RLS on 59 tables (§A4), captured at `supabase/schema.sql`. That is the
+Supabase Postgres with RLS on 69 tables (§A4), captured at `supabase/schema.sql`. That is the
 only live data layer; nothing in this
 repo stores user data in the browser.
 
@@ -343,21 +343,29 @@ These were settled with Jay over ten questions. Don't quietly revisit them.
 ## A4. Database (live project)
 
 Supabase project **`qttroyuajpyelfrbxzzt`** · https://qttroyuajpyelfrbxzzt.supabase.co
-Region eu-west-2 (London), free tier. **RLS is on for all 59 tables** — owner-scoped on 56
+Region eu-west-2 (London), free tier. **RLS is on for all 69 tables** — owner-scoped on 66
 of them, and SELECT-only for `authenticated` on the three reference tables that hold no
-user data (§A4 below). pgvector enabled.
+user data (§A4 below). pgvector enabled. Two views, both `security_invoker`.
 
 ```
 command centre : vision · pillars · goals · projects · tasks · inbox · links · reviews
-                 seasons · finishes · diagnostic_runs
+                 seasons · finishes · diagnostic_runs · smart_rules
 vault          : notes
 LIFE_OS        : habits · habit_logs · journal · people · people_contacts
                  metrics · metric_readings · debts · debt_payments · vehicles
                  health_days · workouts · lifts · meals · meal_ingredients
                  training_sets · skill_attempts · athlete_profile
+                 body_measurements · motivation
 EMPIRE_OS      : ventures · assets · investments · opportunities
                  venture_documents · venture_plan_sections · venture_checklist_items
-calendar       : calendar_sync · integrations
+                 venture_tasks · venture_kpis · venture_kpi_readings
+                 venture_scores · venture_gates · venture_kill_criteria
+                 venture_milestones · venture_risks · venture_proposals
+                 (+ views venture_portfolio · venture_obligations)
+capture        : captures · capture_proposals · drive_folders
+reflection     : reflections · advisor_seats · advisor_sessions · advisor_opinions
+phone relay    : push_subscriptions
+calendar       : calendar_sync · integrations · calendar_events · calendar_state
 THE COG        : cog_checkins · cog_states · cog_pulses · cog_feedback
                  cog_config · cog_identity · cog_events · cog_telemetry
 ```
@@ -374,31 +382,37 @@ THE COG        : cog_checkins · cog_states · cog_pulses · cog_feedback
 > exactly one open season; `meals` arrived seeded with the fifty (50 meals, 387
 > ingredient rows — re-running its migration would duplicate them all).
 
-> **The count has been wrong three times — 20, then 24, then 28 — and is now read from the
-> catalogue rather than remembered: 44.** Three of those wrong numbers were live in this file
-> simultaneously. That is the whole argument for the capture below: prose drifts, and by
-> 2026-08-13 this section named columns that do not exist (`health_days.day`, `debts.balance`)
-> and omitted ones that do, which broke three queries in one evening.
+> **The count has been wrong three times — 20, then 24, then 28 — and is read from the
+> catalogue rather than remembered: 69 as of 2026-08-22** (44 on 13 Aug, 56 on 18 Aug, and
+> this line itself said 59 — one short — until the 22 Aug recount). Three of those wrong
+> numbers were live in this file simultaneously. That is the whole argument for the capture
+> below: prose drifts, and by 2026-08-13 this section named columns that do not exist
+> (`health_days.day`, `debts.balance`) and omitted ones that do, which broke three queries
+> in one evening.
 
-> **`supabase/schema.sql` is the schema, captured 2026-08-13 by reading `information_schema`
-> and `pg_catalog`.** Every table, primary key, unique constraint, foreign key, check, index,
-> policy and function. Read it, not this prose, when you need the truth about a column;
-> refresh it by re-reading the catalogue rather than editing it by hand. **It is NOT a
-> migration — never run it against the live project.** It also records the authoritative
-> ordered list of all 22 applied migrations, of which only four have their SQL committed.
+> **`supabase/schema.sql` is the schema, captured 2026-08-13 and refreshed 2026-08-18 and
+> 2026-08-22 by reading `information_schema` and `pg_catalog`.** Every table, primary key,
+> unique constraint, foreign key, check, index, policy, function, trigger and view. Read it,
+> not this prose, when you need the truth about a column; refresh it by re-reading the
+> catalogue rather than editing it by hand — `supabase/README.md` holds the exact queries
+> and both checksum checks. **It is NOT a migration — never run it against the live
+> project.** It also records the authoritative ordered list of all 37 applied migrations,
+> every one committed to `supabase/migrations/` (36 byte-exact, `meals` carrying its seed).
 
 **What the 2026-08-13 capture verified, and what it found.**
 
 Four things now checked against the catalogue rather than assumed:
 
-- **RLS is on for all 56 tables and every table has exactly one policy.** Re-verified live
-  2026-08-18. **53 of them share one predicate** — `FOR ALL`, with `(auth.uid() = user_id)`
+- **RLS is on for all 69 tables and every table has exactly one policy.** Re-verified live
+  2026-08-22. **66 of them share one predicate** — `FOR ALL`, with `(auth.uid() = user_id)`
   as both `USING` and `WITH CHECK`. That uniformity is the property worth defending: one
   shape, so there is no table where a subtly different predicate could leak. They do carry
-  **two different names** — 37 are called `own` and 16 `own rows` — which is cosmetic drift
+  **two different names** — 50 are called `own` and 16 `own rows` — which is cosmetic drift
   between migrations and not a difference in effect. Recorded rather than tidied: renaming a
   policy is a migration, and a rename that changed a predicate by accident would be far
-  worse than two names.
+  worse than two names. One nuance: **`motivation.user_id` is the only nullable `user_id`**
+  among the owner-scoped tables — RLS still gates on it, so a NULL-owner row would be
+  invisible to everyone (the `cog_config` trap, one nullability away).
 - **Three tables are deliberately NOT that shape, and the exception is worth stating
   precisely.** `advisor_seats`, `drive_folders` and `smart_rules` hold no user data at all —
   they are the ten advisor seats, the 22 Drive folder ids and the capture routing rules, i.e.
@@ -408,30 +422,37 @@ Four things now checked against the catalogue rather than assumed:
   read-only reference tables, and `anon` cannot read them either. These are also the only
   three tables in the schema with **no `user_id` column**, which is why the uniform policy
   could not have been applied to them even in principle.
-- **There is now exactly ONE `SECURITY DEFINER` function, and it arrived with the capture
-  merge.** This bullet said "none at all" until 2026-08-18 and had been wrong since 17 Aug.
-  Three project functions exist: `seed_pillars()` and `cog_prune()` are `SECURITY INVOKER`, so
-  RLS applies to them; **`apply_capture_proposal()` is `SECURITY DEFINER`**, because writing an
-  accepted proposal into a real table is precisely the privileged step. It is hardened the way
-  such a function must be — `search_path` pinned to `public, pg_catalog`, a table whitelist,
-  and `EXECUTE` revoked from `anon` — and it is the single seam every proposal crosses
-  whatever produced it (§A5). Worth watching because the sibling COG repo has repeatedly been
-  bitten by `SECURITY DEFINER` functions silently re-granting `EXECUTE` to `PUBLIC`. The
-  remaining asymmetry is unchanged: **`cog_prune()` does not pin `search_path`** where the
-  other two do. Being `INVOKER` that is a hardening note rather than a hole. **Triggers
-  exist as of 2026-08-19**: the venture module's `venture_touch()` (`SECURITY INVOKER`,
-  `search_path` pinned) bumps `ventures.last_touched_at` from all three of its child
-  tables — what makes stage-aware RAG possible without a nightly job.
-- **24 of the 56 tables have no `user_id → auth.users` foreign key** (recounted live
-  2026-08-18; it was 19 of 44). Every `cog_*` one, plus `debts`, `debt_payments`, `vehicles`,
-  `meals`, `meal_ingredients`, `seasons`, `finishes`, `diagnostic_runs`, `skill_attempts`,
+- **There is still exactly ONE `SECURITY DEFINER` function, re-verified 2026-08-22 with
+  seven project functions now live.** This bullet said "none at all" until 2026-08-18 and
+  had been wrong since 17 Aug. `seed_pillars()`, `cog_prune()`, `venture_touch()`,
+  `ventures_sync_type_group()`, `venture_kpi_limit()` and `venture_score()` are all
+  `SECURITY INVOKER`, so RLS applies to them; **`apply_capture_proposal()` is `SECURITY
+  DEFINER`**, because writing an accepted proposal into a real table is precisely the
+  privileged step. It is hardened the way such a function must be — `search_path` pinned to
+  `public, pg_catalog`, a table whitelist, and `EXECUTE` revoked from `anon` — and it is the
+  single seam every proposal crosses whatever produced it (§A5). Worth watching because the
+  sibling COG repo has repeatedly been bitten by `SECURITY DEFINER` functions silently
+  re-granting `EXECUTE` to `PUBLIC`. The remaining asymmetry is unchanged: **`cog_prune()`
+  does not pin `search_path`** where every other project function does. Being `INVOKER`
+  that is a hardening note rather than a hole. **Triggers exist as of 2026-08-19 and number
+  twelve as of 2026-08-22**: `venture_touch()` (`SECURITY INVOKER`, `search_path` pinned)
+  bumps `ventures.last_touched_at` from all TEN venture child tables — what makes
+  stage-aware RAG possible without a nightly job (`venture_risks` and `venture_proposals`
+  are deliberately excluded: their `venture_id` may be NULL for portfolio-level rows) —
+  plus `ventures_sync_type_group` (the expand/contract sync, §A5) and `venture_kpis_limit`
+  (five active KPIs per venture, enforced at the database).
+- **37 of the 69 tables have no `user_id → auth.users` foreign key** (recounted live
+  2026-08-22; it was 24 of 56, and 19 of 44 before that). Every `cog_*` one, every
+  `venture_*` one, `motivation`, plus `debts`, `debt_payments`, `vehicles`, `meals`,
+  `meal_ingredients`, `seasons`, `finishes`, `diagnostic_runs`, `skill_attempts`,
   `training_sets`, `athlete_profile`, `push_subscriptions` and `body_measurements` —
-  twenty-one that have the column without the constraint — and the three reference tables
+  thirty-four that have the column without the constraint — and the three reference tables
   above, which have no `user_id` at all and so are a different case. RLS still scopes every
-  one of the twenty-one to `auth.uid()`, so this is an **integrity** gap, not a security one:
-  deleting the auth user would cascade-clean 32 tables and orphan 24. With one user it is
-  theoretical. Recorded rather than fixed, because twenty-odd FKs is a migration with real
-  locking consequences and should be a decision.
+  one of the thirty-four to `auth.uid()`, so this is an **integrity** gap, not a security
+  one: deleting the auth user would cascade-clean 32 tables and orphan the rest (the
+  `venture_*` children would at least go with their venture, which does carry the FK). With
+  one user it is theoretical. Recorded rather than fixed, because thirty-odd FKs is a
+  migration with real locking consequences and should be a decision.
 - **`cog_*` is a name this account uses twice.** In this repo it is the engine layer above.
   The sibling repo `meshman14-ux/the-cog` is a festival-operations system that prefixes
   *every* object `cog_` as well — and **`cog_events` exists in both schemas meaning entirely
@@ -459,7 +480,9 @@ is captured at `supabase/migrations/20260801_debts_and_vehicles.sql`), and
 `calendar_integration`, which added the `integrations` table plus a unique index keeping
 one event per task. The v2 pass added three more: `people_contacts_and_tiers`,
 `debt_apr_and_savings_metric` and `health_hub_readiness_lifts_nutrition`.
-**Do not re-apply any of them.**
+**Do not re-apply any of them.** That prose list is the early history only — the
+authoritative, complete, ordered list of all **37** applied migrations lives in
+`supabase/schema.sql`, with one byte-verified file each under `supabase/migrations/`.
 
 **`debts.apr` is nullable and NULL is never 0%.** Avalanche ordering IS "highest interest
 first", so without a rate the word means nothing. Treating a missing rate as zero would sort
@@ -858,6 +881,51 @@ Migration `20260819152738_venture_compliance_facts` added `ventures.employs_peop
 taken: the 8-dimension scoring, KPI tables, and proposals queue — different domain model,
 and the brief's own step 2 (Jay sorting all 23) has not happened yet. The other branch
 stays on GitHub, unmerged, as the record.
+
+**The venture module was RECONCILED to the v1 spec on 2026-08-22** — migration
+`20260822013414_venture_module_reconcile`, applied to the live project and captured
+byte-exact, with `supabase/schema.sql` and this file refreshed in the same commit (the
+rule the third schema drift finally taught, `supabase/README.md`). It closes the gap the
+19 Aug subset left open: Area 4 (Task List) had a card in `AREAS` but no table; KPIs, the
+8-dimension score, gates, kill criteria, milestones, risks and the propose-then-accept
+queue did not exist. Nine tables, three functions, nine new triggers and the schema's
+first two views, all under the 19 Aug conventions — `venture_` prefix, everything
+nullable (NULL = "not answered"), `"own"` RLS, `SECURITY INVOKER`, `search_path` pinned.
+
+- **The naming collision was settled by EXPAND/CONTRACT, not a rename.**
+  `ventures.venture_group` has carried INDUSTRY since 19 Aug (four files read it), but
+  the spec wants two independent fields: **type** = industry (drives KPI templates and
+  compliance rules) and **group** = maintenance load (drives how often you look). So
+  `venture_type` was added and backfilled (22 of 23 — the 23rd is the MAINFRAME pointer,
+  deliberately untyped), `maintenance_load` was added FRESH — no name reused — and the
+  `ventures_sync_type_group` trigger keeps the two columns in step in BOTH directions, on
+  UPDATE **and on INSERT**: the deployed app still creates ventures writing
+  `venture_group` alone, and without the INSERT branch those rows would carry a NULL
+  `venture_type` and generate no type-specific compliance rules, silently — caught in
+  testing, not in review. The CONTRACT step (drop `venture_group` and the trigger) ships
+  as its own migration once the app reads `venture_type`; until then old and new code
+  both work. **Do not add new readers of `venture_group`.**
+- **No `rag_status` column, on purpose.** RAG stays derived in `ragFor()` — a stored copy
+  would drift the moment a due date passed with nothing writing the row. The
+  `venture_portfolio` view supplies the inputs (`last_touched_at`, `last_kpi_on`,
+  `checklist_overdue`, …); the TypeScript owns the rule — the same split as
+  stated-vs-derived progress everywhere else. Its sibling `venture_obligations` unifies
+  checklist due/expiry dates with document expiries: every 18 Aug penalty was a row it
+  would have shown.
+- **The queue keeps the capture engine's law**: every automated trigger writes
+  `venture_proposals`, and nothing reaches a task list — and no tier changes — without an
+  explicit accept. A kill-criteria breach PROPOSES a gate review; it never kills anything
+  by itself. `venture_tasks` (Area 4) is separate from `tasks` on purpose: the system
+  proposes there, and work only enters the day plan when Jay pulls it across
+  (`promoted_task_id`).
+- **Five active KPIs per venture is enforced by trigger**, not convention; and
+  `venture_score()` folds the eight weighted dimensions (evidence and speed-to-money
+  carry 35 between them) to /100 — no rows returns NULL, never zero.
+- **Verified live after applying, inside rolled-back transactions**: the sync in all four
+  directions with an unrelated update disturbing neither; all-5s scoring 100 and all-1s
+  0; a 6th active KPI rejected by the trigger; `venture_portfolio` returning 23 rows as
+  Jay and 0 as anon (both views `security_invoker = true`). Supabase security advisors
+  after the apply: the four pre-existing warnings only, nothing new.
 
 **The readiness plan's core chain landed 2026-08-19** — the onboarding profile's steps
 2/3/6, built from the report itself (its steps 9 and 10 had already happened: ghost routes
@@ -1886,12 +1954,16 @@ the `links` table's first ever use, and "what links here" on areas
 
 Open items:
 
-1. ~~Capture the live schema into the repo.~~ **Done 2026-08-13, drifted, and RECAPTURED
-   2026-08-18.** `supabase/schema.sql` now holds the end state at **56 tables** and
-   `supabase/migrations/` holds all **33** applied migrations, one file each, named to match
-   `schema_migrations` exactly. **32 are byte-exact, verified by MD5 against the source**
-   rather than by character count; the exception is `meals`, whose file also carries the
-   fifty-meal seed applied separately.
+1. ~~Capture the live schema into the repo.~~ **Done 2026-08-13, drifted, RECAPTURED
+   2026-08-18, drifted AGAIN, and refreshed 2026-08-22** alongside the venture reconcile
+   migration. `supabase/schema.sql` now holds the end state at **69 tables and 2 views**
+   and `supabase/migrations/` holds all **37** applied migrations, one file each, named to
+   match `schema_migrations` exactly. **36 are byte-exact, verified by MD5 against the
+   source** rather than by character count; the exception is `meals`, whose file also
+   carries the fifty-meal seed applied separately. The 18 Aug capture was stale within a
+   day — `motivation` that evening, the venture module the next afternoon — so the rule is
+   now written down in `supabase/README.md`: **apply a migration, refresh the capture, in
+   the same commit.**
 
    **It had gone stale in five days and nobody could have told by looking.** The 13 August
    capture described 44 tables and 22 migrations; by 18 August the project had 56 and 33.
@@ -1910,7 +1982,7 @@ Open items:
    checks**, because the reason this drifted is that "re-read the catalogue" was folklore
    rather than a recipe.
 
-   **What this never bought is a rollback:** the `rollback` column is empty for all 33, so
+   **What this never bought is a rollback:** the `rollback` column is empty for all 37, so
    reversing anything means writing the reverse by hand.
 2. ~~Jay has never completed first sign-in.~~ **Resolved 2026-07-31** — magic-link round trip
    completed against the live URL; the 13 areas render.
@@ -2102,6 +2174,19 @@ Open items:
    "Information Library" wraps in a 212px sidebar, whether the boxes push the viewport at
    1280px where `xl` first shows them, and whether the badge counts still land beside the
    right items now that Tasks carries the open count that used to sit on Planner.
+24. **The venture reconcile (2026-08-22, §A5) leaves four things deliberately open.**
+   `maintenance_load` and `irl` are NULL on all 23 ventures — only Jay can sort
+   engine/build/hold/watch and set a readiness level, and a guessed value is worse than an
+   honest blank; the grouped portfolio view stays blocked on it. The app still reads
+   `venture_group` in four files — nothing is broken (the sync trigger keeps both columns
+   truthful), but the CONTRACT migration that drops `venture_group` and
+   `ventures_sync_type_group` waits until the app reads `venture_type`, and **no new
+   reader of `venture_group` may be added** in the meantime. Area 4 now has a table
+   (`venture_tasks`) but no UI — `VentureAreas.tsx` renders the other four areas.
+   And D2 is still open: "AI — Recruitment Company" and "AI — Building/Hospitality
+   Recruitment Agency" both exist with one-liners describing one business; merging them is
+   Jay's call, and `venture_proposals` now has a `merge_ventures` kind for exactly that
+   conversation.
 
 ## A9. Commands
 

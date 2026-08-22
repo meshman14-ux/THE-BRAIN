@@ -1,14 +1,15 @@
 # `supabase/` — what is in here and how far it can be trusted
 
-Project **`qttroyuajpyelfrbxzzt`** (eu-west-2, London). **Captured 2026-08-18.**
-Supersedes the 2026-08-13 capture, which described 44 tables and 22 migrations.
+Project **`qttroyuajpyelfrbxzzt`** (eu-west-2, London). **Captured 2026-08-22.**
+Supersedes the 2026-08-18 capture (56 tables, 33 migrations), which superseded
+2026-08-13 (44 and 22).
 
 ## The two files that matter
 
 | | |
 |---|---|
-| `schema.sql` | **The end state.** Every table, key, constraint, index, policy and function, read from `information_schema` and `pg_catalog`. This is what the database looks like right now. **56 tables.** |
-| `migrations/` | **How it got there.** One file per applied migration, named `<version>_<name>.sql` to match `supabase_migrations.schema_migrations` exactly. **33 files.** |
+| `schema.sql` | **The end state.** Every table, key, constraint, index, policy, function, trigger and view, read from `information_schema` and `pg_catalog`. This is what the database looks like right now. **69 tables, 2 views.** |
+| `migrations/` | **How it got there.** One file per applied migration, named `<version>_<name>.sql` to match `supabase_migrations.schema_migrations` exactly. **37 files.** |
 
 Neither is an instruction. **Do not run anything in this directory against the live
 project.** Every migration here has already been applied, and several are destructive if
@@ -29,6 +30,13 @@ query, and both of those happen long after the drift.
 The claim this directory exists to earn — *"the project can be rebuilt from this repo,
 from nothing"* — was **false for five days** and nobody could have told by looking.
 
+**And it drifted again immediately.** The 18 August capture was stale within a day:
+`motivation` landed that same evening and the venture module (three tables, seven
+`ventures` columns, the project's first triggers) the next afternoon, and `schema.sql`
+learned about none of it until the 2026-08-22 refresh that accompanied the venture
+reconcile migration. Three captures, three drifts. The rule that follows: **whenever a
+migration is applied, refresh these files in the same commit.**
+
 **More pointedly:** `body_measurements` was created by **another session at 16:36 on
 2026-08-18, while this recapture was in progress**. The table count went 55 → 56 between
 two queries minutes apart. This database has more than one writer. Treat these files as a
@@ -37,8 +45,8 @@ trusting rather than after being surprised.**
 
 ## Provenance, so you know what you are reading
 
-**32 of the 33 migration files are byte-exact captures** of
-`supabase_migrations.schema_migrations.statements[1]`, verified on 2026-08-18 by **MD5
+**36 of the 37 migration files are byte-exact captures** of
+`supabase_migrations.schema_migrations.statements`, verified on 2026-08-22 by **MD5
 against the source** — a stronger check than the character count used in August, which
 would not have caught a transposition. They are not reconstructions and not summaries,
 including the original authors' comments, which is most of their value.
@@ -120,26 +128,29 @@ where n.nspname = 'public' and c.relkind = 'r';
 ```
 
 Compare (1) against each file with its trailing newline stripped, and (2) against the same
-map parsed out of `schema.sql`. At the 2026-08-18 capture that map was
-`df629322c5c449f7557d37dbd2c05c97` across 56 tables and 601 columns.
+map parsed out of `schema.sql`. At the 2026-08-22 capture that map was
+`300900d793d49c41121e822b2e933d5e` across 69 tables and 750 columns (2026-08-18:
+`df629322c5c449f7557d37dbd2c05c97`, 56 tables, 601 columns).
 
 ## What this does and does not buy you
 
 It buys reproducibility: the project can be rebuilt from this repo, in order, from nothing.
 
 It does not buy a rollback. The `rollback` column exists in `schema_migrations` and is
-empty for all 33, so there is no down-migration for anything. Reversing a change means
+empty for all 37, so there is no down-migration for anything. Reversing a change means
 writing the reverse by hand against `schema.sql`.
 
 ## Two warnings worth keeping
 
-**RLS is not quite uniform, and the exception is deliberate.** All 56 tables have RLS on
-and exactly one policy. Fifty-three are the same predicate — `auth.uid() = user_id` for
-both `USING` and `WITH CHECK` — under two different names (`own` on 37, `own rows` on 16;
+**RLS is not quite uniform, and the exception is deliberate.** All 69 tables have RLS on
+and exactly one policy. Sixty-six are the same predicate — `auth.uid() = user_id` for
+both `USING` and `WITH CHECK` — under two different names (`own` on 50, `own rows` on 16;
 cosmetic drift between migrations, not a difference in effect). The other three —
 `advisor_seats`, `drive_folders`, `smart_rules` — hold no user data, have no `user_id`
 column at all, and carry `read_all`: SELECT only, `authenticated` only. No write policy
-exists on them, so writes are denied and `anon` cannot read them.
+exists on them, so writes are denied and `anon` cannot read them. The two views
+(`venture_portfolio`, `venture_obligations`) are `security_invoker = true`, so they add
+no bypass: the caller's own RLS applies underneath.
 
 **The `cog_` prefix is also the prefix of a different system.** Eight tables here are
 prefixed `cog_` (migration `20260812172334_cog_core`) — an engine layer over THE BRAIN's
