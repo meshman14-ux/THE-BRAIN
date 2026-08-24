@@ -5,6 +5,24 @@ import DayPlanner from "@/components/DayPlanner";
 import type { Pillar, Task } from "@/lib/types";
 import { addDays, toIso, formatDayLong } from "@/lib/logic";
 import { calibration } from "@/lib/planner";
+import VentureTasksToday from "@/components/VentureTasksToday";
+import type { VentureTaskRow } from "@/lib/venture";
+
+/**
+ * venture_tasks joined to its venture. PostgREST types an embedded parent
+ * as an array even though there is exactly one, so accept both shapes
+ * rather than casting past it.
+ */
+type VentureTaskJoin = VentureTaskRow & {
+  venture_id: string;
+  ventures: { name: string }[] | { name: string } | null;
+};
+
+function ventureNameOf(j: VentureTaskJoin): string {
+  const v = j.ventures;
+  if (v == null) return "Venture";
+  return (Array.isArray(v) ? v[0]?.name : v.name) ?? "Venture";
+}
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +45,8 @@ export default async function DayPage({
 
   const supabase = await createClient();
 
-  const [{ data: tasks }, { data: pillars }, { data: finished }] = await Promise.all([
+  const [{ data: tasks }, { data: pillars }, { data: finished }, { data: ventureTasks }] =
+    await Promise.all([
     // This day's work, plus everything with no day at all — the pool has to
     // include loose tasks or the planner can only rearrange, never commit.
     supabase
@@ -51,6 +70,14 @@ export default async function DayPage({
       .not("actual_min", "is", null)
       .order("completed_at", { ascending: false })
       .limit(60),
+    // Venture work pulled into this day. Read, never copied — these are
+    // the same rows the venture page edits, so the two cannot disagree.
+    supabase
+      .from("venture_tasks")
+      .select("id, venture_id, title, status, priority, due_on, do_date, sort_order, ventures(name)")
+      .in("status", ["open", "doing"])
+      .lte("do_date", day)
+      .order("sort_order"),
   ]);
 
   const cal = calibration(
@@ -90,6 +117,15 @@ export default async function DayPage({
           ⎙ Daily sheet
         </Link>
       </div>
+
+      <VentureTasksToday
+        tasks={((ventureTasks ?? []) as VentureTaskJoin[]).map((t) => ({
+          ...t,
+          venture_name: ventureNameOf(t),
+        }))}
+        dayIso={day}
+        todayIso={today}
+      />
 
       <DayPlanner
         dayIso={day}

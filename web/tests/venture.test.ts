@@ -15,6 +15,11 @@ import {
   sortChecklist,
   tierFor,
   unlockedAreas,
+  nextSortOrder,
+  sortVentureTasks,
+  taskCardLine,
+  ventureTaskState,
+  type VentureTaskRow,
 } from "../src/lib/venture";
 
 const T = "2026-08-19";
@@ -322,5 +327,139 @@ describe("venture · checklist state and order", () => {
     const s = checklistState([{ id: "x", title: "t", due_on: T, done_at: null }], T);
     expect(s.overdue).toBe(0);
     expect(s.nextDue).toBe(T);
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * Area 4 · Task List
+ * ------------------------------------------------------------------ */
+
+const task = (over: Partial<VentureTaskRow> = {}): VentureTaskRow => ({
+  id: Math.random().toString(36).slice(2),
+  title: "t",
+  status: "open",
+  priority: "normal",
+  due_on: null,
+  do_date: null,
+  sort_order: 0,
+  ...over,
+});
+
+describe("venture · task list", () => {
+  it("overdue sorts above everything, whatever its priority", () => {
+    const late = task({ title: "late", due_on: "2026-08-01", priority: "low" });
+    const urgent = task({ title: "urgent", priority: "high" });
+    const order = sortVentureTasks([urgent, late], T).map((t) => t.title);
+    expect(order).toEqual(["late", "urgent"]);
+  });
+
+  it("a task pulled into today sits above undated work", () => {
+    const dated = task({ title: "today", do_date: T, priority: "low" });
+    const loose = task({ title: "loose", priority: "high" });
+    expect(sortVentureTasks([loose, dated], T).map((t) => t.title)).toEqual([
+      "today",
+      "loose",
+    ]);
+  });
+
+  it("inside a bucket, priority then the order Jay put them in", () => {
+    const a = task({ title: "a", priority: "normal", sort_order: 20 });
+    const b = task({ title: "b", priority: "high", sort_order: 30 });
+    const c = task({ title: "c", priority: "normal", sort_order: 10 });
+    expect(sortVentureTasks([a, b, c], T).map((t) => t.title)).toEqual(["b", "c", "a"]);
+  });
+
+  it("sorting never mutates the array it was handed", () => {
+    const input = [task({ title: "z", sort_order: 9 }), task({ title: "a", sort_order: 1 })];
+    const before = input.map((t) => t.title);
+    sortVentureTasks(input, T);
+    expect(input.map((t) => t.title)).toEqual(before);
+  });
+
+  it("counts open, done, overdue and what is in today — dropped counts as neither", () => {
+    const s = ventureTaskState(
+      [
+        task({ status: "done" }),
+        task({ status: "dropped" }),
+        task({ due_on: "2026-08-01" }),
+        task({ do_date: T }),
+        task(),
+      ],
+      T
+    );
+    expect(s).toEqual({ open: 3, done: 1, overdue: 1, today: 1, nextDue: null });
+  });
+
+  it("nextDue skips anything already overdue and takes the soonest ahead", () => {
+    const s = ventureTaskState(
+      [
+        task({ due_on: "2026-08-01" }),
+        task({ due_on: "2026-09-30" }),
+        task({ due_on: "2026-08-25" }),
+      ],
+      T
+    );
+    expect(s.overdue).toBe(1);
+    expect(s.nextDue).toBe("2026-08-25");
+  });
+
+  it("a task due today is not overdue", () => {
+    expect(ventureTaskState([task({ due_on: T })], T).overdue).toBe(0);
+  });
+
+  it("the card line leads with overdue, and stays honest when empty", () => {
+    expect(taskCardLine({ open: 0, overdue: 0, today: 0 })).toBe("no open work");
+    expect(taskCardLine({ open: 3, overdue: 2, today: 1 })).toBe(
+      "2 OVERDUE · 1 in today · 3 open"
+    );
+  });
+
+  it("the card line still reports work stranded in the shared pool", () => {
+    expect(taskCardLine({ open: 0, overdue: 0, today: 0 }, 6)).toBe("6 in shared pool");
+  });
+
+  it("a new task lands at the bottom, not in the middle", () => {
+    expect(nextSortOrder([])).toBe(10);
+    expect(nextSortOrder([{ sort_order: 10 }, { sort_order: 40 }])).toBe(50);
+  });
+});
+
+describe("venture · CIS", () => {
+  const trade = { type: "trade" as const, legal: "sole_trader" as const, employsPeople: false, vatRegistered: false };
+
+  it("a construction venture is handed both CIS rules", () => {
+    const keys = generateChecklist({ facts: trade, existingRuleKeys: new Set() }).map((r) => r.key);
+    expect(keys).toContain("cis-contractor-registration");
+    expect(keys).toContain("cis-monthly-return");
+  });
+
+  it("CIS fires on trade even with no employees — subcontractors are not employees", () => {
+    const keys = generateChecklist({ facts: trade, existingRuleKeys: new Set() }).map((r) => r.key);
+    expect(keys).toContain("cis-monthly-return");
+    // and the employment rules correctly stay away
+    expect(keys).not.toContain("paye-registration");
+  });
+
+  it("CIS does not reach a shop, a let or a software venture", () => {
+    for (const type of ["retail", "property", "digital", "service"] as const) {
+      const keys = generateChecklist({
+        facts: { ...trade, type },
+        existingRuleKeys: new Set(),
+      }).map((r) => r.key);
+      expect(keys).not.toContain("cis-contractor-registration");
+    }
+  });
+
+  it("the monthly return is a statutory obligation, so it goes red the day it is late", () => {
+    const rule = COMPLIANCE_RULES.find((r) => r.key === "cis-monthly-return");
+    expect(rule?.obligation).toBe(true);
+    expect(rule?.cadence).toBe("monthly");
+  });
+
+  it("every CIS rule carries a GOV.UK link — these are prompts, not advice", () => {
+    for (const key of ["cis-contractor-registration", "cis-monthly-return"]) {
+      const rule = COMPLIANCE_RULES.find((r) => r.key === key);
+      expect(rule?.guidanceUrl).toMatch(/^https:\/\/www\.gov\.uk\//);
+    }
   });
 });
