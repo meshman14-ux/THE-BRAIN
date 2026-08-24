@@ -52,15 +52,20 @@
  * ------------------------------------------------------------------ */
 :root,
 :root[data-theme="paper"] {
-  --bg: #f4f2ee;
-  --bg-2: #efece6;
-  --card: #ffffff;
-  --card-hover: #fbfaf8;
-  --text: #20242b;
-  --muted: #5c636e;
-  --faint: #949aa4;
-  --border: #e6e3dd;
-  --border-bright: #d9d5cd;
+  /* Journal Pop (24 Aug 2026): the ground went from cool grey-white to
+     warm paper-and-ink — cream sheet, off-white cards, warm brown-black
+     text. The SEMANTIC hues below (accent, life/empire, status, purposes)
+     are untouched: the four-channel rule and palette.test.ts still hold.
+     The personality lives in ground, shape and type, not in new meaning. */
+  --bg: #f6f1e5;
+  --bg-2: #efe8d8;
+  --card: #fffdf7;
+  --card-hover: #fbf7ec;
+  --text: #332e26;
+  --muted: #6b6455;
+  --faint: #9a9179;
+  --border: #e4dac4;
+  --border-bright: #d5c8ab;
 
   --accent: #3b47b8;
   --accent-soft: #eaecfa;
@@ -103,13 +108,16 @@
   --p-cleaning: #7c8494;
   --p-connecting: #b8478f;
 
-  /* Channel 1 · density and voice. EMPIRE tightens both. */
-  --radius: 13px;
+  /* Channel 1 · density and voice. EMPIRE tightens both.
+     Journal Pop: rounder corners, a chunky display face for headlines,
+     and the soft offset shadow that makes a card sit ON the paper
+     rather than float above it. */
+  --radius: 16px;
   --pad: 18px;
-  --headfont: "Source Serif 4", ui-serif, Georgia, serif;
-  --headtrack: -0.02em;
+  --headfont: "Baloo 2", ui-rounded, "Source Serif 4", Georgia, serif;
+  --headtrack: -0.01em;
 
-  --shadow: 0 6px 24px rgba(32, 36, 43, 0.08);
+  --shadow: 0 3px 0 #e0d3b6, 0 10px 28px rgba(51, 46, 38, 0.07);
 
   /* ---------------------------------------------------------------- *
    * CHANNEL ZERO · depth and light — decoration, and ONLY decoration
@@ -125,11 +133,12 @@
    * machines resolve them themselves, exactly as the accent does.
    * ---------------------------------------------------------------- */
 
-  /* The lift: a card is a surface with light falling on it, not a box. */
-  --lift: linear-gradient(180deg, #ffffff 0%, #fdfcfa 100%);
-  --lift-hover: linear-gradient(180deg, #ffffff 0%, #f8f6f2 100%);
+  /* The lift: warm off-white paper, near-flat — the offset shadow does
+     the sitting-on-the-page work now, not a gradient. */
+  --lift: linear-gradient(180deg, #fffdf7 0%, #fdf9ef 100%);
+  --lift-hover: linear-gradient(180deg, #fffdf7 0%, #f8f2e3 100%);
   /* The hero's ground — the first thing seen each morning. */
-  --hero: radial-gradient( 120% 140% at 0% 0%, rgba(59, 71, 184, 0.09) 0%, rgba(59, 71, 184, 0) 55% ), linear-gradient(160deg, #ffffff 0%, #f7f5f1 100%);
+  --hero: radial-gradient( 120% 140% at 0% 0%, rgba(59, 71, 184, 0.08) 0%, rgba(59, 71, 184, 0) 55% ), linear-gradient(160deg, #fffdf7 0%, #f7f0df 100%);
   /* A filled bar with light along it, rather than a flat block. */
   --fill-accent: linear-gradient(90deg, #4b57c9 0%, #3b47b8 60%, #2f3aa0 100%);
   --fill-good: linear-gradient(90deg, #2c9a5f 0%, #1d7f4a 100%);
@@ -138,7 +147,7 @@
   --glow-accent: 0 0 0 1px rgba(59, 71, 184, 0.16), 0 6px 20px rgba(59, 71, 184, 0.14);
   --glow-good: 0 0 0 1px rgba(29, 127, 74, 0.18), 0 6px 20px rgba(29, 127, 74, 0.16);
   --sheen: rgba(255, 255, 255, 0.55);
-  --shadow-lift: 0 2px 4px rgba(32, 36, 43, 0.04), 0 12px 32px rgba(32, 36, 43, 0.09);
+  --shadow-lift: 0 3px 0 #e0d3b6, 0 12px 32px rgba(51, 46, 38, 0.08);
 }
 
 /* ------------------------------------------------------------------ *
@@ -209,11 +218,20 @@ body {
   padding: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: "Public Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont,
-    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* Journal Pop: the reading face is a warm serif — the ink on the paper.
+     UI labels (.label, .nav-box-title) and data (.mono) keep their own
+     pinned faces, so density and telemetry stay crisp. */
+  font-family: "Lora", ui-serif, Georgia, "Public Sans", serif;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* The handwritten margin voice — Journal Pop's signature. For the small
+   human asides ("don't forget!!", "done ✓"), never for data or actions. */
+.hand {
+  font-family: "Caveat", cursive;
+  font-weight: 600;
 }
 
 body {
@@ -519,6 +537,10 @@ h2.serif,
 }
 
 .label {
+  /* Labels stay on the UI face — an uppercase serif label reads as a
+     newspaper heading, not a control. */
+  font-family: "Public Sans", ui-sans-serif, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 0.68rem;
   font-weight: 600;
   letter-spacing: 0.09em;
