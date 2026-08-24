@@ -614,6 +614,30 @@ export const COMPLIANCE_RULES: ComplianceRule[] = [
     applies: (f) => f.type === "trade" || f.type === "service" || f.type === "retail",
   },
   {
+    key: "cis-contractor-registration",
+    title: "Register as a CIS contractor",
+    obligation: true,
+    cadence: "once",
+    note:
+      "If you pay subcontractors for construction work you are a contractor under the " +
+      "Construction Industry Scheme, whatever your own structure. Registration is before " +
+      "the first payment, and subcontractors must be verified with HMRC before you pay them.",
+    guidanceUrl: "https://www.gov.uk/what-is-the-construction-industry-scheme",
+    applies: (f) => f.type === "trade",
+  },
+  {
+    key: "cis-monthly-return",
+    title: "File the monthly CIS return",
+    obligation: true,
+    cadence: "monthly",
+    note:
+      "Due the 19th of each month, and due even in a month you paid nobody — a nil return " +
+      "is still a return. The penalty is automatic from day one and stacks month on month, " +
+      "which is what makes a monthly filing worse to forget than an annual one.",
+    guidanceUrl: "https://www.gov.uk/what-you-must-do-as-a-cis-contractor/file-your-monthly-returns",
+    applies: (f) => f.type === "trade",
+  },
+  {
     key: "waste-carrier-licence",
     title: "Register as a waste carrier",
     obligation: true,
@@ -719,4 +743,107 @@ export function checklistState(
     }
   }
   return { open, done, overdue, nextDue };
+}
+
+/* ------------------------------------------------------------------ *
+ * Area 4 · Task List
+ *
+ * Venture tasks live in venture_tasks and nowhere else. A task with a
+ * do_date is READ by the day screen; it is never copied into
+ * public.tasks. One row, two views — so there is no second copy to edit
+ * and nothing that can drift out of step.
+ *
+ * Ordered, never blocking: sort_order carries the sequence Jay wants,
+ * and nothing refuses to start because something above it is unfinished.
+ * ------------------------------------------------------------------ */
+
+export type VentureTaskStatus = "open" | "doing" | "done" | "dropped";
+export type VentureTaskPriority = "low" | "normal" | "high";
+
+export type VentureTaskRow = {
+  id: string;
+  title: string;
+  status: VentureTaskStatus;
+  priority: VentureTaskPriority;
+  due_on: string | null;
+  do_date: string | null;
+  sort_order: number;
+};
+
+export const PRIORITY_RANK: Record<VentureTaskPriority, number> = {
+  high: 0,
+  normal: 1,
+  low: 2,
+};
+
+export function isLive(t: { status: VentureTaskStatus }): boolean {
+  return t.status === "open" || t.status === "doing";
+}
+
+/**
+ * Overdue first — a date that has passed is the only thing here that
+ * cannot be absorbed by tomorrow. Then whatever is dated for today, then
+ * everything else in the order Jay put it in.
+ */
+export function sortVentureTasks<T extends VentureTaskRow>(
+  tasks: T[],
+  todayIso: string
+): T[] {
+  const bucket = (t: T): number => {
+    if (t.due_on != null && t.due_on < todayIso) return 0;
+    if (t.do_date != null && t.do_date <= todayIso) return 1;
+    return 2;
+  };
+  return [...tasks].sort(
+    (a, b) =>
+      bucket(a) - bucket(b) ||
+      PRIORITY_RANK[a.priority] - PRIORITY_RANK[b.priority] ||
+      a.sort_order - b.sort_order ||
+      a.title.localeCompare(b.title)
+  );
+}
+
+export function ventureTaskState(
+  tasks: VentureTaskRow[],
+  todayIso: string
+): { open: number; done: number; overdue: number; today: number; nextDue: string | null } {
+  let open = 0;
+  let done = 0;
+  let overdue = 0;
+  let today = 0;
+  let nextDue: string | null = null;
+
+  for (const t of tasks) {
+    if (t.status === "done") {
+      done++;
+      continue;
+    }
+    if (t.status === "dropped") continue;
+    open++;
+    if (t.do_date != null && t.do_date <= todayIso) today++;
+    if (t.due_on != null) {
+      if (t.due_on < todayIso) overdue++;
+      else if (nextDue == null || t.due_on < nextDue) nextDue = t.due_on;
+    }
+  }
+  return { open, done, overdue, today, nextDue };
+}
+
+/** The card subtitle. Overdue outranks everything — it is the only urgent state. */
+export function taskCardLine(
+  s: { open: number; overdue: number; today: number },
+  legacy = 0
+): string {
+  if (s.open === 0 && legacy === 0) return "no open work";
+  const parts: string[] = [];
+  if (s.overdue > 0) parts.push(`${s.overdue} OVERDUE`);
+  if (s.today > 0) parts.push(`${s.today} in today`);
+  if (s.open > 0) parts.push(`${s.open} open`);
+  if (legacy > 0) parts.push(`${legacy} in shared pool`);
+  return parts.join(" · ");
+}
+
+/** Next free slot, so a new task lands at the bottom rather than the middle. */
+export function nextSortOrder(tasks: { sort_order: number }[]): number {
+  return tasks.reduce((max, t) => Math.max(max, t.sort_order), 0) + 10;
 }

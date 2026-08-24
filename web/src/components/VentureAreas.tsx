@@ -19,6 +19,12 @@ import {
   TIER_MEANING,
   TIERS,
   areaUnlocked,
+  isLive,
+  nextSortOrder,
+  sortVentureTasks,
+  taskCardLine,
+  ventureTaskState,
+  type VentureTaskRow,
   checklistGaps,
   checklistState,
   generateChecklist,
@@ -75,6 +81,7 @@ export type VentureAreasProps = {
   planSections: PlanRow[];
   checklist: CheckRow[];
   tasks: TaskRow[];
+  ventureTasks: VentureTaskRow[];
   /** An existing project of this venture to hang quick-added tasks off. */
   projectId: string | null;
   today: string;
@@ -116,6 +123,7 @@ export default function VentureAreas(props: VentureAreasProps) {
   });
   const plan = planProgress(props.planSections);
   const openTasks = props.tasks.filter((t) => t.status !== "done" && t.status !== "dropped");
+  const taskState = ventureTaskState(props.ventureTasks, props.today);
 
   // PromiseLike, not Promise: supabase's query builders are thenables.
   async function run(fn: () => PromiseLike<{ error: { message: string } | null }>) {
@@ -147,7 +155,7 @@ export default function VentureAreas(props: VentureAreasProps) {
         : check.open + check.done === 0
           ? "nothing generated yet"
           : `${check.open} open · ${check.done} done${check.nextDue ? ` · next due ${check.nextDue}` : ""}`,
-    tasks: openTasks.length === 0 ? "no open work" : `${openTasks.length} open`,
+    tasks: taskCardLine(taskState, openTasks.length),
     summary: "assembled from what is already recorded",
     plan: plan.filled === 0 ? "nothing written yet" : `${plan.filled} of ${plan.total} sections`,
     documents: props.documents.length === 0 ? "empty file" : `${props.documents.length} filed`,
@@ -294,7 +302,13 @@ export default function VentureAreas(props: VentureAreasProps) {
                   <ChecklistPanel {...props} busy={busy} run={run} supabase={supabase} />
                 )}
                 {a.key === "tasks" && (
-                  <TasksPanel {...props} busy={busy} run={run} supabase={supabase} openTasks={openTasks} />
+                  <TasksPanel
+                    {...props}
+                    busy={busy}
+                    run={run}
+                    supabase={supabase}
+                    openTasks={openTasks}
+                  />
                 )}
                 {a.key === "summary" && <SummaryPanel {...props} plan={plan} check={check} openCount={openTasks.length} />}
                 {a.key === "plan" && <PlanPanel {...props} busy={busy} run={run} supabase={supabase} />}
@@ -493,81 +507,147 @@ function ChecklistPanel(p: PanelCtx) {
   );
 }
 
-function TasksPanel(p: PanelCtx & { openTasks: TaskRow[] }) {
+function TasksPanel(
+  p: PanelCtx & { openTasks: TaskRow[]; ventureTasks: VentureTaskRow[] }
+) {
   const [title, setTitle] = useState("");
+  const [due, setDue] = useState("");
+  const [doToday, setDoToday] = useState(false);
+
+  const live = p.ventureTasks.filter(isLive);
+  const ordered = sortVentureTasks(live, p.today);
+  const doneCount = p.ventureTasks.filter((t) => t.status === "done").length;
 
   async function add() {
     const t = title.trim();
     if (!t) return;
-    let projectId = p.projectId;
-    if (projectId == null) {
-      // The venture has no project yet, and tasks reach a venture through
-      // one — that is the existing model, kept rather than a second path.
-      const { data, error } = await p.supabase
-        .from("projects")
-        .insert({ title: p.ventureName, venture_id: p.ventureId, status: "active" })
-        .select("id")
-        .single();
-      if (error || !data) return;
-      projectId = data.id as string;
-    }
     const ok = await p.run(() =>
-      p.supabase.from("tasks").insert({ title: t, project_id: projectId, priority: "Med", status: "open" })
+      p.supabase.from("venture_tasks").insert({
+        venture_id: p.ventureId,
+        title: t,
+        due_on: due === "" ? null : due,
+        do_date: doToday ? p.today : null,
+        sort_order: nextSortOrder(p.ventureTasks),
+      })
     );
-    if (ok) setTitle("");
+    if (ok) {
+      setTitle("");
+      setDue("");
+      setDoToday(false);
+    }
   }
 
-  const done = (t: TaskRow) =>
-    p.run(() => p.supabase.from("tasks").update({ status: "done" }).eq("id", t.id));
+  const setStatus = (t: VentureTaskRow, status: "open" | "done") =>
+    p.run(() =>
+      p.supabase
+        .from("venture_tasks")
+        .update({ status, done_at: status === "done" ? new Date().toISOString() : null })
+        .eq("id", t.id)
+    );
+
+  // The only door between a venture and the day plan. No copy is made —
+  // the day screen reads this same row, so there is nothing to keep in step.
+  const setDay = (t: VentureTaskRow, day: string | null) =>
+    p.run(() => p.supabase.from("venture_tasks").update({ do_date: day }).eq("id", t.id));
 
   return (
     <>
-      {p.openTasks.length === 0 ? (
+      {ordered.length === 0 ? (
         <p className="text-[0.78rem] text-[var(--faint)]">
           No open work hangs off this venture. The box below is the whole floor.
         </p>
       ) : (
         <ul className="grid gap-1.5 list-none p-0 m-0">
-          {p.openTasks.map((t) => (
-            <li
-              key={t.id}
-              className="flex items-start gap-3 rounded-[10px] border border-[var(--border)] px-3.5 py-2.5"
-            >
-              <span className="text-[0.84rem] leading-snug min-w-0 flex-1">{t.title}</span>
-              <span className="mono text-[0.66rem] text-[var(--faint)] shrink-0">{t.priority}</span>
-              <button
-                className="chip tap shrink-0"
-                disabled={p.busy}
-                onClick={() => void done(t)}
+          {ordered.map((t) => {
+            const overdue = t.due_on != null && t.due_on < p.today;
+            const inToday = t.do_date != null && t.do_date <= p.today;
+            return (
+              <li
+                key={t.id}
+                className="flex items-start gap-3 rounded-[10px] border border-[var(--border)] px-3.5 py-2.5"
               >
-                Done
-              </button>
-            </li>
-          ))}
+                <span className="text-[0.84rem] leading-snug min-w-0 flex-1">
+                  {t.title}
+                  {t.due_on != null && (
+                    <span
+                      className="mono text-[0.66rem] ml-2"
+                      style={{ color: overdue ? "var(--bad)" : "var(--faint)" }}
+                    >
+                      {overdue ? "OVERDUE " : "due "}
+                      {t.due_on}
+                    </span>
+                  )}
+                </span>
+                <button
+                  className="chip tap shrink-0"
+                  disabled={p.busy}
+                  title={inToday ? "Take it back off today" : "Put it in today's plan"}
+                  onClick={() => void setDay(t, inToday ? null : p.today)}
+                >
+                  {inToday ? "In today" : "→ Today"}
+                </button>
+                <button className="chip tap shrink-0" disabled={p.busy} onClick={() => void setStatus(t, "done")}>
+                  Done
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
-      <div className="flex gap-2">
+
+      <div className="flex flex-wrap gap-2">
         <input
-          className="input flex-1"
+          className="input flex-1 min-w-[12rem]"
           placeholder="Name the next move"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
         />
+        <input
+          className="input"
+          type="date"
+          aria-label="Due date"
+          value={due}
+          onChange={(e) => setDue(e.target.value)}
+        />
+        <button
+          className="chip tap"
+          aria-pressed={doToday}
+          onClick={() => setDoToday((v) => !v)}
+        >
+          {doToday ? "✓ In today" : "Do today"}
+        </button>
         <button className="btn" disabled={p.busy || title.trim() === ""} onClick={() => void add()}>
           Add
         </button>
       </div>
+
+      {doneCount > 0 && (
+        <p className="text-[0.7rem] text-[var(--faint)]">{doneCount} done on this venture.</p>
+      )}
+
       <p className="text-[0.7rem] text-[var(--faint)]">
-        Tasks land in the shared pool — the{" "}
-        <Link href="/planner" className="no-underline" style={{ color: "var(--accent)" }}>
-          Planner
-        </Link>{" "}
-        and{" "}
+        Venture work stays here until you send it to{" "}
         <Link href="/day" className="no-underline" style={{ color: "var(--accent)" }}>
           Today
-        </Link>{" "}
-        see them like any other work.
+        </Link>
+        . Nothing is copied — the day screen reads this same task, so there is only ever one of it.
       </p>
+
+      {p.openTasks.length > 0 && (
+        <div className="grid gap-1.5">
+          <p className="text-[0.7rem] text-[var(--faint)]">
+            {p.openTasks.length} older task(s) still sit in the shared pool, added before venture
+            tasks had their own home. They still work — they are just not listed above.
+          </p>
+          <ul className="grid gap-1 list-none p-0 m-0">
+            {p.openTasks.map((t) => (
+              <li key={t.id} className="text-[0.78rem] text-[var(--faint)]">
+                · {t.title}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </>
   );
 }

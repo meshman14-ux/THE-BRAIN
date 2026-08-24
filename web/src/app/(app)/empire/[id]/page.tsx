@@ -37,6 +37,7 @@ import {
   ventureTasks,
   venturesWithNextStep,
 } from "@/lib/logic";
+import type { VentureTaskRow } from "@/lib/venture";
 import { divisionHref, refsForBranch, ventureSlug } from "@/lib/references";
 import { readVentureMonths } from "@/lib/logic";
 import { Panel, Empty, Kpi, Bar, Tag, DriftNote } from "@/components/ui";
@@ -88,6 +89,7 @@ export default async function DivisionPage({
     { data: ventures },
     { data: projects },
     { data: tasks },
+    { data: ventureTaskRows },
     { data: goals },
     { data: assets },
     { data: pillars },
@@ -104,6 +106,10 @@ export default async function DivisionPage({
     supabase
       .from("tasks")
       .select("id, title, notes, pillar_id, project_id, do_date, due_date, priority, status"),
+    supabase
+      .from("venture_tasks")
+      .select("id, venture_id, title, status, priority, due_on, do_date, sort_order")
+      .order("sort_order"),
     supabase.from("goals").select("id, title, target_date, progress, status, pillar_id"),
     supabase
       .from("assets")
@@ -211,6 +217,9 @@ export default async function DivisionPage({
         guidance_url: string | null;
         note: string | null;
       }[]}
+      ventureTasks={((ventureTaskRows ?? []) as (VentureTaskRow & { venture_id: string })[]).filter(
+        (t) => t.venture_id === v.id
+      )}
       tasks={myTasks.map((t) => ({
         id: t.id,
         title: t.title,
