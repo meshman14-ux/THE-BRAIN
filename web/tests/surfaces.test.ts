@@ -32,6 +32,7 @@ describe("the surface strips", () => {
     const real = new Set([
       "/advisor",
       "/advisor/board",
+      "/advisor/table",
       "/diagnose",
       "/reviews",
       "/reviews/quarterly",
@@ -66,10 +67,13 @@ describe("the surface strips", () => {
     //
     // The board joined 2026-08-17 and sits BESIDE the advisor rather than
     // replacing it: the advisor is one voice reading your own data back, the
-    // board is several voices disagreeing about a decision.
+    // board is several voices disagreeing about a decision. The table joined
+    // 2026-08-22 — the Peaky Blinders council, two fixed voices in deliberate
+    // friction over the problem itself.
     expect(ASK_VIEWS.map((v) => v.href)).toEqual([
       "/advisor",
       "/advisor/board",
+      "/advisor/table",
       "/diagnose",
     ]);
   });

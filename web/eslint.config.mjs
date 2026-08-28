@@ -61,6 +61,10 @@ const config = [
       // Fifth file, added deliberately (2026-08-18): MotionToggle reads
       // localStorage on mount, same reasoning as the four above.
       "src/components/cockpit/MotionToggle.tsx",
+      // Sixth file, added deliberately (2026-08-22): the council's
+      // conversation lives in localStorage and is read on mount, same
+      // reasoning again.
+      "src/components/Council.tsx",
     ],
     rules: { "react-hooks/set-state-in-effect": "off" },
   },

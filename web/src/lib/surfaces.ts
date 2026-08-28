@@ -38,6 +38,13 @@ export const ASK_VIEWS: SurfaceView[] = [
   // so one address each — and /advisor keeps its own, which an incoming
   // (brain)/advisor/page.tsx would otherwise have collided with.
   { key: "board", href: "/advisor/board", label: "The board" },
+  // The table joined 2026-08-22: the Peaky Blinders council, two voices in
+  // deliberate friction. The advisor reads your data back, the board casts
+  // seats for a decision, the table argues the problem itself — Tommy's
+  // move against Alfie's uncomfortable truth. Same surface, a fourth
+  // genuinely different question: not "what do my notes say" or "what
+  // would a panel decide" but "what would hard men do".
+  { key: "table", href: "/advisor/table", label: "The table" },
   { key: "diagnose", href: "/diagnose", label: "Diagnose" },
 ];
 

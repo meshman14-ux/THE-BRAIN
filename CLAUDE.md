@@ -891,10 +891,45 @@ would need the floor's target tables only if capture ever writes ticks directly,
 floor deliberately has none: the ticks land as the habit_logs/tasks/journal rows that
 already exist).
 
-Verified in this repo on 2026-08-19 (recounted after the readiness-plan chain):
-**1769/1769 tests pass** across 51 files (vitest),
-`npm run lint` is clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 78 entries
-— 65 pages, `/_not-found`, and 12 API routes.** Every one of these figures is counted from
+**The table landed 2026-08-22** — `/advisor/table`, the Peaky Blinders council, the
+fourth Ask surface (`src/lib/council.ts`, pure, 30 tests; `Council.tsx`;
+`/api/advisor/table`). Two fixed voices in deliberate friction: Tommy Shelby reads the
+position and names the move, Alfie Solomons names the lie underneath the plan, and every
+substantive answer lands in five sections — TOMMY · ALFIE · THE TABLE · THE ORDER ·
+THE PRICE — so no plan leaves without its bill attached. Five modes narrow it (full
+table · Tommy only · Alfie only · By order · The long game). The rules the module
+turns on:
+
+- **NEVER INVENT A QUOTE.** `/claude/quote-bank.md` at the repo root is the canonical
+  bank of approved lines (Jay's own curation, profanity pre-softened); `QUOTES` in
+  `council.ts` is its typed mirror, and `tests/council.test.ts` parses the file off
+  disk and holds the two identical — the ALLOWED_MIME/ACCEPT_DOCUMENT pattern, because
+  the bank travels to the model via `quoteBankBlock()` and a drifted mirror would BE
+  the fabrication the rule forbids. One quote per man per answer; a line already spent
+  in the conversation is named to the model (`usedQuotes`, read from assistant turns
+  only — the user quoting Tommy does not spend the line) so it reaches for a fresh one.
+- **Advisory, never autonomous — decision 6 reaches the table too**, and here trivially:
+  the route reads nothing but the session and writes nothing at all
+  (`COUNCIL_NEVER_WRITES`). The conversation lives in localStorage
+  (`brain-council-v1`) — trolley state, not records, the Meals tick-off rule — the last
+  24 turns travel with each request (`windowTurns`, which also sanitises what comes
+  back OUT of localStorage, jsonb-style), and clearing the table forgets it.
+- **The costume is Birmingham 1922; the advice is for 2026.** Concrete over
+  atmospheric, no real violence ever (real problems get leverage, boundaries,
+  paperwork and walking away), and the theatre drops for genuine distress — care
+  first, character second, written into the standing instructions and tested.
+- `converse()` joined `claude.ts` beside `ask()`: multi-turn, still no tools and no
+  path to a row — what decision 6 rules out is autonomy, not memory. Unlike the ask
+  box there is no half that works without `ANTHROPIC_API_KEY`; the page and the route
+  both say so plainly. The format renders properly (`councilBlocks` /
+  `inlineSegments`, pure and tested) rather than showing raw markdown punctuation.
+  `Council.tsx` is the sixth file on the `set-state-in-effect` exception list (reads
+  localStorage on mount). ⌘K finds it under "The table" with "peaky" as a hint.
+
+Verified in this repo on 2026-08-22 (recounted after the council landed):
+**1799/1799 tests pass** across 52 files (vitest),
+`npm run lint` is clean, `npx tsc --noEmit` is clean, and **`npm run build` emits 80 entries
+— 66 pages, `/_not-found`, and 13 API routes.** Every one of these figures is counted from
 the tool that produces it rather than remembered. That discipline exists because this file
 has drifted twice: §A5 once said 48 routes while §A9 said 39, and on 2026-08-18 §A5 said 1643
 tests while §A9 said 1510 — both wrong, in the same file, at the same time. **When you change
@@ -1729,6 +1764,15 @@ confirming a debt balance is, which is already why Money and People have no phon
                        `advisor_opinions`, assembled by the `advisor` edge
                        function in `board` mode. It answers back; it never
                        acts (§A3 decision 6)
+/(app)/advisor/table   the Peaky Blinders council — Tommy's strategic read
+                       against Alfie's uncomfortable truth, quote-led from
+                       the approved bank at /claude/quote-bank.md, never an
+                       invented line. Five modes; every plan leaves with its
+                       price attached. Conversation lives in the browser;
+                       the route reads nothing and writes nothing (§A3
+                       decision 6)
+/api/advisor/table         POST, the conversation in, the council's answer out.
+                           Saves nothing
 /(app)/capture/[id]    the confirm screen for a document that has been read.
                        One Accept and one Reject PER FIELD — a statement whose
                        balance reads right and whose APR is misread costs you
@@ -2111,9 +2155,9 @@ Run from `web/`:
 npm install
 # .env.local needs the two NEXT_PUBLIC_ values (gitignored; they also live in Vercel)
 npm run dev                    # http://localhost:3000
-npm test                       # 1769 tests — must be green before build
+npm test                       # 1799 tests — must be green before build
 npm run lint                   # ESLint — clean before you push
-npm run build                  # 78 entries — green before you push
+npm run build                  # 80 entries — green before you push
 ```
 
 **Deploys are automatic: push to GitHub `main` and Vercel builds the `the-brain` project from
